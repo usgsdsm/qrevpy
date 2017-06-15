@@ -1,0 +1,278 @@
+
+import sys
+from Classes.MMT_TRDI import MMT_TRDI
+import xmltodict
+from Panels.SelectData import SelectData
+from Panels.MeasurementWidget import MeasurementWidget
+from PyQt5.QtWidgets import (QApplication, QWidget, QMessageBox,  
+                             QDesktopWidget, QPushButton, QToolTip,
+                             QMainWindow, QAction, qApp, QTextEdit,
+                             QLabel, QHBoxLayout, QVBoxLayout,
+                             QFileDialog, QToolBar, QTableWidget,
+                             QTableWidgetItem, QAbstractItemView, QTextEdit,
+                             QSizePolicy, QHeaderView, QGridLayout
+                            )
+
+from PyQt5.QtCore import QCoreApplication, Qt, QPropertyAnimation,  QRect, QByteArray
+from PyQt5.QtGui import QIcon, QFont
+import time
+from functools import partial
+import sip
+
+
+class MainWindow(QMainWindow):
+
+    def __init__(self):
+        super(MainWindow,self).__init__()
+
+        self.active_widget = None
+        self.menushow = True
+        self.buttons = []
+        self.measurement = None
+        self.bootstrap()
+        self.initUI()
+
+    def read_file(self):
+
+        self.statusBar().showMessage('Reading MMT File')
+        self.measurement = \
+            MMT_TRDI(self.select_widget.dialog.selectedFiles()[0])
+
+        self.switch_content(widgetID = 2)
+        self.statusBar().showMessage('Ready')
+
+    def bootstrap(self):
+        self.measure_widget = MeasurementWidget()
+        self.select_widget = self.contentWidget = SelectData()
+        self.select_widget.dialog.fileSelected.connect(self.read_file)
+
+    def initUI(self):
+
+        
+        self.menuWidget = QWidget()
+        self.containerWidget = QWidget()
+        self.grid = QGridLayout()
+        
+        self.grid.addWidget(self.menuWidget,0,0,1,1)
+        self.grid.addWidget(self.contentWidget,0,1,1,1)
+        self.grid.setColumnStretch(0,1)
+        self.grid.setColumnStretch(1,5)
+        self.grid.setHorizontalSpacing(0)
+        self.grid.setVerticalSpacing(20)
+
+        self.containerWidget.setLayout(self.grid);
+
+        self.setCentralWidget(self.containerWidget);
+        
+       
+        
+        self.menuWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+      
+
+   
+        ##menubar
+        saveAction = QAction(QIcon('icon2.png'), '&Save', self)
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('Exti applictaion')
+        saveAction.triggered.connect(self.close)
+        exitAction = QAction(QIcon('icon2.png'), '&Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exti applictaion')
+        exitAction.triggered.connect(self.close)
+        menuAction = QAction(QIcon('icon2.png'), '&Menu', self)
+        menuAction.setShortcut('Ctrl+Q')
+        menuAction.setStatusTip('Expand Menu')
+        menuAction.triggered.connect(self.menu)
+
+       
+        
+
+       
+        #buttons
+        okButton = QPushButton("OK")
+        cancelButton = QPushButton("Cancel")
+
+        ##box layout
+        #hbox = QHBoxLayout()
+        #hbox.addStretch(1)
+        #hbox.addWidget(okButton)
+        #hbox.addWidget(cancelButton)
+
+        #vbox = QVBoxLayout()
+        #vbox.addStretch(1)
+        #vbox.addLayout(hbox)
+
+        #self.setLayout(vbox)
+        
+        ##menu
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(saveAction)
+        fileMenu.addAction(exitAction)
+        
+
+        #tooltip
+        QToolTip.setFont(QFont('ArialBlack', 8))
+        self.setToolTip('This is a <b style="color:red">QWidget</b> widget')
+
+        #toolbar
+        self.toolbar =  QToolBar(self)
+        self.addToolBar(Qt.RightToolBarArea, self.toolbar)
+        self.toolbar.addAction(exitAction)
+        self.toolbar.addAction(menuAction)
+        self.toolbar.setMovable(False)
+
+   
+      
+
+        width = 220
+        height = 40
+        buttons = [
+            {'label': 'Select Data', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': partial(self.switch_content, widgetID = 1), 'icon': 'goodbar.png'},
+           {'label': 'Options', 'size': (width, height), 'tooltip': '<b>Button!</b>','event':partial(self.switch_content, widgetID = 2), 'icon': 'Untitled.png'},
+           {'label': 'ADCP / Site Info', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'Compass / P /R', 'size': (width, height),'tooltip': '<b>Button!</b>','event': None, 'icon': 'cautionbar.png'},
+           {'label': 'Temp / Salinity', 'size': (width, height),'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'Moving-bed Test', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'errorbar.png'},
+           {'label': 'BT Filters', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'GPS Filters', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'cautionbar.png'},
+           {'label': 'Select Reference', 'size': (width, height),'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'Depth Filters', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'WT Filters', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'cautionbar.png'},
+           {'label': 'Extrapolation', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'Edges', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'goodbar.png'},
+           {'label': 'Save', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'Untitled.png'},
+           {'label': 'View Comments', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'Untitled.png'},
+           {'label': 'Close', 'size': (width, height), 'tooltip': '<b>Button!</b>','event': None, 'icon': 'Untitled.png'}
+           #self.close
+        ]
+
+        space = 50
+        start = 10
+        for x in buttons:
+
+            x['position'] = (10,start)
+            self.make_button(**x)
+            start = start + space
+       
+      
+
+        #statusbar
+        self.statusBar().showMessage('Ready')
+
+        #set window properties
+        self.setGeometry(0,0,1500,900)
+        self.setWindowTitle("QRev - 4.1")
+        self.setWindowIcon(QIcon('icon.png'))
+
+      
+
+        self.center()
+        self.show()
+
+    def closeEvent(self, event):
+
+        QCoreApplication.instance().quit
+        #messageBox = QMessageBox()
+        #messageBox.setWindowIcon(QIcon('icon2.png'))
+
+        #reply = messageBox.question(self, 'Message',
+        #                              'Are you sure you want to <b style="color:red">quit</b>?', QMessageBox.Yes |
+        #                              QMessageBox.No, QMessageBox.No)
+     
+
+        #if reply == QMessageBox.Yes:
+        #    event.accept()
+        #else:
+        #    event.ignore()
+
+    def center(self):
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+    def make_button(self, label, size, position, tooltip, event, icon):
+
+        btn = QPushButton(label, self.menuWidget)
+       
+        btn.setStyleSheet("QPushButton { font-weight: bold; font-size: 14pt; background-image: url(%s)}"
+                          "QPushButton:hover {background-image: url(Hover.png) }" % icon)
+        #brute force quit  QCoreApplication.instance().quit
+        
+        btn.resize(size[0],size[1])
+        btn.move(position[0],position[1])
+        btn.setEnabled(True);
+        if tooltip is not None:
+            btn.setToolTip(tooltip)
+        if event is not None:
+            btn.clicked.connect(event)
+
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.buttons.append(btn)
+        
+
+    def bold_me(self, val):
+       
+        return "<b>%s</b>" % str(val)
+
+    def menu(self):
+
+        def resize_layout():
+            if self.menushow == True:
+               
+                self.menuWidget.setMaximumWidth(0)
+                [x.hide() for x in self.buttons]
+            else:
+                
+                self.menuWidget.setMaximumWidth(300)
+                
+
+            self.menushow = not self.menushow
+            
+        if self.menushow == True:
+            animation = QPropertyAnimation(self)
+            animation.setPropertyName(QByteArray().append('geometry'))
+            animation.setTargetObject(self.menuWidget)
+            animation.setDuration(500)
+            animation.setStartValue(QRect(10,10,300,900))
+            animation.setEndValue(QRect(10,10,0,900))
+            animation.finished.connect(resize_layout)
+            animation.start()
+            
+
+        else:
+            resize_layout()
+         
+            animation = QPropertyAnimation(self)
+            animation.setPropertyName(QByteArray().append('geometry'))
+            animation.setTargetObject(self.menuWidget)
+            animation.setDuration(500)
+            animation.setStartValue(QRect(11,11,0,900))
+            animation.setEndValue(QRect(11,11,300,900))
+            animation.start()
+            [x.show() for x in self.buttons]
+
+
+    def switch_content(self, widgetID):
+
+        
+        self.contentWidget.setParent(None)
+
+        if widgetID == 1:
+            self.contentWidget = self.select_widget
+        else:
+            self.contentWidget = self.measure_widget
+
+        self.grid.addWidget(self.contentWidget,0,1,1,1)
+
+
+if __name__ == '__main__':
+
+    app = QApplication(sys.argv)
+
+    ex = MainWindow()
+
+    sys.exit(app.exec_())
+
