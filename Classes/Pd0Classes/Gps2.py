@@ -16,7 +16,7 @@ class Gps2(object):
         Constructor
         '''
         self.gga_delta_time =  np.empty([n_ensembles, 20])
-        self.gga_header = repmat([''],7,n_ensembles)
+        self.gga_header = ['']*n_ensembles
         self.gga_sentence = ['']*n_ensembles
         self.utc =   np.empty([n_ensembles, 20])
         self.lat_deg =   np.empty([n_ensembles, 20])
@@ -24,7 +24,7 @@ class Gps2(object):
         self.lon_deg =   np.empty([n_ensembles, 20])
         self.lon_ref =  ['']*n_ensembles
         self.corr_qual =   np.empty([n_ensembles, 20])
-        self.num_stats =   np.empty([n_ensembles, 20])
+        self.num_sats =   np.empty([n_ensembles, 20])
         self.hdop =   np.empty([n_ensembles, 20])
         self.alt =   np.empty([n_ensembles, 20])
         self.alt_unit =  ['']*n_ensembles
@@ -48,7 +48,7 @@ class Gps2(object):
         self.dbt_header = repmat([''],7,n_ensembles)
         self.depth_ft = np.empty([n_ensembles, 20])
         self.ft_indicator = np.empty([n_ensembles, 20])
-        self.depth_m = np.empty([n_ensembles,20])
+        self.depth_m = np.zeros([n_ensembles,20])
         self.m_indicator = ['']*n_ensembles
         self.depth_fath = np.empty([n_ensembles, 20])
         self.fath_indicator = ['']*n_ensembles

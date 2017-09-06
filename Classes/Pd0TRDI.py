@@ -5,6 +5,7 @@ Created on Jun 14, 2017
 '''
 
 import numpy as np
+from numpy.matlib import repmat
 import struct
 import os
 import re
@@ -19,13 +20,14 @@ from Pd0Classes.Gps2 import Gps2
 from Pd0Classes.Surface import Surface
 from Pd0Classes.AutoMode import AutoMode
 from Pd0Classes.Nmea import Nmea
+from scipy.special._ufuncs import sindg, cosdg
 
 class Pd0TRDI(object):
     '''Class to extract data from PD0 files
-        Analalogous to matlab class: clsPd0TRDI
+        Analogous to matlab class: clsPd0TRDI
     '''
     
-    def __init__(self):
+    def __init__(self, file_name):
         '''Constructor initializing properties'''
         
         self.file_name = None
@@ -42,7 +44,10 @@ class Pd0TRDI(object):
         self.AutoMode = None
         self.Nmea = None
         
+        self.pd_read(file_name, None)
+        
     def create_classes(self, **kargs):
+#         print kargs['n_ensembles']
         self.Hdr = Hdr(kargs['n_ensembles'],kargs['n_types'])
         self.Inst = Inst(kargs['n_ensembles'])
         self.Cfg = Cfg(kargs['n_ensembles'])
@@ -55,14 +60,7 @@ class Pd0TRDI(object):
         self.AutoMode = AutoMode(kargs['n_ensembles'])
         self.Nmea = Nmea(kargs['n_ensembles'])
         
-    def initialize_pd0(self, pathname, files):
-        '''Begins the pd0 file read process'''
-        
-        for x in files:
-            self.pd_read(x, None)
-            
-   
-        
+
     def pd_read(self, fullname, args=0):
         n_velocities = 4
         max_surface_bins = 5
@@ -89,7 +87,7 @@ class Pd0TRDI(object):
                 n_bins = np.fromfile(f, np.uint8,count=1)[0]
              
                 n_ensembles = self.number_of_ensembles(f, file_info)
-                print 'n of ens', n_ensembles
+#                 print 'n of ens', n_ensembles
             
                
                 
@@ -109,7 +107,7 @@ class Pd0TRDI(object):
                 end_file = file_info
                 i_data_types = 0
                 n_data_types = 1
-                RR_BtDepth_correction = np.empty([n_beams, n_ensembles])
+                RR_BtDepth_correction = repmat([np.nan], n_beams, n_ensembles)
                 
                 f.seek(initial_pos, 0)
                   
@@ -133,8 +131,9 @@ class Pd0TRDI(object):
                         else:
                             i_data_types = 0
                             store_file_loc = f.tell()
+                            bytes_per_ens = np.fromfile(f, np.uint16, count=1)[0]
                             
-                            if self.check_sum(f,file_loc):
+                            if self.check_sum(f,file_loc, bytes_per_ens):
                                 f.seek(file_loc+5,0)
                                 n_data_types = np.fromfile(f, np.uint8, count=1)[0]
                                 data_offsets = np.fromfile(f, np.uint16, count=n_data_types)
@@ -171,8 +170,12 @@ class Pd0TRDI(object):
                                 f.seek(file_loc+5,0)
                                 self.Hdr.n_data_types[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                                 test = np.fromfile(f, np.uint16,count=int(self.Hdr.n_data_types[i_ens]))
-                                print test.shape, self.Hdr.data_offsets.shape
-                                self.Hdr.data_offsets[i_ens,0:int(self.Hdr.n_data_types[i_ens])] = test
+                                
+                            
+                                if test.shape[0] > self.Hdr.data_offsets.shape[1]:
+                                    self.Hdr.data_offsets.resize(n_ensembles, test.shape[0])
+#                                 
+                                self.Hdr.data_offsets[i_ens,0:int(self.Hdr.n_data_types[i_ens])] = test[0:int(self.Hdr.n_data_types[i_ens])]
                                   
                                 self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                                     
@@ -360,7 +363,6 @@ class Pd0TRDI(object):
                         self.Sensor.pitch_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0] / 10
                         self.Sensor.roll_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1) / 10
                         self.Sensor.xmit_current[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
-                        self.Sensor.xmit_current[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.xmit_voltage[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.ambient_temp[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.pressure_pos[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
@@ -388,11 +390,11 @@ class Pd0TRDI(object):
                         #update data types counter
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.vel_mps.shape[1]:
-                            self.Cfg.wn[i_ens] = self.Wt.vel_mps.shape[1]
+                            self.Wt.vel_mps.resize([self.Wt.vel_mps.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.vel_mps.shape[2]])
                             
                         dummy = np.fromfile(f, np.int16, count=int(self.Cfg.wn[i_ens] *4))
-                        dummy = np.reshape(dummy,[n_velocities,int(self.Cfg.wn[i_ens])])
-                        self.Wt.vel_mps[:n_velocities,:int(self.Cfg.wn[i_ens]),i_ens] = dummy
+                        dummy = np.reshape(dummy,[int(self.Cfg.wn[i_ens]), n_velocities])
+                        self.Wt.vel_mps[:n_velocities,:int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                             
@@ -400,7 +402,7 @@ class Pd0TRDI(object):
                         
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.corr.shape[1]:
-                            self.Cfg.wn[i_ens] = self.Wt.corr.shape[1]
+                            self.Wt.corr.resize([self.Wt.corr.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.corr.shape[2]])
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
                         dummy = np.reshape(dummy, [n_velocities,int(self.Cfg.wn[i_ens])])
                         self.Wt.corr[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy
@@ -411,7 +413,7 @@ class Pd0TRDI(object):
                         
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.rssi.shape[1]:
-                            self.Cfg.wn[i_ens] = self.Wt.rssi.shape[1]
+                            self.Wt.rssi.resize([self.Wt.rssi.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.rssi.shape[2]])
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
                         dummy = np.reshape(dummy, [n_velocities,int(self.Cfg.wn[i_ens])])
                         self.Wt.rssi[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy
@@ -436,7 +438,7 @@ class Pd0TRDI(object):
                         #read bottom track configuration data
                         self.Cfg.bp[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
                         long1 = np.fromfile(f, np.uint16, count=1)[0]
-                        self.Cfg.bc[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
+                        self.Cfg.bc[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Cfg.ba[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Cfg.bg[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Cfg.bm[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
@@ -459,7 +461,7 @@ class Pd0TRDI(object):
                         
                         #read bottom-track evaluation amplitude
                         dummy = np.fromfile(f, np.uint8, count=4)
-                        self.Bt.eval_amp = dummy.T
+                        self.Bt.eval_amp[0:4, i_ens] = dummy.T
                         
                         #read bottom-track percent good
                         dummy = np.fromfile(f, np.uint8, count=4)
@@ -515,6 +517,7 @@ class Pd0TRDI(object):
                         f.seek(1,1)
                         self.Gps.gsa_sat[i_ens,4] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Gps.gsa_sat[i_ens,5] = np.fromfile(f, np.uint8, count=1)[0]
+                        self.Gps.gga_diff[i_ens] = np.fromfile(f,np.uint8, count=1)[0]
                         
                         dummy = np.fromfile(f,np.uint8, count=1)[0]
                         if dummy != 0:
@@ -563,7 +566,7 @@ class Pd0TRDI(object):
                                 self.Gps2.lon_ref[:,j100] = ''
                                 self.Gps2.lon_deg[:,j100] = np.nan
                                 self.Gps2.corr_qual[:,j100] = np.nan
-                                self.Gps2.num_stats[:,j100] = np.nan
+                                self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
                                 self.Gps2.alt_unit[:,j100] = ''
@@ -585,7 +588,7 @@ class Pd0TRDI(object):
                             self.Gps2.lon_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
                             self.Gps2.lon_ref[i_ens,j100] = struct.unpack("s", f.read(1))[0]
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
-                            self.Gps2.num_stats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
+                            self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt_unit[i_ens,j100] = struct.unpack("s", f.read(1))[0]
@@ -667,7 +670,7 @@ class Pd0TRDI(object):
                                 self.Gps2.lon_deg[:,j100] = np.nan
                                 self.Gps2.lon_ref[:,j100] = ''
                                 self.Gps2.corr_qual[:,j100] = np.nan
-                                self.Gps2.num_stats[:,j100] = np.nan
+                                self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
                                 self.Gps2.alt_unit[:,j100] = ''
@@ -677,23 +680,23 @@ class Pd0TRDI(object):
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
                             self.Gps2.lat_deg[i_ens,j100] = delta_time
-                            self.Gps2.gga_header[i_ens,j100] = ''.join(struct.unpack('s'*7, f.read(7)))
+                            self.Gps2.gga_header[i_ens] = ''.join(struct.unpack('s'*7, f.read(7)))
                             try:
                                 temp = ''.join(struct.unpack('s'*10, f.read(10)))
                                 self.Gps2.utc[i_ens,j100] = float(re.match('[0-9]+\.[0-9]+', temp))
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lat_ref[i_ens,j100] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.lat_ref[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.lon_deg[i_ens, j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lon_ref[i_ens,j100] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.lon_ref[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
-                            self.Gps2.num_stats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
+                            self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.alt_unit[i_ens,j100] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.alt_unit[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.geoid[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.geoid_unit[i_ens,j100] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.geoid_unit[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.d_gps_age[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.ref_stat_id[i_ens,j100] = np.fromfile(f, np.int16, count=1)[0]
                             
@@ -714,16 +717,16 @@ class Pd0TRDI(object):
                                 self.Gps2.mode_indicator[:,j101] = ''
                                 
                             self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                            self.Gps2.vtg_header[i_ens,j101] = ''.join(struct.unpack('s'*7, f.read(7)))
+                            self.Gps2.vtg_header[i_ens] = ''.join(struct.unpack('s'*7, f.read(7)))
                             self.Gps2.course_true[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.true_indicator[i_ens,j101] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.true_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.course_mag[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.mag_indicator[i_ens,j101] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.mag_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.speed_knots[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.knots_indicator[i_ens,j101] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.knots_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
                             self.Gps2.speed_k_mph[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens, j101] = struct.unpack('s', f.read(1))[0]
-                            self.Gps2.mode_indicator[i_ens, j101] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.kmph_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.mode_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
                             
                         elif specific_id == 106:
                             j102 += 1
@@ -773,7 +776,7 @@ class Pd0TRDI(object):
                                 self.Gps2.lat_ref = ''
                                 self.Gps2.lon_deg = np.nan
                                 self.Gps2.corr_qual[:,j100] = np.nan
-                                self.Gps2.num_stats[:,j100] = np.nan
+                                self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
                                 self.Gp2.alt_unit[:,j100] = ''
@@ -802,7 +805,7 @@ class Pd0TRDI(object):
                                 self.Gps2.lon_deg[i_ens,j100] = lon_deg
                                 self.Gps2.lon_ref = temp_array[5]
                                 self.Gps2.corr_qual[i_ens,j100] = float(temp_array[6])
-                                self.Gps2.num_stats[i_ens,j100] = float(temp_array[7])
+                                self.Gps2.num_sats[i_ens,j100] = float(temp_array[7])
                                 self.Gps2.hdop[i_ens,j100] = float(temp_array[8])
                                 self.Gps2.alt[i_ens,j100] = float(temp_array[9])
                                 self.Gps2.alt_unit[i_ens,j100] = temp_array[10]
@@ -914,7 +917,7 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc+2,0)   
+                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+2,0)   
                         #Read DBT sentence
                         self.Nmea.dbt[i_ens] = ''.join(struct.unpack('s'*38, f.read(38)))
 
@@ -924,16 +927,16 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc+4,0)   
+                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
                             num_2_read = self.Hdr.data_offsets[i_ens,i_data_types] - self.Hdr.data_offsets[i_ens,i_data_types - 1] - 4
                         else:
-                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types] - 6 
+                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                             
                         #Read GGA sentence
-                        self.Nmea.gga[i_ens] = ''.join(struct.unpack("s"*num_2_read, f.read(num_2_read)))  
+                        self.Nmea.gga[i_ens] = ''.join(struct.unpack("s"*int(num_2_read), f.read(int(num_2_read))))  
                               
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                     
@@ -941,16 +944,16 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc+4,0)   
+                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
                             num_2_read = self.Hdr.data_offsets[i_ens,i_data_types] - self.Hdr.data_offsets[i_ens,i_data_types - 1] - 4
                         else:
-                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types] - 6 
+                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                           
                         #Read VTG sentence
-                        self.Nmea.vtg[i_ens] = ''.join(struct.unpack("s"*num_2_read, f.read(num_2_read)))  
+                        self.Nmea.vtg[i_ens] = ''.join(struct.unpack("s"*int(num_2_read), f.read(int(num_2_read))))  
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -958,13 +961,13 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc+4,0)   
+                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
                             num_2_read = self.Hdr.data_offsets[i_ens,i_data_types] - self.Hdr.data_offsets[i_ens,i_data_types - 1] - 4
                         else:
-                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types] - 6 
+                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                             
                         #Read GSA sentence
                         self.Nmea.gsa[i_ens] = ''.join(struct.unpack("s"*num_2_read, f.read(num_2_read)))  
@@ -987,8 +990,8 @@ class Pd0TRDI(object):
                         i_data_types += 1 
                         
                         dummy = np.fromfile(f, np.int16, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,self.Surface.no_cells[i_ens]])
-                        self.Surface.vel_mps[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy
+                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
+                        self.Surface.vel_mps[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -999,8 +1002,8 @@ class Pd0TRDI(object):
                         i_data_types += 1 
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,self.Surface.no_cells[i_ens]])
-                        self.Surface.corr[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy
+                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
+                        self.Surface.corr[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1010,8 +1013,8 @@ class Pd0TRDI(object):
                         i_data_types += 1
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,self.Surface.no_cells[i_ens]])
-                        self.Surface.rssi[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy
+                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
+                        self.Surface.rssi[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1118,10 +1121,10 @@ class Pd0TRDI(object):
                         
                         i_data_types += 1
                         
-                        self.Inst.t_matrix[0,:] = np.fromfile(f, np.int16, count=1)[0] * .0001
-                        self.Inst.t_matrix[1,:] = np.fromfile(f, np.int16, count=1)[0] * .0001
-                        self.Inst.t_matrix[2,:] = np.fromfile(f, np.int16, count=1)[0] * .0001
-                        self.Inst.t_matrix[3,:] = np.fromfile(f, np.int16, count=1)[0] * .0001
+                        self.Inst.t_matrix[0,:] = np.fromfile(f, np.int16, count=4) * .0001
+                        self.Inst.t_matrix[1,:] = np.fromfile(f, np.int16, count=4) * .0001
+                        self.Inst.t_matrix[2,:] = np.fromfile(f, np.int16, count=4) * .0001
+                        self.Inst.t_matrix[3,:] = np.fromfile(f, np.int16, count=4) * .0001
                     
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1166,6 +1169,79 @@ class Pd0TRDI(object):
                     if end_file_check < end_file:
                         end_file_check = f.tell()   
                     
+                # Screen for bad data, and do the unit conversions
+                self.Wt.vel_mps[self.Wt.vel_mps == -32768] = np.nan
+                self.Wt.vel_mps = self.Wt.vel_mps / 1000
+                self.Wt.corr[self.Wt.corr == -32768] = np.nan
+                self.Wt.rssi[self.Wt.rssi == -32768] = np.nan
+                self.Wt.pergd[self.Wt.pergd == -32768] = np.nan
+                
+                #Remove bad data, convert units
+                self.Bt.depth_m[self.Bt.depth_m == -32768] = np.nan
+                self.Bt.depth_m = self.Bt.depth_m / 100
+                self.Bt.corr[self.Bt.corr == -32768] = np.nan
+                self.Bt.vel_mps = self.Bt.vel_mps / 1000
+                self.Bt.corr[self.Bt.corr == 32768] = np.nan
+                self.Bt.eval_amp[self.Bt.eval_amp == -32768] = np.nan
+                self.Bt.pergd[self.Bt.pergd == -32768] = np.nan
+                
+                # Correct Bt.depth_m for RiverRay data
+                if np.prod(RR_BtDepth_correction == np.nan) == 0:
+                    self.RR_BtDepth_correction = RR_BtDepth_correction
+                    self.RR_BtDepth_correction[self.RR_BtDepth_correction == (-32768*2e16)/100] = np.nan
+                    self.Bt.depth_m += RR_BtDepth_correction
+                    
+                # Remove bad data from Surface structure (RR), convert where needed
+                self.Surface.vel_mps[self.Surface.vel_mps == -32768] = np.nan
+                self.Surface.vel_mps = self.Surface.vel_mps / 1000
+                self.Surface.corr[self.Surface.corr == -32768] = np.nan
+                self.Surface.rssi[self.Surface.rssi == -32768] = np.nan
+                self.Surface.pergd[self.Surface.pergd == -32768] = np.nan
+                
+                if self.WR2:
+                    
+                    #if vtg data are available compute north and east components
+                    if self.Gps2.vtg_header[0,0] == '$':
+                        
+                        # Find minimum of absolute value of delta time from raw data
+                        vtg_delta_time = np.abs(self.Gps2.vtg_delta_time)
+                        vtg_min = np.nanmin(vtg_delta_time)
+                        
+                        # compute the velocity components in m/s
+                        for i in range(len(vtg_delta_time)):
+                            idx = np.where(vtg_delta_time == vtg_min)[0][0]
+                            self.Gps2.vtg_velE_mps[i], self.Gps2.vtg_velN_mps[i] = \
+                            self.pol2cart((90 - self.Gps2.course_true[i,idx])*np.pi/180,
+                                           self.Gps2.speed_k_mph[i,idx] * 0.2777778)
+                            
+                    if self.Gps2.gga_header[0,0] == '$':
+                        
+                        idx = None
+                        e_radius = 6378137
+                        coeff = e_radius * np.pi / 180
+                        ellip = 1 / 298.257223563
+                        #Find minimum of absolute value of delta time from raw data
+                        gga_delta_time = np.abs(self.Gps2.gga_delta_time)
+                        gga_min = np.nanmin(gga_delta_time, axis=1)
+                        
+                        for i in range(len(self.gga_delta_time)):
+                            idx = np.where(gga_delta_time[i:] == gga_min)
+                            if idx > 0:
+                                L = (self.Gps2.lat_deg[i,idx[i]]+self.Gps2.lat_deg[i-1,idx[i-1]]) / 2
+                                sL = sindg(L)
+                                RE = coeff * (1+ellip * sL * sL)
+                                RN = coeff * (1 - 2*ellip + 3*ellip * sL * sL)
+                                dx = RE * (self.Gps2.lon_deg[i, idx[i]] - self.Gps2.lon_deg(i-1,idx(i-1))) * cosdg(L)
+                                dy = RN * (self.Gps2.lat_deg[i, idx[i]] - self.Gps2.lat_deg[i-1,idx[i-1]])
+                                dt = self.Gps2.utc[i,idx[i]] - self.Gps2.utc[i-1,idx[i-1]]
+                                self.Gps2.gga_vel_e_mps[i] = dx / dt
+                                self.Gps2.gga_velN_mps[i] = dy / dt
+                            else:
+                                self.Gps2.gga_velE_mps = np.nan
+                                self.Gps2.gga_velN_mps = np.nan
+                         
+                            
+                    
                    
                       
                     
@@ -1203,7 +1279,7 @@ class Pd0TRDI(object):
                 
 
             last_num = self.find_ens_no(f)
-            print 'last ens no', last_num
+#             print 'last ens no', last_num
             if last_num is None or np.isnan(last_num):
                 last_num = -1
             
@@ -1240,7 +1316,7 @@ class Pd0TRDI(object):
                     
                 #if the correct hexadecimal is found return ensemble number, otherwise -1
                     if leader_id == '0x80':
-                        print 'ftell of found x80', f.tell()
+#                         print 'ftell of found x80', f.tell()
                         return np.fromfile(f, np.uint16, count=1)[0]
     
                
@@ -1301,7 +1377,7 @@ class Pd0TRDI(object):
         
     def bad_check_sum(self, f, file_loc):
         
-        print 'Bad Checksum New Code'
+#         print 'Bad Checksum New Code'
         search_id='    '
         search_loc = file_loc+2
         while search_id != '0x7f7f':
@@ -1313,50 +1389,45 @@ class Pd0TRDI(object):
             except:
                 continue
         f.seek(search_loc,0)
-        print 'Done with bad check sum'
+#         print 'Done with bad check sum'
         
     def end_reading(self, f, file_loc, i_data_types, i_ens, bytes_per_ens):
-        if i_data_types < self.Hdr.n_data_types[i_ens]:
+        if i_data_types + 1 <= self.Hdr.n_data_types[i_ens]:
                             f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc,0)
         else:
             f.seek(file_loc+bytes_per_ens-2,0) 
+            
+    def pol2cart(self, rho, phi):
+        x = rho * np.cos(phi)
+        y = rho * np.sin(phi)
+        return(x, y)
        
 # -------------------------------------------------thus far testing individual pd0 file extraction until comfortable  
 if __name__ == '__main__':
 #     
-#     files = [r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_000.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_001.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_002.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_003.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_004.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_005.PD0']
-#       
-#     a = Pd0TRDI()
-#     a.initialize_pd0('test', files)
-#     
-#     files = [r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14_LBT.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_001_14-04-14.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_002_14-04-14.PD0',
-#              r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_003_14-04-14.PD0'
-#              ]
-#       
-#     b = Pd0TRDI()
-#     b.initialize_pd0('test', files)
-    
-#     files = [
-#         r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000_LBT.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_001.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RR_Multi_Cal\05LC004_20140812.AQ1_0_001.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000_LBT.PD0',
-#             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_001.PD0'
-#             ]
+    files = [r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_000.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_001.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_002.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_003.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_004.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_005.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14_LBT.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_001_14-04-14.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_002_14-04-14.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_003_14-04-14.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000_LBT.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_001.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RR_Multi_Cal\05LC004_20140812.AQ1_0_001.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000_LBT.PD0',
+             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_001.PD0'
+            ]
       
-    c = Pd0TRDI()
-    c.initialize_pd0('test', files)
-        
+    c = [Pd0TRDI(x) for x in files]
+    
+
         
             
                 

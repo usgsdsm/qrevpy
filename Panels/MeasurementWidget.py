@@ -69,7 +69,7 @@ class MeasurementWidget(QWidget):
         self.expand.append(True)
         self.aLayout.addWidget(collapse_widget)
         self.aLayout.addWidget(self.datatables[0])
-         #---------------------------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------------------------
 
         self.chbx1, self.chbx2, self.chbx3, self.chbx4 = QCheckBox(), QCheckBox(), QCheckBox(),QCheckBox()
         data = [['Use','', self.chbx1,self.chbx2, self.chbx3, self.chbx4],
@@ -88,7 +88,7 @@ class MeasurementWidget(QWidget):
         self.expand.append(True)
         self.aLayout.addWidget(collapse_widget)
         self.aLayout.addWidget(self.datatables[1])
-         #---------------------------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------------------------
 
         self.chbx1, self.chbx2, self.chbx3, self.chbx4 = QCheckBox(), QCheckBox(), QCheckBox(),QCheckBox()
         data = [['Use','', self.chbx1,self.chbx2, self.chbx3, self.chbx4],

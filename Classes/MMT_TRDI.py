@@ -12,6 +12,8 @@ class MMT_TRDI(object):
         self.project = {}
         self.site_info = {}
         self.transects = []
+        self.field_config = None
+        self.active_config = None
         self.summary_None = None
         self.summary_BT = None
         self.summary_GGA = None
@@ -127,7 +129,7 @@ class MMT_TRDI(object):
         #iterate through each key and value of the list
         for x,y in enumerate(transects):
             trans = Transect(y)
-            self.mbt_transects.append(Transect(y, True))
+            self.mbt_transects.append(Transect(y))
 
             if 'Moving_Bed_Test_Summary' in moving_bed.keys():
                 if 'MB_Tests' in moving_bed['Moving_Bed_Test_Summary']:
@@ -190,6 +192,9 @@ class MMT_TRDI(object):
                         sum_dict[key2] = []
 
                     sum_dict[key2].append(float(val2))
+                    
+                    
+       
 
 
                 

@@ -1,6 +1,6 @@
 
 import sys
-from Classes.MMT_TRDI import MMT_TRDI
+from Classes.Measurement import Measurement
 import xmltodict
 from Panels.SelectData import SelectData
 from Panels.MeasurementWidget import MeasurementWidget
@@ -32,11 +32,12 @@ class MainWindow(QMainWindow):
         self.bootstrap()
         self.initUI()
 
-    def read_file(self):
+    def read_trdi_file(self):
 
         self.statusBar().showMessage('Reading MMT File')
+        print self.select_widget.dialog.selectedFiles()[0]
         self.measurement = \
-            MMT_TRDI(self.select_widget.dialog.selectedFiles()[0])
+            Measurement(self.select_widget.dialog.selectedFiles()[0])
 
         self.switch_content(widgetID = 2)
         self.statusBar().showMessage('Ready')
@@ -44,11 +45,10 @@ class MainWindow(QMainWindow):
     def bootstrap(self):
         self.measure_widget = MeasurementWidget()
         self.select_widget = self.contentWidget = SelectData()
-        self.select_widget.dialog.fileSelected.connect(self.read_file)
+        self.select_widget.dialog.fileSelected.connect(self.read_trdi_file)
 
     def initUI(self):
 
-        
         self.menuWidget = QWidget()
         self.containerWidget = QWidget()
         self.grid = QGridLayout()
@@ -65,12 +65,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.containerWidget);
         
        
-        
         self.menuWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
       
-
-   
         ##menubar
         saveAction = QAction(QIcon('icon2.png'), '&Save', self)
         saveAction.setShortcut('Ctrl+S')
@@ -85,10 +82,7 @@ class MainWindow(QMainWindow):
         menuAction.setStatusTip('Expand Menu')
         menuAction.triggered.connect(self.menu)
 
-       
-        
 
-       
         #buttons
         okButton = QPushButton("OK")
         cancelButton = QPushButton("Cancel")
@@ -271,8 +265,25 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)
-
+      
     ex = MainWindow()
-
+          
+    excepthook = sys.excepthook
+      
+    def my_exception_hook(exctype, value, traceback):
+        # Print the error and traceback
+        print(exctype, value, traceback)
+        # Call the normal Exception hook after
+        excepthook(exctype, value, traceback)
+        sys.exit(1)
+          
+    # Set the exception hook to our wrapping function
+    sys.excepthook = my_exception_hook
+      
     sys.exit(app.exec_())
+     
+#     Measurement('C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RG_1308000_359/13038000_359.mmt')
+#     Measurement('C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RG_Multi_Eval/11523000_752.mmt')
+#     Measurement('C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RR_Multi_Cal/05LC004_20140812.AQ1_0.mmt')
+#     
 

@@ -46,6 +46,6 @@ class Sensor(object):
         self.vert_beam_RSSI_amp = np.empty(n_ensembles)
         self.vert_beam_range_m = np.empty(n_ensembles)
         self.vert_beam_gain = ['']*n_ensembles
-        self.vert_beam_status = np.empty(n_ensembles)
+        self.vert_beam_status = np.zeros(n_ensembles)
         
         
