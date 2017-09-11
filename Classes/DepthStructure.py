@@ -154,8 +154,8 @@ class DepthStructure(object):
             comp_source = np.zeros(obj.depth_processed_m.shape)
             
             if ref == 'bt_depths':
-                valid = np.nansum(obj.valid_data)
-                comp_source[valid > 1] = 1
+                obj.valid_data[np.isnan(obj.valid_data)] = False
+                comp_source[obj.valid_data] = 1
             elif ref == 'vb_depths':
                 comp_source[obj.valid_data] = 2
             elif ref == 'ds_depths':

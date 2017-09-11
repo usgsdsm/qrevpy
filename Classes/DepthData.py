@@ -237,7 +237,7 @@ class DepthData(object):
         
         if self.depth_source == 'BT':
             self.valid_data = np.array([True for x in range(self.valid_beams.shape[1])])
-            nvalid = np.sum(self.valid_beams)
+            nvalid = np.sum(self.valid_beams, axis=0)
             
             if self.valid_data_method == 'TRDI':
                 self.valid_data[nvalid<3] = False

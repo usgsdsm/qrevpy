@@ -151,7 +151,7 @@ class MMT_TRDI(object):
                 elif file_name[fidx+1:] == 'LBT':
                     trans.set_moving_bed_type('Loop')
                 else:
-                    print 'question'
+                    print ('question')
 
 
     def mmtqsum(self, data):

@@ -2,7 +2,7 @@ from Classes.MMT_TRDI import MMT_TRDI
 import numpy as np
 import os
 from Classes.TransectData import TransectData
-from Pd0TRDI import Pd0TRDI
+from Classes.Pd0TRDI import Pd0TRDI
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI

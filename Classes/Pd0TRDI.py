@@ -9,17 +9,17 @@ from numpy.matlib import repmat
 import struct
 import os
 import re
-from Pd0Classes.Hdr import Hdr
-from Pd0Classes.Inst import Inst
-from Pd0Classes.Cfg import Cfg
-from Pd0Classes.Sensor import Sensor
-from Pd0Classes.Wt import Wt
-from Pd0Classes.Bt import Bt
-from Pd0Classes.Gps import Gps
-from Pd0Classes.Gps2 import Gps2
-from Pd0Classes.Surface import Surface
-from Pd0Classes.AutoMode import AutoMode
-from Pd0Classes.Nmea import Nmea
+from Classes.Pd0Classes.Hdr import Hdr
+from Classes.Pd0Classes.Inst import Inst
+from Classes.Pd0Classes.Cfg import Cfg
+from Classes.Pd0Classes.Sensor import Sensor
+from Classes.Pd0Classes.Wt import Wt
+from Classes.Pd0Classes.Bt import Bt
+from Classes.Pd0Classes.Gps import Gps
+from Classes.Pd0Classes.Gps2 import Gps2
+from Classes.Pd0Classes.Surface import Surface
+from Classes.Pd0Classes.AutoMode import AutoMode
+from Classes.Pd0Classes.Nmea import Nmea
 from scipy.special._ufuncs import sindg, cosdg
 
 class Pd0TRDI(object):
@@ -445,7 +445,7 @@ class Pd0TRDI(object):
                         self.Cfg.be_mmps[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
                         
                         #read winriver 10.06 fromat GPS data
-                        self.Gps.lat_deg[i_ens] = (np.fromfile(f, np.int32, count=1)[0]/2)^31 * 180
+                        self.Gps.lat_deg[i_ens] = (np.fromfile(f, np.int32, count=1)[0]/2)**31 * 180
                         
                         #read the Least Significant Bytes for beam depths
                         dummy = np.fromfile(f, np.uint16, count=4)
@@ -475,7 +475,7 @@ class Pd0TRDI(object):
                             self.Gps.altm[i_ens] = np.nan
                             
                         long2 = np.fromfile(f, np.uint16, count=1)[0]
-                        self.Gps.long_deg[i_ens] = ((long1+long2*2^16)/2^31)*180
+                        self.Gps.long_deg[i_ens] = ((long1+long2*2**16)/2**31)*180
                         if self.Gps.long_deg[i_ens] > 180:
                             self.Gps.long_deg[i_ens] -= 360
                             
@@ -577,23 +577,23 @@ class Pd0TRDI(object):
                                 
                             self.Gps2.gga_delta_time[i_ens,j100] = delta_time
                             self.Gps2.gga_header[i_ens,j100]
-                            temp = re.match('[0-9]+\.[0-9]+', ''.join(struct.unpack('s'*10, f.read(10))))
+                            temp = re.match('[0-9]+\.[0-9]+', ''.join(chr(x) for x in f.read(10)))
                             try:
                                 self.Gps2.utc[i_ens,j100] = float(temp.group(0))
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                                 
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lat_ref[i_ens,j100] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.lat_ref[i_ens,j100] = chr(f.read(1)[0])
                             self.Gps2.lon_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lon_ref[i_ens,j100] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.lon_ref[i_ens,j100] = chr(f.read(1)[0])
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.alt_unit[i_ens,j100] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.alt_unit[i_ens,j100] = chr(f.read(1)[0])
                             self.Gps2.geoid[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.geoid_unit = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.geoid_unit = chr(f.read(1)[0])
                             self.Gps2.d_gps_age[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.ref_stat_id[i_ens,j100] = np.fromfile(f,np.int16,count=0)[0]
                             
@@ -614,14 +614,14 @@ class Pd0TRDI(object):
                                 self.Gps2.mode_indicator[:,j101] = ''
                             
                             self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                            self.Gps2.vtg_header[i_ens,j101] = ''.join(struct.unpack("s"*10, f.read(10)))
+                            self.Gps2.vtg_header[i_ens,j101] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.course_true[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.true_indicator[i_ens,j101] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.true_indicator[i_ens,j101] = chr(f.read(1)[0])
                             self.Gps2.course_mag[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.mag_indicator[i_ens,j101] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.mag_indicator[i_ens,j101] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens,j101] = struct.unpack("s", f.read(1))[0]
-                            self.Gps2.mode_indicator[i_ens,j101] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.kmph_indicator[i_ens,j101] = chr(f.read(1)[0])
+                            self.Gps2.mode_indicator[i_ens,j101] = chr(f.read(1)[0])
                         
                         elif specific_id == 102:
                             j102 += 1
@@ -637,13 +637,13 @@ class Pd0TRDI(object):
                                 self.Gps2.fath_indicator[:,j102] = ''
                                 
                             self.Gps2.dbt_delta_time[i_ens,j102] = delta_time
-                            self.Gps2.dbt_header[i_ens,j102] = ''.join(struct.unpack("s"*10, f.read(10)))
+                            self.Gps2.dbt_header[i_ens,j102] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.depth_ft[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.ft_indicator[i_ens,j102] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.ft_indicator[i_ens,j102] = chr(f.read(1)[0])
                             self.Gps2.depth_m[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.m_indicator[i_ens,j102] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.m_indicator[i_ens,j102] = chr(f.read(1)[0])
                             self.Gps2.depth_fath[i_ens, j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.fath_indicator[i_ens,j102] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.fath_indicator[i_ens,j102] = chr(f.read(1)[0])
                             
                         elif specific_id == 103:
                             j103 += 1
@@ -655,9 +655,9 @@ class Pd0TRDI(object):
                                 self.Gps2.h_true_indicator[:,j103] = ''
                             
                             self.Gps2.hdt_delta_time[i_ens,j103] = delta_time
-                            self.Gps2.hdt_header[i_ens,j103] = ''.join(struct.unpack("s"*10, f.read(10)))
+                            self.Gps2.hdt_header[i_ens,j103] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.heading_deg[i_ens,j103] = np.fromfile(f, np.double, count=1)[0]
-                            self.Gps2.h_true_indicator[i_ens,j103] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.h_true_indicator[i_ens,j103] = chr(f.read(1)[0])
                             
                         elif specific_id == 104:
                             j100 +=1
@@ -680,23 +680,23 @@ class Pd0TRDI(object):
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
                             self.Gps2.lat_deg[i_ens,j100] = delta_time
-                            self.Gps2.gga_header[i_ens] = ''.join(struct.unpack('s'*7, f.read(7)))
+                            self.Gps2.gga_header[i_ens] = ''.join([chr(x) for x in f.read(7)])
                             try:
-                                temp = ''.join(struct.unpack('s'*10, f.read(10)))
+                                temp = ''.join([chr(x) for x in f.read(10)])
                                 self.Gps2.utc[i_ens,j100] = float(re.match('[0-9]+\.[0-9]+', temp))
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lat_ref[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.lat_ref[i_ens] = chr(f.read(1)[0])
                             self.Gps2.lon_deg[i_ens, j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lon_ref[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.lon_ref[i_ens] = chr(f.read(1)[0])
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.alt_unit[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.alt_unit[i_ens] = chr(f.read(1)[0])
                             self.Gps2.geoid[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.geoid_unit[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.geoid_unit[i_ens] = chr(f.read(1)[0])
                             self.Gps2.d_gps_age[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.ref_stat_id[i_ens,j100] = np.fromfile(f, np.int16, count=1)[0]
                             
@@ -717,16 +717,16 @@ class Pd0TRDI(object):
                                 self.Gps2.mode_indicator[:,j101] = ''
                                 
                             self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                            self.Gps2.vtg_header[i_ens] = ''.join(struct.unpack('s'*7, f.read(7)))
+                            self.Gps2.vtg_header[i_ens] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.course_true[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.true_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.true_indicator[i_ens] = chr(f.read(1)[0])
                             self.Gps2.course_mag[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.mag_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.mag_indicator[i_ens] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.knots_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.knots_indicator[i_ens] = chr(f.read(1)[0])
                             self.Gps2.speed_k_mph[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
-                            self.Gps2.mode_indicator[i_ens] = struct.unpack('s', f.read(1))[0]
+                            self.Gps2.kmph_indicator[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.mode_indicator[i_ens] = chr(f.read(1)[0])
                             
                         elif specific_id == 106:
                             j102 += 1
@@ -742,13 +742,13 @@ class Pd0TRDI(object):
                                 self.Gps2.fath_indicator = ''
                                 
                             self.Gps2.dbt_delta_time[i_ens,j102] = delta_time
-                            self.Gps2.dbt_header[i_ens,j102] = ''.join(struct.unpack("s"*7, f.read(7)))
+                            self.Gps2.dbt_header[i_ens,j102] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.depth_ft[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.ft_indicator[i_ens,j102] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.ft_indicator[i_ens,j102] = chr(f.read(1)[0])
                             self.Gps2.depth_m[i_ens, j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.m_indicator[i_ens,j102] = struct.unpack("s", f.read(1))[0]
+                            self.Gps2.m_indicator[i_ens,j102] = chr(f.read(1)[0])
                             self.Gps2.depth_fath[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.fath_indicator[i_ens,j102] = struct.unpack("s", f.read(1))
+                            self.Gps2.fath_indicator[i_ens,j102] = chr(f.read(1)[0])
                             
                         elif specific_id == 107:
                             j103 += 1
@@ -760,9 +760,9 @@ class Pd0TRDI(object):
                                 self.Gps2.h_true_indicator[:,j103] = ''
                                 
                             self.Gps2.hdt_delta_time[i_ens,j103] = delta_time
-                            self.Gps2.hdt_header[i_ens,j103] = ''.join(struct.unpack("s"*7,f.read(7)))
+                            self.Gps2.hdt_header[i_ens,j103] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.heading_deg[i_ens,j103] = np.fromfile(f, np.double, count=1)[0]
-                            self.Gps2.h_true_indicator[i_ens,j103] = struct.unpack("s",f.read(1))[0]
+                            self.Gps2.h_true_indicator[i_ens,j103] = chr(f.read(1)[0])
                             
                             
                         elif specific_id == 204:
@@ -785,7 +785,7 @@ class Pd0TRDI(object):
                                 self.Gps2.d_gps_age[:,j100] = np.nan
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
-                            temp = ''.join(struct.unpack("s"*msg_size, f.read(msg_size)))
+                            temp = ''.join([chr(x) for x in f.read(msg_size)])
                             self.Gps2.gga_sentence[i_ens,j100] = temp
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = ''
@@ -834,7 +834,7 @@ class Pd0TRDI(object):
                                 self.Gps2.kmph_indicator[:,j101] = ''
                                 self.Gps2.mode_indicator[:,j101] = ''
                                 
-                            temp = ''.join(struct.unpack("s"*msg_size, f.read(msg_size)))
+                            temp = ''.join([chr(x) for x in f.read(msg_size)])
                             self.Gps2.vtg_sentence[i_ens,j100] = temp
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = ''
@@ -869,7 +869,7 @@ class Pd0TRDI(object):
                                 self.Gps2.depth_fath[:,j102] = np.nan
                                 self.Gps2.fath_indicator[:,j102] = ''
                                 
-                            temp = ''.join(struct.unpack("s"*msg_size, f.read(msg_size)))
+                            temp = ''.join([chr(x) for x in f.read(msg_size)])
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = ''    
                                 
@@ -896,7 +896,7 @@ class Pd0TRDI(object):
                                 self.Gps2.heading_deg[:,j103] = np.nan
                                 self.Gps2.h_true_indicator[:,j103] = ''
                                 
-                            temp = ''.join(struct.unpack("s"*msg_size, f.read(msg_size)))
+                            temp = ''.join([chr(x) for x in f.read(msg_size)])
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = '' 
                             
@@ -919,7 +919,7 @@ class Pd0TRDI(object):
                         #Reposition file pointer  
                         f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+2,0)   
                         #Read DBT sentence
-                        self.Nmea.dbt[i_ens] = ''.join(struct.unpack('s'*38, f.read(38)))
+                        self.Nmea.dbt[i_ens] = ''.join([chr(x) for x in f.read(38)])
 
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -927,7 +927,7 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
+                        f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types-1])+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
@@ -936,7 +936,7 @@ class Pd0TRDI(object):
                             num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                             
                         #Read GGA sentence
-                        self.Nmea.gga[i_ens] = ''.join(struct.unpack("s"*int(num_2_read), f.read(int(num_2_read))))  
+                        self.Nmea.gga[i_ens] = ''.join([chr(x) for x in f.read(int(num_2_read))])  
                               
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                     
@@ -944,7 +944,7 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
+                        f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types-1])+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
@@ -953,7 +953,7 @@ class Pd0TRDI(object):
                             num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                           
                         #Read VTG sentence
-                        self.Nmea.vtg[i_ens] = ''.join(struct.unpack("s"*int(num_2_read), f.read(int(num_2_read))))  
+                        self.Nmea.vtg[i_ens] = ''.join([chr(x) for x in f.read(int(num_2_read))])  
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -961,7 +961,7 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+4,0)   
+                        f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types-1])+file_loc+4,0)   
                         #Determine the number of characters to read  
                          
                         if i_data_types < self.Hdr.n_data_types[i_ens]:
@@ -970,7 +970,7 @@ class Pd0TRDI(object):
                             num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
                             
                         #Read GSA sentence
-                        self.Nmea.gsa[i_ens] = ''.join(struct.unpack("s"*num_2_read, f.read(num_2_read)))  
+                        self.Nmea.gsa[i_ens] = ''.join([chr(x) for x in f.read(num_2_read)])  
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1134,7 +1134,7 @@ class Pd0TRDI(object):
                         i_data_types += 1
                         
                         if (i_data_types + 1) <= self.Hdr.n_data_types[i_ens]:
-                            f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc,0)
+                            f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types])+file_loc,0)
                         else:
                             if f.tell() < end_file:
                                 if i_data_types + 1 > self.Hdr.n_data_types[i_ens] + 1:
@@ -1341,7 +1341,7 @@ class Pd0TRDI(object):
             Testb = []
             x = f.read(bytes_per_ens)
             for y in x:
-                Testb.append(ord(y))
+                Testb.append(y)
                   
             check_sum = sum(Testb)
             check_h = hex(check_sum)[2:]
@@ -1393,7 +1393,7 @@ class Pd0TRDI(object):
         
     def end_reading(self, f, file_loc, i_data_types, i_ens, bytes_per_ens):
         if i_data_types + 1 <= self.Hdr.n_data_types[i_ens]:
-                            f.seek(self.Hdr.data_offsets[i_ens,i_data_types]+file_loc,0)
+                            f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types])+file_loc,0)
         else:
             f.seek(file_loc+bytes_per_ens-2,0) 
             

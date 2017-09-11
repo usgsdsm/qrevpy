@@ -116,7 +116,7 @@ if __name__ == '__main__':
             begin = b
             end = e
              
-        print begin, end
+        print (begin, end)
         
         w_sizes.append(end-begin)
         
@@ -152,7 +152,7 @@ if __name__ == '__main__':
             begin = b
             end = e
              
-        print begin, end
+        print (begin, end)
         
         w_sizes.append(end-begin)
         
