@@ -18,7 +18,7 @@ class Sensor(object):
         self.date = np.empty([n_ensembles,3])
         self.date_y2k = np.empty([n_ensembles,4])
         self.date_not_y2k = np.empty([n_ensembles,3])
-        self.error_status_word = repmat(['']*4,n_ensembles,1)
+        self.error_status_word = ['']*n_ensembles
         self.heading_deg = np.empty(n_ensembles)
         self.heading_std_dev_deg =  np.empty(n_ensembles)
         self.mpt_msc = np.empty([n_ensembles,3])

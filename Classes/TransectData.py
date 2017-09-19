@@ -101,17 +101,19 @@ class TransectData(object):
                 temp_depth[temp_depth < 0.01] = np.nan
                 
                 #Use the last valid depth for each ensemble
-                last_depth_col_idx = np.sum(np.isnan(temp_depth) == False, axis=1)
-                last_depth_col_idx[last_depth_col_idx == 0] = 1
+                last_depth_col_idx = np.sum(np.isnan(temp_depth) == False, axis=1)-1
+                last_depth_col_idx[last_depth_col_idx == -1] = 0               
                 row_index = np.arange(len(temp_depth))
-                
+                last_depth=np.empty(row_index.size)
                 #? DEBUG to check correctness
-                idx = np.ravel_multi_index(temp_depth, dims=(temp_depth.shape[0], temp_depth.shape[1], last_depth_col_idx), order='C')
-                last_depth = temp_depth[idx]
+                for row in row_index:
+                    last_depth[row]=temp_depth[row,last_depth_col_idx[row]]               
+#                    idx = np.ravel_multi_index(temp_depth, dims=(temp_depth.shape[0], temp_depth.shape[1], last_depth_col_idx), order='C')
+#                last_depth = temp_depth[idx]
                 
                 #Determine if mmt file has a scale factor and offset for the depth sounder
-                if mmt_config['DS_Cor_SPD_Sound'][file_idx] == 0:
-                    scale_factor = mmt_config['DS_Cor_SPD_Sound']
+                if mmt_config['DS_Cor_Spd_Sound'] == 0:
+                    scale_factor = mmt_config['DS_Scale_Factor']
                 else:
                     scale_factor = pd0.sensors.sos_mps /  1500
                     
@@ -119,11 +121,11 @@ class TransectData(object):
                 #Note: Only the ADCP draft is stored.  The transducer
                 # draft or scaling for depth sounder data cannot be changed in QRev
                 ds_depth = (last_depth * scale_factor) 
-                + mmt_config['Offsets_Transudcer_Depth'][file_idx]
-                + mmt_config['Offsets_Transudcer_OFF'][file_idx]
+                + mmt_config['DS_Transducer_Depth']
+                + mmt_config['DS_Transducer_Offset']
                 
                 self.depths.add_depth_object(ds_depth, 'DS', pd0.Inst.freq, 
-                                   mmt_config['Offsets_Transudcer_Depth'][file_idx],
+                                   mmt_config['Offsets_Transducer_Depth'],
                                    kargs = [cell_depth_m, cell_size_all_m])
                 
             #Set depth reference to value from mmt file
@@ -324,7 +326,7 @@ class TransectData(object):
                 cell_depth[:int(no_surf_cells[i]),i] = surf_cell_dist[i] + np.arange(0,(no_surf_cells[i] - 1)*surf_cell_size[i]+.001,surf_cell_size[i])
                 cell_depth[int(no_surf_cells[i]):,i] = cell_depth[int(no_surf_cells[i]),i] \
                 + (.5*surf_cell_size[i]+0.5*reg_cell_size[i]) \
-                + np.arange(0, (num_reg_cells)*reg_cell_size[i], reg_cell_size[i])
+                + np.arange(0, (num_reg_cells-1)*reg_cell_size[i]+0.001, reg_cell_size[i])
                 cell_size_all[0:int(no_surf_cells[i]),i] = np.repeat(surf_cell_size[i],int(no_surf_cells[i]))
                 cell_size_all[int(no_surf_cells[i]):,i] = np.repeat(reg_cell_size[i],int(num_reg_cells))
             else:

@@ -79,15 +79,15 @@ class Transect(object):
         else:
             config_dict['DS_Use_Process'] = -1
 
-        config_dict['DS_Transducer_Depth'] = ds['Depth_Sounder_Transducer_Depth']['#text']
-        config_dict['DS_Transducer_Offset'] = ds['Depth_Sounder_Transducer_Offset']['#text']
+        config_dict['DS_Transducer_Depth'] = float(ds['Depth_Sounder_Transducer_Depth']['#text'])
+        config_dict['DS_Transducer_Offset'] = float(ds['Depth_Sounder_Transducer_Offset']['#text'])
 
         if ds['Depth_Sounder_Correct_Speed_of_Sound']['#text'] == 'YES':
             config_dict['DS_Cor_Spd_Sound'] = 1
         else:
             config_dict['DS_Cor_Spd_Sound'] = 0
 
-        config_dict['DS_Scale_Factor'] = ds['Depth_Sounder_Scale_Factor']['#text']
+        config_dict['DS_Scale_Factor'] = float(ds['Depth_Sounder_Scale_Factor']['#text'])
 
         #Ext Heading Calls -------------------------------------------------------------------------
         eh = config['Ext_Heading']

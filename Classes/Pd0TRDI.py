@@ -160,7 +160,8 @@ class Pd0TRDI(object):
                                   
                             f.seek(store_file_loc, 0)
                             i_data_types = 0
-                            j100,j101,j102,j103 = 0,0,0,0
+#                            j100,j101,j102,j103 = 0,0,0,0
+                            j100,j101,j102,j103 = -1,-1,-1,-1
                             i_ens += 1
                               
                             self.Hdr.bytes_per_ens[i_ens] = np.fromfile(f,np.uint16, count=1)[0]
@@ -370,7 +371,7 @@ class Pd0TRDI(object):
                         self.Sensor.attitude_temp[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.attitude[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.contam_sensor[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
-                        self.Sensor.error_status_word[i_ens,:] = ["{0:08b}".format(x) for x in np.fromfile(f, np.uint8, count=4)]
+                        self.Sensor.error_status_word[i_ens] = ["{0:08b}".format(x) for x in np.fromfile(f, np.uint8, count=4)]
                         f.seek(2,1)
                         self.Sensor.pressure_pascal[i_ens] = np.fromfile(f, np.uint32, count=1)[0]
                         self.Sensor.pressure_var_pascal[i_ens] = np.fromfile(f, np.uint32, count=1)[0]
@@ -562,21 +563,23 @@ class Pd0TRDI(object):
                                 self.Gps2.gga_header[:,j100] = ''
                                 self.Gps2.lat_deg[:,j100] = np.nan
                                 self.Gps2.utc[:,j100] = np.nan
-                                self.Gps2.lat_ref[:,j100] = ''
-                                self.Gps2.lon_ref[:,j100] = ''
+                                self.Gps2.lat_ref[:][j100] = ''
+                                self.Gps2.lon_ref[:][j100] = ''
                                 self.Gps2.lon_deg[:,j100] = np.nan
                                 self.Gps2.corr_qual[:,j100] = np.nan
                                 self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
-                                self.Gps2.alt_unit[:,j100] = ''
+                                self.Gps2.alt_unit[:][j100] = ''
                                 self.Gps2.geoid[:,j100] = np.nan
-                                self.Gps2.geoid_unit[:,j100] = ''
+                                self.Gps2.geoid_unit[:][j100] = ''
                                 self.Gps2.d_gps_age[:,j100] = np.nan
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
                             self.Gps2.gga_delta_time[i_ens,j100] = delta_time
-                            self.Gps2.gga_header[i_ens,j100]
+                            # this line was incomplete I used later example to add the following line - DSM
+                            # self.Gps2.gga_header[i_ens,j100]
+                            self.Gps2.gga_header[i_ens][j100]=''.join([chr(x) for x in f.read(10)])
                             temp = re.match('[0-9]+\.[0-9]+', ''.join(chr(x) for x in f.read(10)))
                             try:
                                 self.Gps2.utc[i_ens,j100] = float(temp.group(0))
@@ -584,16 +587,16 @@ class Pd0TRDI(object):
                                 self.Gps2.utc[i_ens,j100] = np.nan
                                 
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lat_ref[i_ens,j100] = chr(f.read(1)[0])
+                            self.Gps2.lat_ref[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.lon_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lon_ref[i_ens,j100] = chr(f.read(1)[0])
+                            self.Gps2.lon_ref[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.alt_unit[i_ens,j100] = chr(f.read(1)[0])
+                            self.Gps2.alt_unit[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.geoid[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.geoid_unit = chr(f.read(1)[0])
+                            self.Gps2.geoid_unit[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.d_gps_age[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.ref_stat_id[i_ens,j100] = np.fromfile(f,np.int16,count=0)[0]
                             
@@ -602,80 +605,80 @@ class Pd0TRDI(object):
                             
                             if j101>20:
                                 self.Gps2.vtg_delta_time[:,j101] = np.nan
-                                self.Gps2.vtg_header[:,j101] = ''
+                                self.Gps2.vtg_header[:][j101] = ''
                                 self.Gps2.course_true[:,j101] = np.nan
-                                self.Gps2.true_indicator[:,j101] = ''
+                                self.Gps2.true_indicator[:][j101] = ''
                                 self.Gps2.course_mag[:,j101] = np.nan
-                                self.Gps2.mag_indicator[:,j101] = ''
+                                self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:,j101] = np.nan
-                                self.Gps2.knots_indicator[:,j101] = ''
+                                self.Gps2.knots_indicator[:][j101] = ''
                                 self.Gps2.speed_k_mph[:,j101] = np.nan
-                                self.Gps2.kmph_indicator[:,j101] = ''
-                                self.Gps2.mode_indicator[:,j101] = ''
+                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.mode_indicator[:][j101] = ''
                             
                             self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                            self.Gps2.vtg_header[i_ens,j101] = ''.join([chr(x) for x in f.read(10)])
+                            self.Gps2.vtg_header[i_ens][j101] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.course_true[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.true_indicator[i_ens,j101] = chr(f.read(1)[0])
+                            self.Gps2.true_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.course_mag[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.mag_indicator[i_ens,j101] = chr(f.read(1)[0])
+                            self.Gps2.mag_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens,j101] = chr(f.read(1)[0])
-                            self.Gps2.mode_indicator[i_ens,j101] = chr(f.read(1)[0])
+                            self.Gps2.kmph_indicator[i_ens][j101] = chr(f.read(1)[0])
+                            self.Gps2.mode_indicator[i_ens][j101] = chr(f.read(1)[0])
                         
                         elif specific_id == 102:
                             j102 += 1
                             
                             if j102 > 20:
                                 self.Gps2.dbt_delta_time[:,j102] = np.nan
-                                self.Gps2.dbt_header[:,j102] = ''
+                                self.Gps2.dbt_header[:][j102] = ''
                                 self.Gps2.depth_ft[:,j102] = np.nan
-                                self.Gps2.ft_indicator[:,j102] = ''
+                                self.Gps2.ft_indicator[:][j102] = ''
                                 self.Gps2.depth_m[:,j102] = np.nan
-                                self.Gps2.m_indicator[:,j102] = ''
+                                self.Gps2.m_indicator[:][j102] = ''
                                 self.Gps2.depth_fath[:,j102] = np.nan
-                                self.Gps2.fath_indicator[:,j102] = ''
+                                self.Gps2.fath_indicator[:][j102] = ''
                                 
                             self.Gps2.dbt_delta_time[i_ens,j102] = delta_time
-                            self.Gps2.dbt_header[i_ens,j102] = ''.join([chr(x) for x in f.read(10)])
+                            self.Gps2.dbt_header[i_ens][j102] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.depth_ft[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.ft_indicator[i_ens,j102] = chr(f.read(1)[0])
+                            self.Gps2.ft_indicator[i_ens][j102] = chr(f.read(1)[0])
                             self.Gps2.depth_m[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.m_indicator[i_ens,j102] = chr(f.read(1)[0])
+                            self.Gps2.m_indicator[i_ens][j102] = chr(f.read(1)[0])
                             self.Gps2.depth_fath[i_ens, j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.fath_indicator[i_ens,j102] = chr(f.read(1)[0])
+                            self.Gps2.fath_indicator[i_ens][j102] = chr(f.read(1)[0])
                             
                         elif specific_id == 103:
                             j103 += 1
                             
                             if j103 > 20:
                                 self.Gps2.hdt_delta_time[:, j103] = np.nan
-                                self.Gps2.hdt_header[:,j103] = ''
+                                self.Gps2.hdt_header[:][j103] = ''
                                 self.Gps2.heading_deg[:,j103] = np.nan
-                                self.Gps2.h_true_indicator[:,j103] = ''
+                                self.Gps2.h_true_indicator[:][j103] = ''
                             
                             self.Gps2.hdt_delta_time[i_ens,j103] = delta_time
-                            self.Gps2.hdt_header[i_ens,j103] = ''.join([chr(x) for x in f.read(10)])
+                            self.Gps2.hdt_header[i_ens][j103] = ''.join([chr(x) for x in f.read(10)])
                             self.Gps2.heading_deg[i_ens,j103] = np.fromfile(f, np.double, count=1)[0]
-                            self.Gps2.h_true_indicator[i_ens,j103] = chr(f.read(1)[0])
+                            self.Gps2.h_true_indicator[i_ens][j103] = chr(f.read(1)[0])
                             
                         elif specific_id == 104:
                             j100 +=1
                             
                             if j100>20:
                                 self.Gps2.gga_delta_time[:,j100] = np.nan
-                                self.Gps2.gga_header[:,j100] = ''
+                                self.Gps2.gga_header[:][j100] = ''
                                 self.Gps2.utc[:,j100] = np.nan
-                                self.Gps2.lat_ref[:,j100] = ''
+                                self.Gps2.lat_ref[:][j100] = ''
                                 self.Gps2.lon_deg[:,j100] = np.nan
-                                self.Gps2.lon_ref[:,j100] = ''
+                                self.Gps2.lon_ref[:][j100] = ''
                                 self.Gps2.corr_qual[:,j100] = np.nan
                                 self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
-                                self.Gps2.alt_unit[:,j100] = ''
+                                self.Gps2.alt_unit[:][j100] = ''
                                 self.Gps2.geoid[:,j100] = np.nan
-                                self.Gps2.geoid_unit[:,j100] = ''
+                                self.Gps2.geoid_unit[:][j100] = ''
                                 self.Gps2.d_gps_age[:,j100] = np.nan
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
@@ -687,16 +690,16 @@ class Pd0TRDI(object):
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lat_ref[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.lat_ref[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.lon_deg[i_ens, j100] = np.fromfile(f, np.float64, count=1)[0]
-                            self.Gps2.lon_ref[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.lon_ref[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.corr_qual[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.num_sats[i_ens,j100] = np.fromfile(f, np.uint8, count=1)[0]
                             self.Gps2.hdop[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.alt[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.alt_unit[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.alt_unit[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.geoid[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.geoid_unit[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.geoid_unit[i_ens][j100] = chr(f.read(1)[0])
                             self.Gps2.d_gps_age[i_ens,j100] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.ref_stat_id[i_ens,j100] = np.fromfile(f, np.int16, count=1)[0]
                             
@@ -705,105 +708,105 @@ class Pd0TRDI(object):
                             
                             if j101 > 20:
                                 self.Gps2.vtg_delta_time[:,j101] = np.nan
-                                self.Gps2.vtg_header[:,j101] = ''
+                                self.Gps2.vtg_header[:][j101] = ''
                                 self.Gps2.course_true[:,j101] = np.nan
-                                self.Gps2.true_indicator[:,j101] = ''
+                                self.Gps2.true_indicator[:][j101] = ''
                                 self.Gps2.course_mag[:,j101] = np.nan
-                                self.Gps2.mag_indicator[:,j101] = ''
+                                self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:,j101] = np.nan
-                                self.Gps2.knots_indicator[:,j101] = ''
+                                self.Gps2.knots_indicator[:][j101] = ''
                                 self.Gps2.speed_k_mph[:,j101] = np.nan
-                                self.Gps2.kmph_indicator[:,j101] = ''
-                                self.Gps2.mode_indicator[:,j101] = ''
+                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.mode_indicator[:][j101] = ''
                                 
                             self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                            self.Gps2.vtg_header[i_ens] = ''.join([chr(x) for x in f.read(7)])
+                            self.Gps2.vtg_header[i_ens][j101] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.course_true[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.true_indicator[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.true_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.course_mag[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.mag_indicator[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.mag_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.knots_indicator[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.knots_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.speed_k_mph[i_ens,j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens] = chr(f.read(1)[0])
-                            self.Gps2.mode_indicator[i_ens] = chr(f.read(1)[0])
+                            self.Gps2.kmph_indicator[i_ens][j101] = chr(f.read(1)[0])
+                            self.Gps2.mode_indicator[i_ens][j101] = chr(f.read(1)[0])
                             
                         elif specific_id == 106:
                             j102 += 1
                             
                             if j102 > 20:
                                 self.Gps2.dbt_delta_time[:,j102] = np.nan
-                                self.Gps2.dbt_header[:,j102] = ''
+                                self.Gps2.dbt_header[:][j102] = ''
                                 self.Gps2.depth_ft[:,j102] = np.nan
-                                self.Gps2.ft_indicator[:,j102] = ''
-                                self.Gps2.depth_m = np.nan
-                                self.Gps2.m_indicator = ''
-                                self.Gps2.depth_fath = np.nan
-                                self.Gps2.fath_indicator = ''
-                                
+                                self.Gps2.ft_indicator[:][j102] = ''
+                                self.Gps2.depth_m[:][j102] = np.nan
+                                self.Gps2.m_indicator[:][j102] = ''
+                                self.Gps2.depth_fath[:,j102] = np.nan
+                                self.Gps2.fath_indicator[:][j102] = ''
+                                                               
+
                             self.Gps2.dbt_delta_time[i_ens,j102] = delta_time
-                            self.Gps2.dbt_header[i_ens,j102] = ''.join([chr(x) for x in f.read(7)])
+                            self.Gps2.dbt_header[i_ens][j102] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.depth_ft[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.ft_indicator[i_ens,j102] = chr(f.read(1)[0])
+                            self.Gps2.ft_indicator[i_ens][j102] = chr(f.read(1)[0])
                             self.Gps2.depth_m[i_ens, j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.m_indicator[i_ens,j102] = chr(f.read(1)[0])
+                            self.Gps2.m_indicator[i_ens][j102] =chr(f.read(1)[0])
                             self.Gps2.depth_fath[i_ens,j102] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.fath_indicator[i_ens,j102] = chr(f.read(1)[0])
-                            
+                            self.Gps2.fath_indicator[i_ens][j102] = chr(f.read(1)[0])
+                                
                         elif specific_id == 107:
                             j103 += 1
                             
                             if j103 > 20:
                                 self.Gps2.hdt_delta_time[:,j103] = delta_time
-                                self.Gps2.hdt_header[:,j103] = ''
+                                self.Gps2.hdt_header[:][j103] = ''
                                 self.Gps2.heading_deg[:,j103] = np.nan
-                                self.Gps2.h_true_indicator[:,j103] = ''
+                                self.Gps2.h_true_indicator[:][j103] = ''
                                 
                             self.Gps2.hdt_delta_time[i_ens,j103] = delta_time
-                            self.Gps2.hdt_header[i_ens,j103] = ''.join([chr(x) for x in f.read(7)])
+                            self.Gps2.hdt_header[i_ens][j103] = ''.join([chr(x) for x in f.read(7)])
                             self.Gps2.heading_deg[i_ens,j103] = np.fromfile(f, np.double, count=1)[0]
-                            self.Gps2.h_true_indicator[i_ens,j103] = chr(f.read(1)[0])
-                            
+                            self.Gps2.h_true_indicator[i_ens][j103] = chr(f.read(1)[0])
                             
                         elif specific_id == 204:
                             j100 += 1
                             
                             if j100 > 20:
                                 self.Gps2.gga_delta_time[:,j100] = np.nan
-                                self.Gps2.gga_header[:,j100] = ''
+                                self.Gps2.gga_header[:][j100] = ''
                                 self.Gps2.utc[:,j100] = np.nan
                                 self.Gps2.lat_deg[:,j100] = np.nan
-                                self.Gps2.lat_ref = ''
-                                self.Gps2.lon_deg = np.nan
+                                self.Gps2.lat_ref[:][j100] = ''
+                                self.Gps2.lon_deg[:,j100] = np.nan
                                 self.Gps2.corr_qual[:,j100] = np.nan
                                 self.Gps2.num_sats[:,j100] = np.nan
                                 self.Gps2.hdop[:,j100] = np.nan
                                 self.Gps2.alt[:,j100] = np.nan
                                 self.Gp2.alt_unit[:,j100] = ''
                                 self.Gps2.geoid[:,j100] = np.nan
-                                self.Gps2.geoid_unit[:,j100] = ''
+                                self.Gps2.geoid_unit[:][j100] = ''
                                 self.Gps2.d_gps_age[:,j100] = np.nan
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
                             temp = ''.join([chr(x) for x in f.read(msg_size)])
-                            self.Gps2.gga_sentence[i_ens,j100] = temp
+                            self.Gps2.gga_sentence[i_ens][j100] = temp
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = ''
                             
                             try:
                                 self.Gps2.gga_delta_time[i_ens,j100] = delta_time
-                                self.Gps2.gga_header[i_ens,j100] = temp_array[0]
+                                self.Gps2.gga_header[i_ens][j100] = temp_array[0]
                                 self.Gps2.utc[i_ens,j100] = float(temp_array[1])
                                 lat_str = temp_array[2]
                                 lat_deg = float(lat_str[0:2])
                                 lat_deg = lat_deg+float(lat_str[2:]) / 60
                                 self.Gps2.lat_deg[i_ens,j100] = lat_deg
-                                self.Gps2.lat_ref[i_ens,j100] = temp_array[3]
+                                self.Gps2.lat_ref[i_ens][j100] = temp_array[3]
                                 lon_str = temp_array[4]
                                 lon_num = float(lon_str)
                                 lon_deg = np.floor(lon_num / 100)
                                 self.Gps2.lon_deg[i_ens,j100] = lon_deg
-                                self.Gps2.lon_ref = temp_array[5]
+                                self.Gps2.lon_ref[i_ens][j100] = temp_array[5]
                                 self.Gps2.corr_qual[i_ens,j100] = float(temp_array[6])
                                 self.Gps2.num_sats[i_ens,j100] = float(temp_array[7])
                                 self.Gps2.hdop[i_ens,j100] = float(temp_array[8])
@@ -823,35 +826,35 @@ class Pd0TRDI(object):
                             
                             if j101>20:
                                 self.Gps2.vtg_delta_time[:,j101] = np.nan
-                                self.Gps2.vtg_header[:,j101] = ''
+                                self.Gps2.vtg_header[:][j101] = ''
                                 self.Gps2.course_true[:,j101] = np.nan
-                                self.Gps2.true_indicator[:,j101] = ''
+                                self.Gps2.true_indicator[:][j101] = ''
                                 self.Gps2.course_mag[:,j101] = np.nan
-                                self.Gps2.mag_indicator[:,j101] = ''
+                                self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:,j101] = np.nan
-                                self.Gps2.knots_indicator[:,j101] = ''
+                                self.Gps2.knots_indicator[:][j101] = ''
                                 self.Gps2.speed_k_mph[:,j101] = np.nan
-                                self.Gps2.kmph_indicator[:,j101] = ''
-                                self.Gps2.mode_indicator[:,j101] = ''
+                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.mode_indicator[:][j101] = ''
                                 
                             temp = ''.join([chr(x) for x in f.read(msg_size)])
-                            self.Gps2.vtg_sentence[i_ens,j100] = temp
+                            self.Gps2.vtg_sentence[i_ens][j100] = temp
                             temp_array = np.array(temp.split(','))
                             temp_array[temp_array == '999.9'] = ''
                             
                             try:
                                 self.Gps2.vtg_delta_time[i_ens,j101] = delta_time
-                                self.Gps2.vtg_header[i_ens,j101] = temp_array[0]
+                                self.Gps2.vtg_header[i_ens][j101] = temp_array[0]
                                 self.Gps2.course_true[i_ens,j101] = float(temp_array[1])
-                                self.Gps2.true_indicator[i_ens,j101] = temp_array[2]
+                                self.Gps2.true_indicator[i_ens][j101] = temp_array[2]
                                 self.Gps2.course_mag[i_ens,j101] = float(temp_array[3])
-                                self.Gps2.mag_indicator[i_ens,j101] = temp_array[4]
+                                self.Gps2.mag_indicator[i_ens][j101] = temp_array[4]
                                 self.Gps2.speed_knots[i_ens,j101] = float(temp_array[5])
-                                self.Gps2.knots_indicator[i_ens,j101] = temp_array[6]
+                                self.Gps2.knots_indicator[i_ens][j101] = temp_array[6]
                                 self.Gps2.speed_k_mph[i_ens,j101] = float(temp_array[7])
-                                self.Gps2.kmph_indicator[i_ens,j101] = temp_array[8]
+                                self.Gps2.kmph_indicator[i_ens][j101] = temp_array[8]
                                 idx_star = temp_array[9].find('*')
-                                self.Gps2.mode_indicator[i_ens,j101] = temp_array[9][:idx_star]
+                                self.Gps2.mode_indicator[i_ens][j101] = temp_array[9][:idx_star]
                                 
                             except:
                                 pass
@@ -861,13 +864,13 @@ class Pd0TRDI(object):
                             
                             if j102 > 20:
                                 self.Gps2.dbt_delta_time[:,j102] = np.nan
-                                self.Gps2.dbt_header[:,j102] = ''
+                                self.Gps2.dbt_header[:][j102] = ''
                                 self.Gps2.depth_ft[:,j102] = np.nan
-                                self.Gps2.ft_indicator[:,j102] = ''
+                                self.Gps2.ft_indicator[:][j102] = ''
                                 self.Gps2.depth_m[:,j102] = np.nan
-                                self.Gps2.m_indicator[:,j102] = ''
+                                self.Gps2.m_indicator[:][j102] = ''
                                 self.Gps2.depth_fath[:,j102] = np.nan
-                                self.Gps2.fath_indicator[:,j102] = ''
+                                self.Gps2.fath_indicator[:][j102] = ''
                                 
                             temp = ''.join([chr(x) for x in f.read(msg_size)])
                             temp_array = np.array(temp.split(','))
@@ -875,14 +878,14 @@ class Pd0TRDI(object):
                                 
                             try:
                                 self.Gps2.dbt_delta_time[i_ens,j102] = delta_time
-                                self.Gps2.dbt_header[i_ens,j102] = temp_array[0]
+                                self.Gps2.dbt_header[i_ens][j102] = temp_array[0]
                                 self.Gps2.depth_ft[i_ens,j102] = float(temp_array[1])
-                                self.Gps2.ft_indicator[i_ens,j102] = temp_array[2]
+                                self.Gps2.ft_indicator[i_ens][j102] = temp_array[2]
                                 self.Gps2.depth_m[i_ens,j102] = float(temp_array[3])
-                                self.Gps2.m_indicator[i_ens,j102] = temp_array[4]
+                                self.Gps2.m_indicator[i_ens][j102] = temp_array[4]
                                 self.Gps2.depth_fath[i_ens,j102] = float(temp_array[5])
                                 idx_star = temp.find('*')
-                                self.Gps2.fath_indicator[i_ens,j102] = temp_array[6][:idx_star]
+                                self.Gps2.fath_indicator[i_ens][j102] = temp_array[6][:idx_star]
                                 
                             except:
                                 pass
@@ -892,9 +895,9 @@ class Pd0TRDI(object):
                             
                             if j103 > 20:
                                 self.Gps2.hdt_delta_time[:,j103] = np.nan
-                                self.Gps2.hdt_header[:,j103] = ''
+                                self.Gps2.hdt_header[:][j103] = ''
                                 self.Gps2.heading_deg[:,j103] = np.nan
-                                self.Gps2.h_true_indicator[:,j103] = ''
+                                self.Gps2.h_true_indicator[:][j103] = ''
                                 
                             temp = ''.join([chr(x) for x in f.read(msg_size)])
                             temp_array = np.array(temp.split(','))
@@ -902,10 +905,10 @@ class Pd0TRDI(object):
                             
                             try:
                                 self.Gps2.hdt_delta_time[i_ens,j103] = delta_time
-                                self.Gps2.hdt_header[i_ens,j103] = temp_array[0]
+                                self.Gps2.hdt_header[i_ens][j103] = temp_array[0]
                                 self.Gps2.heading_deg[i_ens,j103] = float(temp_array[1])
                                 idx_star = temp.find('*')
-                                self.Gps2.h_true_indicator[i_ens,j103] = temp_array[2][:idx_star]
+                                self.Gps2.h_true_indicator[i_ens][j103] = temp_array[2][:idx_star]
                                 
                             except:
                                 pass
@@ -917,9 +920,16 @@ class Pd0TRDI(object):
                         #Update data types counter
                         i_data_types += 1 
                         #Reposition file pointer  
-                        f.seek(self.Hdr.data_offsets[i_ens,i_data_types-1]+file_loc+2,0)   
+                        f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types-1])+file_loc+4,0)  
+                        
+                        #Determine the number of characters to read    
+                        if i_data_types < self.Hdr.n_data_types[i_ens]:
+                            num_2_read = self.Hdr.data_offsets[i_ens,i_data_types] - self.Hdr.data_offsets[i_ens,i_data_types - 1] - 4
+                        else:
+                            num_2_read = bytes_per_ens - self.Hdr.data_offsets[i_ens, i_data_types-1] - 6 
+                            
                         #Read DBT sentence
-                        self.Nmea.dbt[i_ens] = ''.join([chr(x) for x in f.read(38)])
+                        self.Nmea.dbt[i_ens] = ''.join([chr(x) for x in f.read(int(num_2_read))])
 
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         

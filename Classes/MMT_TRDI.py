@@ -122,14 +122,16 @@ class MMT_TRDI(object):
         '''Method to extract data from moving bed test dictionary'''
         
         #make iterable list if not already a list of dictionaries
-        if type(transects) is not list:
+        if isinstance(transects,dict):
             transects = [transects]
 
         tr_idx = 0
         #iterate through each key and value of the list
-        for x,y in enumerate(transects):
+#        for x,y in enumerate(transects):
+        for y in transects:
             trans = Transect(y)
             self.mbt_transects.append(Transect(y))
+            typeAvailable = False
 
             if 'Moving_Bed_Test_Summary' in moving_bed.keys():
                 if 'MB_Tests' in moving_bed['Moving_Bed_Test_Summary']:
@@ -144,7 +146,7 @@ class MMT_TRDI(object):
                     trans.set_moving_bed_type('Stationary')
             else:
 
-                file_name=trans.Files[0].path
+                file_name=trans.Files[0].Path
                 fidx = file_name.rfind('.')
                 if file_name[fidx+1:] == 'SBT':
                     trans.set_moving_bed_type('Stationary')
