@@ -36,7 +36,7 @@ class Sensor(object):
         self.roll_deg = np.empty(n_ensembles)
         self.salinity_ppt =  np.empty(n_ensembles)
         self.sos_mps =  np.empty(n_ensembles)
-        self.temperature_degc =  np.empty(n_ensembles)
+        self.temperature_deg_c =  np.empty(n_ensembles)
         self.time =  np.empty([n_ensembles,4])
         self.time_y2k = np.empty([n_ensembles,4])
         self.xdcr_depth_dm = np.empty(n_ensembles)

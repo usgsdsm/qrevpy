@@ -13,6 +13,14 @@ def sind(angle):
     
     return np.sin(np.pi * angle/180)
 
+def tand(angle):
+    
+    return np.tan(np.pi * angle/180)
+
+def arctand(angle):
+    
+    return np.arctan(angle) * 180/np.pi
+
 def cart2pol(x, y):
     
     rho = np.sqrt(x**2 + y**2)
@@ -33,3 +41,10 @@ def iqr(data):
     
     return iqr
 
+def azdeg2rad(angle):
+    direction = np.deg2rad(90-angle);
+    idx= np.where(direction<0)[0];
+    if len(idx) > 0:
+        direction[idx] = dir[idx]+ 2 * np.pi;
+        
+    return direction

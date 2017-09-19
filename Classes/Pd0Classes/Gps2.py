@@ -19,9 +19,9 @@ class Gps2(object):
         self.gga_header = ['']*n_ensembles
         self.gga_sentence = ['']*n_ensembles
         self.utc =   np.empty([n_ensembles, 20])
-        self.lat_deg =   np.empty([n_ensembles, 20])
+        self.lat_deg =   np.tile([np.nan],[n_ensembles, 20])
         self.lat_ref =  ['']*n_ensembles
-        self.lon_deg =   np.empty([n_ensembles, 20])
+        self.lon_deg =    np.tile([np.nan],[n_ensembles, 20])
         self.lon_ref =  ['']*n_ensembles
         self.corr_qual =   np.empty([n_ensembles, 20])
         self.num_sats =   np.empty([n_ensembles, 20])
@@ -41,7 +41,7 @@ class Gps2(object):
         self.mag_indicator =  ['']*n_ensembles
         self.speed_knots =  np.empty([n_ensembles, 20])
         self.knots_indicator =  ['']*n_ensembles
-        self.speed_k_mph =   np.empty([n_ensembles, 20])
+        self.speed_k_mph =  np.tile([np.nan],[n_ensembles, 20])
         self.kmph_indicator = ['']*n_ensembles
         self.mode_indicator =  ['']*n_ensembles
         self.dbt_delta_time =   np.empty([n_ensembles, 20])

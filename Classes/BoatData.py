@@ -145,16 +145,16 @@ class BoatData(object):
         
         #Identify invalid ensembles
         if nav_ref_in == 'BT':
-            self.__valid_data[1, np.sum(valid_vel) < 3] = False
+            self.__valid_data[1, np.sum(valid_vel,0) < 3] = False
         else:
-            self.__valid_data[2, np.sum(valid_vel) < 2] = False
+            self.__valid_data[1, np.sum(valid_vel,0) < 2] = False
             
         #Combine all filter data to composite valid data
         self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self._valid_data[0,:] == False)
-        self.__processed_source = self.__u_mps.shape
-        self.__processed_source[self.__valid_data[0,:] == True] = nav_ref_in
-        self.__processed_source[self.__valid_data[0,:] == False] = "INT"
+        self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
+        self.__processed_source = np.tile('',self.__u_mps.shape)
+        self.__processed_source[np.where(self.__valid_data[0,:] == True)] = nav_ref_in
+        self.__processed_source[np.where(self.__valid_data[0,:] == False)] = "INT"
         
         
     def interpolate_composite(self, transect):

@@ -357,7 +357,7 @@ class Pd0TRDI(object):
                         self.Sensor.pitch_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] /100
                         self.Sensor.roll_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] / 100
                         self.Sensor.salinity_ppt[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
-                        self.Sensor.temperature_degc[i_ens] = np.fromfile(f, np.int16, count=1)[0] / 100
+                        self.Sensor.temperature_deg_c[i_ens] = np.fromfile(f, np.int16, count=1)[0] / 100
                         self.Sensor.mpt_msc[i_ens,:] = np.fromfile(f, np.uint8, count=3)
                         self.Sensor.heading_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.pitch_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0] / 10
