@@ -19,3 +19,4 @@ class Nmea(object):
         self.gsa = ['']*n_ensembles
         self.vtg = ['']*n_ensembles
         self.raw = ['']*n_ensembles
+        self.dbt = ['']*n_ensembles
