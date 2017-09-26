@@ -11,7 +11,11 @@ from Classes.GPSData import GPSData
 from Classes.Edges import Edges
 from Classes.ExtrapData import ExtrapData
 from Classes.Sensors import Sensors
-from bokeh.plotting.tests.test_figure import source
+from Classes.DateTime import DateTime
+from Classes.InstrumentData import InstrumentData
+import matplotlib.dates as mdates
+from datetime import datetime
+
 
 class TransectData(object):
     """Class to hold Transect properties (may be removed on a refactor)
@@ -39,13 +43,13 @@ class TransectData(object):
         self.transects = None
         self.cells_above_sl = None
 
-    def get_data(self, source, in_file, pd0_data, file_idx):
+    def get_data(self, source, in_file, pd0_data, mmt):
         
         if source == 'TRDI':
-            self.TRDI(in_file, pd0_data, file_idx)
+            self.TRDI(in_file, pd0_data, mmt)
             
                                 #files2load idx
-    def TRDI(self, mmt_transect, pd0_data, file_idx, args=None):
+    def TRDI(self, mmt_transect, pd0_data, mmt, kargs=None):
        
        
         pd0 = pd0_data
@@ -291,7 +295,7 @@ class TransectData(object):
                     
                 #If valid vtg data exist create VTG boat velocity object
                 if np.sum(np.sum(np.isnan(raw_VTG_speed) == False)) > 0:
-                    self.boat_vel.add_boat_object('TRDI', self.gps.gga_velocity_ens_mps, np.nan, 'Earth', 'GGA' 
+                    self.boat_vel.add_boat_object('TRDI', self.gps.vtg_velocity_ens_mps, np.nan, 'Earth', 'GGA' 
                                                   ,[np.nan,np.nan])
                     
                     
@@ -388,7 +392,7 @@ class TransectData(object):
                 for nh in range(len(d_time_min)):
                     idx = np.where(use[nh:]) 
                     if len(idx[0]) > 0:
-                        ext_heading_deg[nh] = pd0.Gps2.heading_deg[nh, idx]
+                        ext_heading_deg[nh] = pd0.Gps2.heading_deg[nh,idx]
                         
                 #Create external heading sensor
                 self.sensors.add_sensor_data('heading_deg', 'external', ext_heading_deg, magvar, kargs=[heading_offset])
@@ -432,10 +436,76 @@ class TransectData(object):
             #Create salinity sensor
             self.sensors.add_sensor_data('salinity_ppt', 'internal', pd0_salinity, pd0_salinity_src)
             mmt_salinity = mmt_config['Proc_Salinity']
+            self.sensors.add_sensor_data('salinity_ppt', 'user', mmt_salinity, 'mmt')
+            self.sensors.set_selected('salinity_ppt', 'internal')
+            
+            #Speed of Sound
+            speed_of_sound = pd0.Sensor.sos_mps.T
+            speed_of_sound_src = pd0.Cfg.sos_src[0]
+            self.sensors.add_sensor_data('speed_of_sound_mps','internal', speed_of_sound, speed_of_sound_src)
+            
+            #The raw data are referenced to the internal SOS
+            self.sensors.set_selected('speed_of_sound_mps', 'internal')
+            
+            #Ensemble times
+            #Compute time for each ensemble in seconds
+            ens_time_sec = pd0.Sensor.time[:,0] * 3600 + pd0.Sensor.time[:,1] * 60 + pd0.Sensor.time[:,2] + pd0.Sensor.time[:,3] / 100
+            
+            #compute the duration of each ensemble in seconds
+            #adjusting for lost data
+            ens_delta_time = np.tile([np.nan], ens_time_sec.shape)
+            idx_time = np.where(np.isnan(ens_time_sec) == False)
+            ens_delta_time = ens_delta_time.T
+            
+            #Start date and time
+            idx = np.where(np.isnan(pd0.Sensor.time[:,0]) == False)[0][0]
+            start_year = int(pd0.Sensor.date[idx,0])
+            
+            #StreamPro doesn't include y2k dates
+            if start_year < 100:
+                start_year = 2000 + int(pd0.Sensor.date_not_y2k[idx,0])
+                
+            start_month = int(pd0.Sensor.date[idx,1])
+            start_day = int(pd0.Sensor.date[idx,2])
+            start_hour = int(pd0.Sensor.time[idx, 0])
+            start_min = int(pd0.Sensor.time[idx, 1])
+            start_sec = int(pd0.Sensor.time[idx,2] + pd0.Sensor.time[idx,3] / 100)
+            
+            start_dt = datetime(start_year, start_month, start_day, start_hour, start_min, start_sec)
+            start_serial_time = mdates.date2num(start_dt)
+            start_date = datetime.strftime(start_dt, '%m/%d/%Y')
+            
+            #End data and time
+            idx = np.where(np.isnan(pd0.Sensor.time[:,0])==False)[0][-1]
+            end_year = int(pd0.Sensor.date[idx,0])
+            #StreamPro does not include Y@K dates
+            if end_year < 100:
+                end_year = 2000 + int(pd0.Sensor.date_not_y2k[idx,0])
+                
+            end_month = int(pd0.Sensor.date[idx,1])
+            end_day = int(pd0.Sensor.date[idx,2])
+            end_hour = int(pd0.Sensor.time[idx, 0])
+            end_min = int(pd0.Sensor.time[idx, 1])
+            end_sec = int(pd0.Sensor.time[idx, 2] + pd0.Sensor.time[idx,3] / 100)
+            
+            end_dt = datetime(end_year, end_month, end_day, end_hour, end_min, end_sec)
+            end_serial_time = mdates.date2num(end_dt)
+            end_date = datetime.strftime(start_dt, '%m/%d/%Y')
+            
+            #Create date/time object
+            self.datetime = DateTime()
+            self.datetime.populate_data(start_date, start_serial_time, end_serial_time, ens_delta_time)
+            
+            #Transect checked for use in discharge computation
+            self.checked = mmt_transect.Checked
+            
+            if kargs is None:
+                self.adcp = InstrumentData()
+                self.adcp.populate_data('TRDI', kargs=[mmt_transect, pd0, mmt])
             
             
             
-                             
+            
             
             
             

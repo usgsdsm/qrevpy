@@ -20,7 +20,7 @@ class DateTime(object):
         self.date = date_in
         self.start_serial_time = start_in
         self.end_serial_time = end_in
-        self.transect_duration_sec = (end_in - start_in).seconds
+        self.transect_duration_sec = end_in - start_in
         self.ens_duration_sec = ens_dur_in
         
     def time_2_serial_time(self, time_in, source):

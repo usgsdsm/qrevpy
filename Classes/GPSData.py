@@ -384,9 +384,13 @@ class GPSData(object):
                     vtg_speed.append(np.nan)
                     vtg_dir.append(np.nan)
                     
+                direction = azdeg2rad(np.array(vtg_dir))
+                vx, vy = pol2cart(direction, vtg_speed)
+                self.vtg_velocity_ens_mps = np.vstack([vx,vy])
+                    
         elif setting == 'External':
             direction = azdeg2rad(vtg_dir)
-            vx,vy = pol2cart(direction)
+            vx,vy = pol2cart(direction, self.ext_VTG_speed_mps)
             self.vtg_velocity_ens_mps = np.vstack([vx.T, vy.T])
                     
         

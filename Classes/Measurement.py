@@ -3,6 +3,7 @@ import numpy as np
 import os
 from Classes.TransectData import TransectData
 from Classes.Pd0TRDI import Pd0TRDI
+from Classes.PreMeasurement import PreMeasurement
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -14,7 +15,7 @@ class Measurement(object):
         self.station_number = None
         self.transects = []
         self.mb_tests = None
-        self.sys_test = None
+        self.sys_test = []
         self.compass_cal = None
         self.compass_eval = None
         self.ext_temp_chk = None
@@ -92,12 +93,59 @@ class Measurement(object):
             transect.active_config = active_config
             transect.transects = transects
                 
-            transect.get_data('TRDI', mmt.transects[k], pd0_data[k], files_to_load_idx[k])
+            transect.get_data('TRDI', mmt.transects[k], pd0_data[k], mmt)
             self.transects.append(transect)
             
         #-------------------------Done Refactor----------------------------------------------
         
+        if isinstance(mmt.qaqc, dict) or isinstance(mmt.mbt_transects):
+            self.qaqc_TRDI(mmt)
+            
+            
+    def qaqc_TRDI(self, mmt):
+        '''Processes qaqc test, calibrations, and evaluations
         
+        Input:
+        mmt: object of MMT_TRDI
+        
+        '''
+        #ADCP Test
+        if 'RG_Test_TimeStamp' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['RG_Test'])):
+                p_m = PreMeasurement()
+                p_m.populate_data(mmt.qaqc['RG_Test_TimeStamp'][n], mmt.qaqc['RG_Test'][n],'TST')
+                self.sys_test.append(p_m)
+        else:
+            self.sys_test.append(PreMeasurement())
+            
+        #Compass calibration
+        if 'Compass_Cal_Timestamp' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['Compass_Cal_Test'])):
+                p_m =  PreMeasurement()
+                p_m.populate_data(mmt.qaqc['Compass_Cal_Timestamp'], mmt.qaqc['Compass_Cal_Test'], 'TCC')
+                self.compass_cal.append(p_m)
+        else:
+            self.compass_cal.append(PreMeasurement())
+            
+        #Compass evaluation
+        if 'Compass_Eval_Timestamp' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['Compass_Eval_Test'])):
+                p_m =  PreMeasurement()
+                p_m.populate_data(mmt.qaqc['Compass_Eval_Timestamp'], mmt.qaqc['Compass_Eval_Test'], 'TCC')
+                self.compass_eval.append(p_m)
+        else:
+            self.compass_eval.append(PreMeasurement())
+            
+            
+        
+            
+        
+            
+        
+            
+    
+    
+            
 
 
 

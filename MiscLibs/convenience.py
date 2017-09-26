@@ -45,6 +45,6 @@ def azdeg2rad(angle):
     direction = np.deg2rad(90-angle);
     idx= np.where(direction<0)[0];
     if len(idx) > 0:
-        direction[idx] = dir[idx]+ 2 * np.pi;
+        direction[idx] = direction[idx]+ 2 * np.pi;
         
     return direction
