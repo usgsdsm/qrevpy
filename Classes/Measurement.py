@@ -1,9 +1,10 @@
 from Classes.MMT_TRDI import MMT_TRDI
 import numpy as np
 import os
-from Classes.TransectData import TransectData
+from Classes.TransectData import TransectData, allocate_transects
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.PreMeasurement import PreMeasurement
+from Classes.MovingBedTests import MovingBedTests
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -16,8 +17,8 @@ class Measurement(object):
         self.transects = []
         self.mb_tests = None
         self.sys_test = []
-        self.compass_cal = None
-        self.compass_eval = None
+        self.compass_cal = []
+        self.compass_eval = []
         self.ext_temp_chk = None
         self.extrap_fit = None
         self.processing = None
@@ -49,52 +50,7 @@ class Measurement(object):
 #             self.transects = TransectData('TRDI', mmt,'Q',kargs[1])
 #         else:
 
-        #Refactored from TransectData to iteratively create TransectData objects
-        #----------------------------------------------------------------
-        if kargs['type'] == 'Q':
-            transects = 'transects'
-            active_config = 'active_config' 
-            
-            if kargs['checked'] == True:
-                files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
-                file_names = [x.Files for x in mmt.transects]
-            else:
-                files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
-                file_names = [x.Files for x in mmt.transects]
-                    
-                
-        elif kargs['type'] == 'MB':
-            transects = 'mbt_transects'
-            active_config = 'mbt_active_config'
-            files_to_load = np.array(mmt.mbt_transects.Checked, dtype=bool)
-            file_names = [x.Files for x in mmt.mbt_transects if x.Checked == 1]
-        
-        files_to_load_idx = np.where(files_to_load == True)[0]
-          
-        pathname = mmt.infile[:mmt.infile.rfind('/')]
-        
-        # Determine if any files are missing
-        
-        valid_files = []
-        for x in file_names:
-            x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
-            if os.path.exists(''.join([pathname,'/',x[0].Path])):
-                valid_files.append((x, 1))
-            else:
-                valid_files.append((None, 0))
-                
-        
-        pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
-        
-        # Process each transect
-        for k in range(len(pd0_data)):
-            
-            transect = TransectData()
-            transect.active_config = active_config
-            transect.transects = transects
-                
-            transect.get_data('TRDI', mmt.transects[k], pd0_data[k], mmt)
-            self.transects.append(transect)
+        self.transects = allocate_transects('TRDI', mmt, kargs=['Q', kargs['checked']])
             
         #-------------------------Done Refactor----------------------------------------------
         
@@ -136,7 +92,25 @@ class Measurement(object):
         else:
             self.compass_eval.append(PreMeasurement())
             
+       
+        
+        if len(mmt.mbt_transects) > 0:
             
+            #Create transect object/s
+            transects= allocate_transects('TRDI',mmt,kargs=['MB'])
+            if len(transects) > 0:
+                for n in range(len(transects)):
+                    mb_test = MovingBedTests()
+                    mb_test.populate_data('TRDI', kargs=[mmt, mmt.mbt_transects[n]])
+                    
+                    #Save notes from mmt files in comments
+                    if 'NoteDate' in mmt.mbt_transects:
+                        r, c = mmt.mbt_transects['NoteDate'].shape
+                        for n in range(r):
+                            for k in range(c):
+                                if mmt.mbt_transects['NoteDate'][n,k] is not None:
+                                    pass
+                                
         
             
         

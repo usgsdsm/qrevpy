@@ -1,7 +1,7 @@
 class Transect(object):
     """Class to hold properties of MMT transect dictionary attributes"""
 
-    def __init__(self, trans):
+    def __init__(self, trans, mbt = False):
         '''Constructor immediately begins extraction of data'''
         
         self.Checked = int(trans['@Checked'])
@@ -30,23 +30,45 @@ class Transect(object):
         
         self.field_config = None
         self.active_config = None
+        self.mbt_active_config = None
+        self.mbt_field_config = None
 
-        #Create configuration dictionaries for each config attribute
-        if type(trans['Configuration']) is list:
-            for x in trans['Configuration']:
-                if int(x['@Checked']) == 0:
-                    self.field_config = self.config(x)
-                if int(x['@Checked']) == 1:
-                    self.active_config = self.config(x)
+        if mbt == False:
+            #Create configuration dictionaries for each config attribute
+            if type(trans['Configuration']) is list:
+                for x in trans['Configuration']:
+                    if int(x['@Checked']) == 0:
+                        self.field_config = self.config(x)
+                    if int(x['@Checked']) == 1:
+                        self.active_config = self.config(x)
+            else:
+                if int(trans['Configuration']['@Checked']) == 0:
+                        self.field_config = self.config(trans['Configuration'])
+                if int(trans['Configuration']['@Checked']) == 1:
+                        self.active_config = self.config(trans['Configuration'])
+    
+            #assign active config to field config if there is no field config
+            if self.field_config is None:
+                self.field_config = self.active_config
         else:
-            if int(trans['Configuration']['@Checked']) == 0:
-                    self.field_config = self.config(trans['Configuration'])
-            if int(trans['Configuration']['@Checked']) == 1:
-                    self.active_config = self.config(trans['Configuration'])
-
-        #assign active config to field config if there is no field config
-        if self.field_config is None:
-            self.field_config = self.active_config
+            #Create configuration dictionaries for each config attribute
+            if type(trans['Configuration']) is list:
+                for x in trans['Configuration']:
+                    if int(x['@Checked']) == 0:
+                        self.mbt_field_config = self.config(x)
+                    if int(x['@Checked']) == 1:
+                        self.mbt_active_config = self.config(x)
+            else:
+                if int(trans['Configuration']['@Checked']) == 0:
+                        self.mbt_field_config = self.config(trans['Configuration'])
+                if int(trans['Configuration']['@Checked']) == 1:
+                        self.mbt_active_config = self.config(trans['Configuration'])
+    
+            #assign active config to field config if there is no field config
+            if self.mbt_field_config is None:
+                self.mbt_field_config = self.mbt_active_config
+            
+        
 
     def set_moving_bed_type(self, mvb_type):
         '''Setter for moving bed type in the case of MBT Transects'''

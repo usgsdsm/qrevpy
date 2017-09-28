@@ -129,8 +129,8 @@ class MMT_TRDI(object):
         #iterate through each key and value of the list
 #        for x,y in enumerate(transects):
         for y in transects:
-            trans = Transect(y)
-            self.mbt_transects.append(Transect(y))
+            trans = Transect(y, True)
+            self.mbt_transects.append(trans)
             typeAvailable = False
 
             if 'Moving_Bed_Test_Summary' in moving_bed.keys():
@@ -154,6 +154,8 @@ class MMT_TRDI(object):
                     trans.set_moving_bed_type('Loop')
                 else:
                     print ('question')
+                    
+                
 
 
     def mmtqsum(self, data):

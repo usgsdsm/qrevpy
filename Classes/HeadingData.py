@@ -84,6 +84,9 @@ class HeadingData(object):
                     self.data[idx[n]] = self.data[last_idx]
                 #If invalid self.data is in middle interpolate
                 else:
+                    before_idx = before_idx[-1]
+                    after_idx = after_idx[0] + idx[n] - 1
+                    
                     test1 = self.data[before_idx] > 180
                     test2 = self.data[after_idx] > 180
                     if not xor(test1, test2):
@@ -92,7 +95,7 @@ class HeadingData(object):
                         c = 360
                     elif test2 == True:
                         c = -360
-                    self.data[idx[n]] = (((self.data(after_idx) - self.data(before_idx) + c) / (before_idx - after_idx)) * (before_idx - idx(n))) + self.data(before_idx)
+                    self.data[idx[n]] = (((self.data[after_idx] - self.data[before_idx] + c) / (before_idx - after_idx)) * (before_idx - idx[n])) + self.data[before_idx]
                     if self.data[idx[n]] > 360:
                         self.data[idx[n]] - 360
             

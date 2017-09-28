@@ -15,6 +15,7 @@ from Classes.DateTime import DateTime
 from Classes.InstrumentData import InstrumentData
 import matplotlib.dates as mdates
 from datetime import datetime
+from sqlalchemy.orm.session import ACTIVE
 
 
 class TransectData(object):
@@ -388,14 +389,15 @@ class TransectData(object):
                 for nd_time in range(len(d_time_min)):
                     use[nd_time,:] = np.abs(d_time[nd_time,:]) == d_time_min[nd_time]
                     
-                ext_heading_deg = np.tile([np.nan], (1, len(d_time_min)))
+                ext_heading_deg = np.tile([np.nan], (len(d_time_min)))
                 for nh in range(len(d_time_min)):
-                    idx = np.where(use[nh:]) 
+                    idx = np.where(use[nh,:]) 
                     if len(idx[0]) > 0:
+                        idx = idx[0][0]
                         ext_heading_deg[nh] = pd0.Gps2.heading_deg[nh,idx]
                         
                 #Create external heading sensor
-                self.sensors.add_sensor_data('heading_deg', 'external', ext_heading_deg, magvar, kargs=[heading_offset])
+                self.sensors.add_sensor_data('heading_deg', 'external', ext_heading_deg, 'GPS', kargs=[magvar,heading_offset])
             
                 #Determine heading source to use from mmt setting
                 source_used = mmt_config['Ext_Heading_Use']
@@ -602,7 +604,64 @@ class TransectData(object):
         self.cells_above_sl = (cell_depth - cutoff) < 0
         
         
+def allocate_transects(source, mmt, kargs): 
+    
+    #Refactored from TransectData to iteratively create TransectData objects
+        #----------------------------------------------------------------
+        if kargs[0] == 'Q':
+            transects = 'transects'
+            active_config = 'active_config' 
+            
+            if kargs[1] == True:
+                files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
+                file_names = [x.Files for x in mmt.transects]
+            else:
+                files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
+                file_names = [x.Files for x in mmt.transects]
+                    
+                
+        elif kargs[0] == 'MB':
+            transects = 'mbt_transects'
+            active_config = 'mbt_active_config'
+            files_to_load =np.array([x.Checked for x in mmt.mbt_transects], dtype=bool)
+            file_names = [x.Files for x in mmt.mbt_transects if x.Checked == 1]
         
+        files_to_load_idx = np.where(files_to_load == True)[0]
+          
+        pathname = mmt.infile[:mmt.infile.rfind('/')]
+        
+        # Determine if any files are missing
+        
+        valid_files = []
+        for x in file_names:
+            x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
+            if os.path.exists(''.join([pathname,'/',x[0].Path])):
+                valid_files.append((x, 1))
+            else:
+                valid_files.append((None, 0))
+                
+        
+        pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
+        
+        processed_transects = []
+        # Process each transect
+        for k in range(len(pd0_data)):
+            
+            transect = TransectData()
+            transect.active_config = active_config
+            transect.transects = transects
+            
+            if active_config == 'mbt_active_config' or active_config == 'mbt_field_config':
+                transect.get_data('TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
+            else:
+                transect.get_data('TRDI', mmt.transects[k], pd0_data[k], mmt)
+                
+            processed_transects.append(transect)
+        
+        return processed_transects   
+        
+    
+    
                 
     
             
