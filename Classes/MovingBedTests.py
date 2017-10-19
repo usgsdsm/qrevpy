@@ -4,7 +4,7 @@ Created on Sep 26, 2017
 @author: gpetrochenkov
 '''
 import numpy as np
-from Classes.TransectData import TransectData, allocate_transects
+from Classes.TransectData import TransectData, allocate_transects, adjusted_ensemble_duration
 
 class MovingBedTests(object):
     
@@ -38,14 +38,59 @@ class MovingBedTests(object):
             self.mb_TRDI(kargs[0], kargs[1])
         else:
             self.mb_SonTek(kargs)
+        
+        #Convert to earth coordinates and set the navigation reference to BT
+        #for both boat and water data    
+        self.__transect.change_coord_sys('Earth')
+        self.__transect.change_nav_reference(1,'BT')
             
-    def mb_TRDI(self, mmt, transect):
+        #Adjust data for default manufacturer specific handling of invalid data
+        delta_t = adjusted_ensemble_duration(self.__transect, 'mbt')
+        
+        if self.__type == 'Loop':
+            if source == 'TRDI':
+                self.loop_test(delta_t)
+            else:
+                self.loop_test()
+        elif self.type == 'Stationary':
+            self.stationary_test()
+        else:
+            pass
+        
+        
+            
+    def mb_TRDI(self, transect, mmt_transect):
         '''Function to create object properties for TRDI moving-bed tests'''
         
         self.__transect = transect
         self.__user_valid = True
-        self.__type = transect.moving_bed_type
+        self.__type = mmt_transect.moving_bed_type
         
+    def loop_test(self, kargs = None):
+        '''Process loop moving bed test'''
+        #Assign data from transect to local variables
+        self.__transect.boat_interpolations(False, 'BT', kargs=['Linear'])
+        self.__transect.boat_interpolations(False, 'GPS', kargs=['Linear'])
+        trans_data = self.__transect
+        in_transect_idx = trans_data.in_transect_idx
+        n_ensembles = len(in_transect_idx)
+        bt_valid = trans_data.boat_vel.bt_vel._BoatData__valid_data[0,in_transect_idx]
+        #Check that there is some valid BT data
+        if np.nansum(bt_valid) > 0:
+            wt_U = trans_data.w_vel._WaterData__u_processed_mps[:,in_transect_idx]
+            wt_V = trans_data.w_vel._WaterData__v_processed_mps[:,in_transect_idx]
+            if kargs is None:
+                ens_duration = trans_data.date_time.ens_duration_sec[in_transect_idx]
+            else:
+                ens_duration = kargs[:]
+            bt_U = trans_data.boat_vel.bt_vel._BoatData__u_processed_mps[in_transect_idx]
+            bt_V = trans_data.boat_vel.bt_vel._BoatData__v_processed_mps[in_transect_idx]
+            bin_size = trans_data.depths.bt_depths.depth_cell_size_m[:,in_transect_idx]
+            
+            #Compute flow speed and direction
+            #Compute discharge weighted mean velocity components for the
+            #purposed of computing the mean flow direction
+            
         
          
     

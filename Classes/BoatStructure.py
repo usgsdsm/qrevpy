@@ -82,6 +82,26 @@ class BoatStructure(object):
             
         self.composite_tracks(transect)
         
+        
+    def change_coord_sys(self, new_coord_sys, sensors, adcp):
+        '''This function will change the coordinate system of the boat velocity reference
+        
+        Input:
+        new_coord_sys: specified new coordinate system
+        sensors: object of Sensors
+        adcp: object of InstrumentData
+        '''
+        
+        #Change coordinate system for all available boat velocity sources
+        if self.bt_vel is not None:
+            self.bt_vel.change_coord_sys(new_coord_sys, sensors, adcp)
+        if self.gga_vel is not None:
+            self.gga_vel.change_coord_sys(new_coord_sys, sensors, adcp)
+        if self.vtg_vel is not None:
+            self.vtg_vel.change_coord_sys(new_coord_sys, sensors, adcp)   
+            
+            
+        
     def composite_tracks(self, transect, kargs=None):
         '''If new composite setting is provided it is used, if not the setting saved in the object is used
         

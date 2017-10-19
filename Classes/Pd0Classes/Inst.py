@@ -18,6 +18,6 @@ class Inst(object):
         self.res_RDI = 0
         self.sensor_CFG = np.empty(n_ensembles)
         self.xducer = np.empty(n_ensembles, dtype=np.str)
-        self.t_matrix = np.empty([4,4])
+        self.t_matrix = np.tile([np.nan], [4,4])
         self.demod = np.empty(n_ensembles)
     

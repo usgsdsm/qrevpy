@@ -105,33 +105,33 @@ class InstrumentData(object):
                                                'User', User_Commands]
                 
             #Obtain transformation matrix from one of the available sources
-            if not np.isnan(pd0.Inst.t_matrix[0,0]):
+            if np.isnan(pd0.Inst.t_matrix[0,0]) == False:
                 self.t_matrix =  TransformationMatrix()
                 self.t_matrix.populate_data('TRDI', kargs=['pd0', pd0])
             elif self.model == 'RiverRay':
                 self.t_matrix = TransformationMatrix()
-                self.t_matrix.populate_data('TRDI', kargs=['TRDI', self.model, 'Nominal'])
+                self.t_matrix.populate_data('TRDI', kargs=[self.model, 'Nominal'])
             else:
                 if isinstance(mmt.qaqc, dict):
-                    if 'RG_Test_TimeStamp' in mmt.qaqc.keys():
-                        idx = mmt.qaqc['RG_Test'].find(self.model)
-                        if idx != -1:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, mmt.qaqc['RG_Test'][0])
-                        else:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, 'Nominal')
-                    elif 'Compass_Cal_Timestamp' in mmt.qaqc.keys():
-                        idx = mmt.qaqc['Compass_Cal_Timestamp'].find(self.model)
-                        if idx != -1:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, mmt.qaqc['Compass_Cal_Timestamp'][0])
-                        else:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, 'Nominal')
+                    if 'RG_Test' in mmt.qaqc.keys():
+                        
+                        self.t_matrix = TransformationMatrix()
+                        self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['RG_Test']['TestResult'][0]['Text']])
+                       
+                    elif 'Compass_Calibration' in mmt.qaqc.keys():
+                       
+                        self.t_matrix = TransformationMatrix()
+                        self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Calibration']['TestResult'][0]['Text']])
+                       
                     elif 'Compass_Eval_Timestamp' in mmt.qaqc.keys():
-                        idx = mmt.qaqc['Compass_Eval_Timestamp'].find(self.model)
-                        if idx != -1:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, mmt.qaqc['Compass_Eval_Timestamp'][0])
-                        else:
-                            self.t_matrix = TransformationMatrix('TRDI', self.model, 'Nominal')
+                       
+                        self.t_matrix = TransformationMatrix()
+                        self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Evaluation']['TestResult'][0]['Text']])
+                       
+                    else:
+                        self.t_matrix.populate_data('TRDI', kargs=[self.model, 'Nominal'])
                 else:
-                    self.t_matrix = TransformationMatrix('TRDI', self.model, 'Nominal')
+                    self.t_matrix = TransformationMatrix()
+                    self.t_matrix.populate_data('TRDI', kargs=[self.model, 'Nominal'])
                         
             

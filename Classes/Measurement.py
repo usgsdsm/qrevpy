@@ -101,7 +101,7 @@ class Measurement(object):
             if len(transects) > 0:
                 for n in range(len(transects)):
                     mb_test = MovingBedTests()
-                    mb_test.populate_data('TRDI', kargs=[mmt, mmt.mbt_transects[n]])
+                    mb_test.populate_data('TRDI', kargs=[transects[n], mmt.mbt_transects[n]])
                     
                     #Save notes from mmt files in comments
                     if 'NoteDate' in mmt.mbt_transects:

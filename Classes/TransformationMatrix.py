@@ -34,65 +34,67 @@ class TransformationMatrix(object):
                         [0, 0, -1, 1],
                         [0.2887, 0.2887, 0.2887, 0.2887],
                         [0.7071, 0.7071, -0.7071, -0.7071]]
-                
-                #Retrieve transformation matrix from ADCP output, if available
-                data_in = kargs[1]
+            
+            #Retrieve transformation matrix from ADCP output, if available
+            data_in = kargs[1]
+            self.source = 'Nominal'
+            if data_in == 'Nominal':
                 self.source = 'Nominal'
                 
-                if adcp_model == 'Rio Grande':
-                    # Rio Grande
-                    idx = data_in.find('Instrument Transformation Matrix (Down):')
-                    if idx != -1:
-                        cell_matrix  = np.loadtxt(data_in[idx+48:idx+365], dtype=np.float64)
-                        temp = np.random.permutation(cell_matrix.reshape([8,4]))
-                        self.source = 'ADCP'
-                elif adcp_model == 'StreamPro':
-                    # StreamPro
-                    idx = data_in.find('>PS3')
-                    if idx != -1:
-                        temp2 = float(data_in[idx+5:idx+138])
-                        if temp2 is not None:
-                            temp = temp2
-                        self.source = 'ADCP'
-                elif adcp_model == 'RiverRay':
-                    #RiverRay
-                    idx = data_in.find('Instrument Transformation Matrix')
-                    if idx != -1:
-                        idx2 = data_in[idx:].find(':')
-                        idx3 = idx+idx2[0]
-                        if idx2 != -1:
-                            idx4 = data_in[idx3:].find('>')
-                            idx5 = idx3 + idx4[0] - 2
-                            if idx4 != -1:
-                                temp = float(data_in[idx3:idx5])
-                                self.source = 'ADCP'
-                elif adcp_model == 'RiverPro':
-                    #RiverPro
-                    idx = data_in.find('Instrument Transformation Matrix')
-                    if idx != -1:
-                        idx2 = data_in[idx:].find(':')
-                        idx3 = idx + idx2[0]
-                        if idx2 != -1:
-                            idx4 = data_in[idx3:].find('Has V-Beam')
-                            idx5 = idx3 + idx4[0] - 2
-                            if idx4 != -1:
-                                temp = float(data_in[idx3:idx5])
-                                self.source = 'ADCP'
-                elif adcp_model == 'RioPro':
-                    idx = data_in.find('Instrument Transformation Matrix')
-                    if idx != -1:
-                        idx2 = data_in[idx:].find(':')
-                        idx3 = idx + idx2[0]
-                        if idx2 != -1:
-                            idx4 = data_in[idx3:].find('Has V-Beam')
-                            idx5 = idx3 + idx4[0] - 2
-                            if idx4 != -1:
-                                temp = float(data_in[idx3:idx5])
-                                self.source = 'ADCP'
-                elif adcp_model == 'pd0':
-                    temp = data_in.Inst.t_matrix
-                    
-                self.matrix = temp[0:4,0:4]
+            elif adcp_model == 'Rio Grande':
+                # Rio Grande
+                idx = data_in.find('Instrument Transformation Matrix (Down):')
+                if idx != -1:
+                    cell_matrix  = np.fromstring(data_in[idx+50:idx+356], dtype=np.float64, sep=' ')
+                    temp = np.random.permutation(cell_matrix.reshape([8,4]))
+                    self.source = 'ADCP'
+            elif adcp_model == 'StreamPro':
+                # StreamPro
+                idx = data_in.find('>PS3')
+                if idx != -1:
+                    temp2 = float(data_in[idx+5:idx+138])
+                    if temp2 is not None:
+                        temp = temp2
+                    self.source = 'ADCP'
+            elif adcp_model == 'RiverRay':
+                #RiverRay
+                idx = data_in.find('Instrument Transformation Matrix')
+                if idx != -1:
+                    idx2 = data_in[idx:].find(':')
+                    idx3 = idx+idx2[0]
+                    if idx2 != -1:
+                        idx4 = data_in[idx3:].find('>')
+                        idx5 = idx3 + idx4[0] - 2
+                        if idx4 != -1:
+                            temp = float(data_in[idx3:idx5])
+                            self.source = 'ADCP'
+            elif adcp_model == 'RiverPro':
+                #RiverPro
+                idx = data_in.find('Instrument Transformation Matrix')
+                if idx != -1:
+                    idx2 = data_in[idx:].find(':')
+                    idx3 = idx + idx2[0]
+                    if idx2 != -1:
+                        idx4 = data_in[idx3:].find('Has V-Beam')
+                        idx5 = idx3 + idx4[0] - 2
+                        if idx4 != -1:
+                            temp = float(data_in[idx3:idx5])
+                            self.source = 'ADCP'
+            elif adcp_model == 'RioPro':
+                idx = data_in.find('Instrument Transformation Matrix')
+                if idx != -1:
+                    idx2 = data_in[idx:].find(':')
+                    idx3 = idx + idx2[0]
+                    if idx2 != -1:
+                        idx4 = data_in[idx3:].find('Has V-Beam')
+                        idx5 = idx3 + idx4[0] - 2
+                        if idx4 != -1:
+                            temp = float(data_in[idx3:idx5])
+                            self.source = 'ADCP'
+            elif adcp_model == 'pd0':
+                temp = data_in.Inst.t_matrix
+                
+            self.matrix = temp[0:4,0:4]
         else:
             #SonTek M9/S5
             RS = kargs[0]
