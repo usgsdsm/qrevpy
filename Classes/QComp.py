@@ -4,7 +4,6 @@ Created on Sep 26, 2017
 @author: gpetrochenkov
 '''
 from Classes.TransectData import TransectData
-from Classes.Measurement import Measurement
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
 
@@ -192,19 +191,19 @@ class QComp(object):
             transect = kargs[0]
             
             #Prepare water track data
-            cells_above_sl = np.array(transect.w_vel.cells.cells_above_sl).astype(np.double)
+            cells_above_sl = np.array(transect.w_vel._WaterData__cells_above_sl).astype(np.double)
             cells_above_sl[cells_above_sl < 0.5] = np.nan
-            w_vel_x = transect.w_vel.__u_processed_mps * cells_above_sl
-            w_vel_y = transect.w_vel.__v_processed_mps * cells_above_sl
+            w_vel_x = transect.w_vel._WaterData__u_processed_mps * cells_above_sl
+            w_vel_y = transect.w_vel._WaterData__v_processed_mps * cells_above_sl
             
             #Get navigation data from object properties
             trans_select = getattr(transect.boat_vel, transect.boat_vel.selected)
             if trans_select is not None:
-                b_vel_x = trans_select.__u_processed_mps
-                b_vel_y = trans_select.__v_processed_mps
+                b_vel_x = trans_select._BoatData__u_processed_mps
+                b_vel_y = trans_select._BoatData__v_processed_mps
             else:
-                b_vel_x = np.tile([np.nan], transect.boat_vel.bt_vel.__u_processed_mps.shape)
-                b_vel_y = np.tile([np.nan], transect.boat_vel.bt_vel.__v_processed_mps.shape)
+                b_vel_x = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__u_processed_mps.shape)
+                b_vel_y = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__v_processed_mps.shape)
                 
             start_edge = transect.start_edge
             

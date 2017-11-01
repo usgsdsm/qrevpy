@@ -354,15 +354,15 @@ class Pd0TRDI(object):
                         self.Sensor.bit_test[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
                         self.Sensor.sos_mps[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
                         self.Sensor.xdcr_depth_dm[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
-                        self.Sensor.heading_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] / 100
-                        self.Sensor.pitch_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] /100
-                        self.Sensor.roll_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] / 100
+                        self.Sensor.heading_deg[i_ens] = np.fromfile(f, np.uint16, count=1)[0] / 100.
+                        self.Sensor.pitch_deg[i_ens] = np.fromfile(f, np.int16, count=1)[0] /100.
+                        self.Sensor.roll_deg[i_ens] = np.fromfile(f, np.int16, count=1)[0] / 100.
                         self.Sensor.salinity_ppt[i_ens] = np.fromfile(f, np.uint16, count=1)[0]
-                        self.Sensor.temperature_deg_c[i_ens] = np.fromfile(f, np.int16, count=1)[0] / 100
+                        self.Sensor.temperature_deg_c[i_ens] = np.fromfile(f, np.int16, count=1)[0] / 100.
                         self.Sensor.mpt_msc[i_ens,:] = np.fromfile(f, np.uint8, count=3)
                         self.Sensor.heading_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
-                        self.Sensor.pitch_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0] / 10
-                        self.Sensor.roll_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1) / 10
+                        self.Sensor.pitch_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1)[0] / 10.
+                        self.Sensor.roll_std_dev_deg[i_ens] = np.fromfile(f, np.uint8, count=1) / 10.
                         self.Sensor.xmit_current[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.xmit_voltage[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
                         self.Sensor.ambient_temp[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
@@ -405,8 +405,8 @@ class Pd0TRDI(object):
                         if self.Cfg.wn[i_ens] > self.Wt.corr.shape[1]:
                             self.Wt.corr.resize([self.Wt.corr.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.corr.shape[2]])
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Cfg.wn[i_ens])])
-                        self.Wt.corr[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Cfg.wn[i_ens]), n_velocities])
+                        self.Wt.corr[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -416,8 +416,8 @@ class Pd0TRDI(object):
                         if self.Cfg.wn[i_ens] > self.Wt.rssi.shape[1]:
                             self.Wt.rssi.resize([self.Wt.rssi.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.rssi.shape[2]])
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Cfg.wn[i_ens])])
-                        self.Wt.rssi[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Cfg.wn[i_ens]), n_velocities])
+                        self.Wt.rssi[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -427,8 +427,8 @@ class Pd0TRDI(object):
                         if self.Cfg.wn[i_ens] > self.Wt.pergd.shape[1]:
                             self.Cfg.wn[i_ens] = self.Wt.pergd.shape[1]
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Cfg.wn[i_ens])])
-                        self.Wt.pergd[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Cfg.wn[i_ens]), n_velocities])
+                        self.Wt.pergd[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1023,8 +1023,8 @@ class Pd0TRDI(object):
                         i_data_types += 1
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
-                        self.Surface.rssi[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Surface.no_cells[i_ens]),n_velocities])
+                        self.Surface.rssi[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1033,8 +1033,8 @@ class Pd0TRDI(object):
                         i_data_types += 1
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,self.Surface.no_cells[i_ens]])
-                        self.Surface.pergd[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy
+                        dummy = np.reshape(dummy, [self.Surface.no_cells[i_ens],n_velocities])
+                        self.Surface.pergd[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1189,9 +1189,9 @@ class Pd0TRDI(object):
                 #Remove bad data, convert units
                 self.Bt.depth_m[self.Bt.depth_m == -32768] = np.nan
                 self.Bt.depth_m = self.Bt.depth_m / 100
-                self.Bt.corr[self.Bt.corr == -32768] = np.nan
+                self.Bt.vel_mps[self.Bt.vel_mps == -32768] = np.nan
                 self.Bt.vel_mps = self.Bt.vel_mps / 1000
-                self.Bt.corr[self.Bt.corr == 32768] = np.nan
+                self.Bt.corr[self.Bt.corr == -32768] = np.nan
                 self.Bt.eval_amp[self.Bt.eval_amp == -32768] = np.nan
                 self.Bt.pergd[self.Bt.pergd == -32768] = np.nan
                 

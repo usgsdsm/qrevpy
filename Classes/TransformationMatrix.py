@@ -94,7 +94,7 @@ class TransformationMatrix(object):
             elif adcp_model == 'pd0':
                 temp = data_in.Inst.t_matrix
                 
-            self.matrix = temp[0:4,0:4]
+            self.matrix = np.array(temp)[0:4,0:4]
         else:
             #SonTek M9/S5
             RS = kargs[0]

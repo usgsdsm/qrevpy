@@ -5,6 +5,8 @@ Created on Sep 26, 2017
 '''
 import numpy as np
 from Classes.TransectData import TransectData, allocate_transects, adjusted_ensemble_duration
+from Classes.QComp import QComp
+from MiscLibs.convenience import cart2pol
 
 class MovingBedTests(object):
     
@@ -90,6 +92,105 @@ class MovingBedTests(object):
             #Compute flow speed and direction
             #Compute discharge weighted mean velocity components for the
             #purposed of computing the mean flow direction
+            qcomp = QComp()
+            xprod = qcomp.cross_product(kargs=[trans_data])
+            q = qcomp.discharge_middle_cells(xprod, trans_data, ens_duration)
+            wght = np.abs(q)
+            se = np.nansum(np.nansum(wt_U * wght)) / np.nansum(np.nansum(wght))
+            sn = np.nansum(np.nansum(wt_V * wght)) / np.nansum(np.nansum(wght))
+            dir, flow_speed_q = cart2pol(se,sn)
+            self.__flow_dir = np.rad2deg(dir)
+            
+            #compute the area weighted mean velocity components for the
+            #purposed of computing the mean flow speed
+            #SEEMS LIKE THE FLOW SPEED AND DIRECTION SHOULD BE HANDLED BY
+            #THE SAME NOT DIFFERENTLY
+            wght_area = np.multiply(np.multiply(np.sqrt(bt_U**2 + bt_V**2),  bin_size), ens_duration)
+            idx = np.where(np.isnan(wt_U) == False)
+            se = np.nansum(np.nansum(wt_U[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
+            sn = np.nansum(np.nansum(wt_V[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
+            dir_a, self.__flow_spd_mps = cart2pol(se,sn)
+            flow_dir_a = np.rad2deg(dir_a)
+            
+            #Compute moving bed velocity and potential erro in discharge
+            #compute closure distance and direction
+            bt_X = np.nancumsum(bt_U * ens_duration)
+            bt_Y = np.nancumsum(bt_V * ens_duration)
+            dir, self.__dist_us_m = cart2pol(bt_X[-1], bt_Y[-1])
+            self.mb_dir = np.rad2deg(dir)
+            
+            #compute duration of test
+            self.duration_sec = np.nansum(ens_duration)
+            
+            #Compute the moving-bed velocity
+            self.__mb_spd_mps = self.__dist_us_m /  self.duration_sec
+            
+            #Compute potential error in BT referenced discharge
+            self.__percent_mb = (self.__mb_spd_mps / (self.__flow_spd_mps + self.__mb_spd_mps)) * 100
+            
+            #Assess invalid bottom track
+            #Compute percent invalid bottom track
+            self.__percent_invlaid_BT = (np.nansum(bt_valid == False) / len(bt_valid)) * 100
+            
+            #Determine if more than 9 consecutive seconds of invalid BT occurred
+            consect_BT_time = np.zeros(n_ensembles)
+            for n in range(1, n_ensembles):
+                if bt_valid[n] == False:
+                    consect_BT_time = consect_BT_time(n-1) + ens_duration[n]
+                else:
+                    consect_BT_time[n] = 0
+                    
+            max_consect_BT_time = np.nanmax(consect_BT_time)
+            
+            #Evaluate compass calibration based on flow direction
+            
+            #Find apex of loop
+            #adapted from
+            #http://www.mathworks.de/matlabcentral/newsreader/view_thread/164048
+            L1 = np.array([bt_X[0], bt_Y[0], 0])
+            L2 = np.array([bt_X[-1], bt_Y[-1], 0])
+            
+            distance = np.zeros(n_ensembles)
+            for n in range(n_ensembles):
+                P = np.array([bt_X[n], bt_Y[n], 0])
+                distance[n] = np.linalg.norm(np.cross(L2-L1,P-L1)) /  np.linalg.norm(L2-L1)
+                
+            dmg_idx = np.where(distance == np.nanmax(distance))[0][0]
+            
+            #Compute flow direction on outgoing part of loop
+            u_out = wt_U[:,:dmg_idx]    
+            v_out = wt_V[:,:dmg_idx]
+            wght = np.abs(q[:,:dmg_idx])
+            se = np.nansum(u_out * wght) / np.nansum(wght)
+            sn = np.nansum(v_out * wght) / np.nansum(wght)  
+            dir, _ = cart2pol(se, sn)
+            flow_dir1 = np.rad2deg(dir)
+            
+            #Compute unweighted flow direction in each cell
+            dir, _ = cart2pol(u_out, v_out)
+            flow_dir_cell = np.rad2deg(dir)
+            
+            #compute difference from mean and correct to +/- 180
+            v_dir_corr = flow_dir_cell - flow_dir1
+            v_dir_idx = v_dir_corr > 180
+            v_dir_corr[v_dir_idx] = 360-v_dir_corr[v_dir_idx]
+            v_dir_idx = v_dir_corr < -180
+            v_dir_corr[v_dir_idx] = 360 + v_dir_corr[v_dir_idx]
+            
+            #number of invalid weights
+            idx2 = np.where(np.isnan(wght) == False)     
+            nwght = len(idx2)             
+            
+            #Compute 95% uncertainty using wieghted standard deviation
+            uncert1 = 2 * np.sqrt(np.nansum(np.nansum(wght * v_dir_corr**2)) / (((nwght - 1) * np.nansum(np.nansum(wght))) / wght)) /  np.sqrt(nwght)
+            
+            #Compute flow direction on returning part of loop
+            u_ret = wt_U[:, dmg_idx:]
+            v_ret = wt_V[:, dmg_idx:]
+            wght = np.abs(q[:, dmg_idx:])
+            se = np.nansum(u_ret * wght) /  np.nansum(wght)
+
+            
             
         
          

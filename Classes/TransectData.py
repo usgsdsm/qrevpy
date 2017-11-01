@@ -3,7 +3,6 @@ from numpy.matlib import repmat
 import os
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.DepthStructure import DepthStructure
-from Classes.DepthData import DepthData
 from MiscLibs.convenience import cosd, arctand, tand
 from Classes.WaterData import WaterData
 from Classes.BoatStructure import BoatStructure
@@ -16,8 +15,7 @@ from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
 import matplotlib.dates as mdates
 from datetime import datetime
-from functools import partial
-from tempfile import gettempdir
+from MiscLibs.convenience import nandiff
 
 
 class TransectData(object):
@@ -458,7 +456,12 @@ class TransectData(object):
             #compute the duration of each ensemble in seconds
             #adjusting for lost data
             ens_delta_time = np.tile([np.nan], ens_time_sec.shape)
-            idx_time = np.where(np.isnan(ens_time_sec) == False)
+            idx_time = np.where(np.isnan(ens_time_sec) == False)[0]
+            ens_delta_time[idx_time[1:]] = nandiff(ens_time_sec[idx_time])
+            
+            #Adjust for transects tha last past midnight
+            idx_24hr = np.where(ens_delta_time < 0)
+            ens_delta_time[idx_24hr] = 24 * 3600 + ens_delta_time[idx_24hr]
             ens_delta_time = ens_delta_time.T
             
             #Start date and time
@@ -1014,15 +1017,16 @@ def allocate_transects(source, mmt, kargs):
             
         for x in valid_files:
             if x[1] == 1:
+#                 add_pd0(''.join([pathname,'/',x[0][0].Path]))
                 pd0_thread = MultiThread(thread_id=thread_id, function=add_pd0, args = {'file_name': ''.join([pathname,'/',x[0][0].Path])})
                 thread_id += 1
                 pd0_thread.start()
                 pd0_threads.append(pd0_thread)
-                
+                 
         for x in pd0_threads:
             x.join()
-            
-#         pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
+             
+        pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
         
         processed_transects = []
         transect_threads = []
@@ -1041,7 +1045,8 @@ def allocate_transects(source, mmt, kargs):
             transect.transects = transects
            
             if active_config == 'mbt_active_config' or active_config == 'mbt_field_config':
-               
+                    
+#                 add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
                 p_thread = MultiThread(thread_id = thread_id, function= add_transect, 
                                        args = {'transect': transect, 
                                                'source':'TRDI', 
@@ -1051,7 +1056,7 @@ def allocate_transects(source, mmt, kargs):
                 p_thread.start()
                 transect_threads.append(p_thread)
             else:
-                
+                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt)
                 p_thread = MultiThread(thread_id = thread_id, function= add_transect, 
                                        args = {'transect': transect, 
                                                'source':'TRDI', 
@@ -1060,8 +1065,8 @@ def allocate_transects(source, mmt, kargs):
                                                'mmt': mmt})
                 p_thread.start()
                 transect_threads.append(p_thread)
-                
-        
+                 
+         
         for x in transect_threads:
             x.join()
         

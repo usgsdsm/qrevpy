@@ -49,4 +49,26 @@ def azdeg2rad(angle):
         
     return direction
 
+def nandiff(values):
+    
+    final_values = []
+    for n in range(len(values) - 1):
+        
+        if np.isnan(values[n]):
+            final_values.append(np.nan)
+        else:
+            i = n + 1
+            while np.isnan(values[i]) and i < len(values) - 1:
+                i += 1
+                
+            
+            final_values.append(values[i] - values[n])
+        
+    return np.array(final_values)
+
+
+
+        
+
+
 

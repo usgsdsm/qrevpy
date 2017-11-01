@@ -243,8 +243,8 @@ class BoatData(object):
                     if o_coord_sys == 'Beam':
                         
                         #Determine frequency index for transformation matrix
-                        if t_matrix.shape[2] > 1:
-                            idx_freq = np.where(t_matrix_freq==self.__frequency[ii])
+                        if len(t_matrix.shape) > 2:
+                            idx_freq = np.where(t_matrix_freq==self.__frequency_hz[ii])
                             t_mult = t_matrix[idx_freq]
                         else:
                             t_mult = t_matrix
@@ -256,7 +256,7 @@ class BoatData(object):
                         idx_3_beam = np.where(np.isnan(vel))
                         
                         #3-beam solution
-                        if len(idx_3_beam) == 1:        
+                        if len(idx_3_beam[0]) == 1:        
                             
                             #Special processing for RiverRay
                             if adcp.model == 'RiverRay':
@@ -279,7 +279,7 @@ class BoatData(object):
                                 #Reconfigure transformation matrix based on which beam is invalid
                                 
                                 #Beam 1 invalid
-                                if idx_3_beam == beam_pair_1a:
+                                if idx_3_beam[0][0] == beam_pair_1a:
                                     
                                     #Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_1b] *= 2
@@ -291,17 +291,17 @@ class BoatData(object):
                                     t_mult = t_mult[0:3, [beam_pair_1b,beam_pair_2a,beam_pair_2b]]
                                     
                                     #Reconstruct beam velocity matrix to use only valid beams
-                                    vel = vel([beam_pair_1b, beam_pair_2a, beam_pair_2b])
+                                    vel = vel[[beam_pair_1b, beam_pair_2a, beam_pair_2b]]
                                     
                                     #Apply transformation matrix
-                                    temp_t = t_mult * vel
+                                    temp_t = t_mult.dot(vel)
                                     
                                     #Correct horizontal velocity for invalid pair with the vertical velocity
                                     #and speed of sound correction
                                     temp_t[0] = temp_t[0] + temp_t[2] * sos_correction
                                 
                                 #Beam 2 invalid
-                                if idx_3_beam == beam_pair_1b:
+                                if idx_3_beam[0][0] == beam_pair_1b:
                                     
                                     #Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_1a] = t_mult[0:2, beam_pair_1a] * 2
@@ -316,14 +316,14 @@ class BoatData(object):
                                     vel = vel[[beam_pair_1a, beam_pair_2a, beam_pair_2b]]
                                     
                                     #Apply transformation matrix
-                                    temp_t = t_mult * vel
+                                    temp_t = t_mult.dot(vel)
                                     
                                     #Correct horizontal velocity for invalid pair with the vertical
                                     #velocity and speed of sound correction
                                     temp_t[0] = temp_t[0] - temp_t[2] * sos_correction
                                     
                                 #Beam 3 invalid
-                                if idx_3_beam == beam_pair_2a:
+                                if idx_3_beam[0][0] == beam_pair_2a:
                                     
                                     #Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_2b] = t_mult[:2, beam_pair_2b] * 2
@@ -338,14 +338,14 @@ class BoatData(object):
                                     vel = vel[[beam_pair_1a, beam_pair_1b, beam_pair_2b]]
                                     
                                     #Apply transformation matrix
-                                    temp_t = t_mult * vel
+                                    temp_t = t_mult.dot(vel)
                                     
                                     #Correct horizontal velocity for invalid pair with the vertical
                                     #velocity and speed of sound correction
                                     temp_t[1] = temp_t[1] - temp_t[2] * sos_correction
                                     
                                 #Beam 4 invalid
-                                if idx_3_beam == beam_pair_2b:
+                                if idx_3_beam[0][0] == beam_pair_2b:
                                     
                                     #Double valid beam in invalid pair
                                     t_mult[:2, beam_pair_2a] *= 2
@@ -356,8 +356,11 @@ class BoatData(object):
                                     #Reconstruct transformations matrix as a 3x3 matrix
                                     t_mult = t_mult[:3, [beam_pair_1a, beam_pair_1b, beam_pair_2a]]
                                     
+                                    #Reconstruct beam velocity matrix to use only valid beams
+                                    vel = vel[[beam_pair_1a, beam_pair_1b, beam_pair_2a]]
+                                    
                                     #Apply transformation matrix
-                                    temp_t = t_mult * vel
+                                    temp_t = t_mult.dot(vel)
                                     
                                     #Correct horiaontal velocity for invalid pair with the vertical
                                     #velocity and speed of sound correction
@@ -369,21 +372,21 @@ class BoatData(object):
                                 vel_3_beam_zero = vel
                                 vel_3_beam_zero[np.isnan(vel)] = 0
                                 vel_error = t_mult[3,:] * vel_3_beam_zero
-                                vel[idx_3_beam] = -1 * vel_error / t_mult(3,idx_3_beam)
-                                temp_t = t_mult * vel
+                                vel[idx_3_beam] = -1 * vel_error / t_mult[3,idx_3_beam]
+                                temp_t = t_mult.dot(vel)
                                 
                             #apply transformation matrix for 3 beam solutions
-                            temp_THPR = hpr_matrix * temp_t[:3,:]
-                            temp_THPR[3] = np.nan
+                            temp_THPR = np.array(hpr_matrix).dot(temp_t[:3])
+                            temp_THPR = np.hstack([temp_THPR, np.nan])
                             
                         else:
                             
                             #Apply transormation matrix for 4 beam solutions
-                            temp_t = t_mult * np.squeeze(self.__raw_vel_mps[:,ii])
+                            temp_t = t_mult.dot(np.squeeze(self.__raw_vel_mps[:,ii]))
                             
                             #Apply hpr_matrix
-                            temp_THPR = hpr_matrix * temp_t[:3,:]
-                            temp_THPR[3,:] = vel[3]
+                            temp_THPR = np.array(hpr_matrix).dot(temp_t[:3])
+                            temp_THPR = np.hstack([temp_THPR, temp_t[3]])
                             
                     else:
                         

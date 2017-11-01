@@ -309,7 +309,7 @@ class WaterData(object):
                 for ii in range(n_ens):
                     
                     #Compute matrix for heading, pitch, and roll
-                    hpr_matrix = [[((CH[ii] * CR[ii]) + (SH[ii]*SP[ii]*SR[ii])),
+                    hpr_matrix = np.array([[((CH[ii] * CR[ii]) + (SH[ii]*SP[ii]*SR[ii])),
                                 (SH[ii] * CP[ii]),
                                 ((CH[ii] * SR[ii]) - SH[ii]*SP[ii]*CR[ii])],
                                 [(-1 * SH[ii] * CR[ii])+(CH[ii] * SP[ii] * SR[ii]),
@@ -317,13 +317,13 @@ class WaterData(object):
                                 (-1 * SH[ii] * SR[ii])-(CH[ii] * SP[ii] * CR[ii])],
                                 [(-1.*CP[ii] * SR[ii]),
                                 SP[ii],
-                                CP[ii] * CR[ii]]]
+                                CP[ii] * CR[ii]]])
                     
                     #Transofm beam coordinates
                     if o_coord_sys == 'Beam':
                         
                         #Determine frequency index for transformation
-                        if t_matrix.shape[2] > 1:
+                        if t_matrix.shape[-1] > 1:
                             idx_freq = np.where(t_matrix_freq==self.__frequency[ii])
                             t_mult = t_matrix[idx_freq]
                         else:
@@ -336,7 +336,7 @@ class WaterData(object):
                         temp_t = t_mult * vel_beams
                         
                         #Apply hpr_matrix
-                        temp_THPR = hpr_matrix * temp_t[:3]
+                        temp_THPR = hpr_matrix.dot(temp_t[:3])
                         
                         #Check for invalid beams
                         invalid_idx = np.isnan(vel_beams)
