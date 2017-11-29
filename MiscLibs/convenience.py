@@ -26,7 +26,7 @@ def cart2pol(x, y):
     rho = np.sqrt(x**2 + y**2)
     phi = np.arctan2(y, x)
     
-    return(rho, phi)
+    return(phi, rho)
 
 def pol2cart(rho, phi):
     
@@ -48,6 +48,24 @@ def azdeg2rad(angle):
         direction[idx] = direction[idx]+ 2 * np.pi;
         
     return direction
+
+def rad2azdeg(angle):
+    if isinstance(angle, float):
+        deg = np.rad2deg(angle)
+        deg = 90 - deg
+        if deg < 0:
+            deg += 360
+            
+        return deg
+    else:
+        #Multiple values
+        deg = np.rad2deg(angle)
+        deg = 90 - deg
+        sub_zero = np.where(deg < 0)
+        deg[sub_zero] = deg[sub_zero] + 360
+        
+        return deg
+            
 
 def nandiff(values):
     

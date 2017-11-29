@@ -121,9 +121,9 @@ class WaterData(object):
             max_surf_cells = max_cells - num_reg_cells
             
             #Combine surface velocity bins and regular velocity bins into one matrix
-            self.__raw_vel_mps = np.zeros([4,max_cells, num_ens])
-            self.__rssi = np.zeros([4,max_cells, num_ens])
-            self.__corr = np.zeros([4,max_cells, num_ens])
+            self.__raw_vel_mps = np.tile([np.nan],[4,max_cells, num_ens])
+            self.__rssi = np.tile([np.nan],[4,max_cells, num_ens])
+            self.__corr = np.tile([np.nan],[4,max_cells, num_ens])
             
             if max_surf_cells > 0:
                 self.__raw_vel_mps[:,:max_surf_cells,:] = surface_vel[:,:max_surf_cells,:]
@@ -142,10 +142,10 @@ class WaterData(object):
         self.coord_sys = coord_sys_in
         self.__orig_nav_ref = nav_ref_in
         self.nav_ref = nav_ref_in
-        self.__u_mps = np.squeeze(self.__raw_vel_mps[0,:,:])
-        self.__v_mps = np.squeeze(self.__raw_vel_mps[1,:,:])
-        self.__w_mps = np.squeeze(self.__raw_vel_mps[2,:,:])
-        self.__d_mps = np.squeeze(self.__raw_vel_mps[3,:,:])
+        self.__u_mps = np.squeeze(np.copy(self.__raw_vel_mps)[0,:,:])
+        self.__v_mps = np.squeeze(np.copy(self.__raw_vel_mps)[1,:,:])
+        self.__w_mps = np.squeeze(np.copy(self.__raw_vel_mps)[2,:,:])
+        self.__d_mps = np.squeeze(np.copy(self.__raw_vel_mps)[3,:,:])
         
         #Because Matlab pads arrays with zeros and RR data has variable
         #number of bins, the raw data may be padded with zeros.  The next 
@@ -191,13 +191,13 @@ class WaterData(object):
         
         #Find invalid raw data
         valid_vel = np.tile(self.__cells_above_sl, [4,1,1])
-        valid_vel[np.isnan(self.__raw_vel_mps)] = 0
+        valid_vel[np.isnan(self.__raw_vel_mps)] = False
         if len(kargs) > 1:
-            valid_vel[self.__raw_vel_mps == 0] = 0
+            valid_vel[self.__raw_vel_mps == 0] = False
             
         #Identify invalid velocity data (less than 3 valid beams)
         valid_vel_sum = np.sum(valid_vel, axis=0)
-        valid_data2 = self.__cells_above_sl
+        valid_data2 = np.copy(self.__cells_above_sl)
         valid_data2[valid_vel_sum < 3] = False
         
         #Set valid_data property for original data
@@ -233,8 +233,8 @@ class WaterData(object):
             self.__num_invalid.append(np.floor((valid_data_2_sum[idx1]+valid_data_2_sum[idx2]) / 2))
             
         #Set processed data to non-interpolated valid data
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps
+        self.__u_processed_mps = np.copy(self.__u_mps)
+        self.__v_processed_mps = np.copy(self.__v_mps)
         self.__u_processed_mps[self.valid_data[0] == False] = np.nan
         self.__v_processed_mps[self.valid_data[0] == False] = np.nan
         
@@ -304,7 +304,7 @@ class WaterData(object):
                 SR = sind(r)
                 
                 vel_changed = np.tile([np.nan], self.__raw_vel_mps.shape)
-                n_ens = self.__raw_vel_mps.shape[1]
+                n_ens = self.__raw_vel_mps.shape[2]
                 
                 for ii in range(n_ens):
                     
@@ -323,20 +323,21 @@ class WaterData(object):
                     if o_coord_sys == 'Beam':
                         
                         #Determine frequency index for transformation
-                        if t_matrix.shape[-1] > 1:
+                        if len(t_matrix.shape) > 2 and t_matrix.shape[2] > 1:
                             idx_freq = np.where(t_matrix_freq==self.__frequency[ii])
-                            t_mult = t_matrix[idx_freq]
+                            t_mult = np.copy(t_matrix[idx_freq])
                         else:
-                            t_mult = t_matrix
+                            t_mult = np.copy(t_matrix)
                             
                         #Get velocity data
-                        vel_beams = np.squeeze(self.__raw_vel_mps[:,:,ii]).T
+                        vel_beams = np.squeeze(self.__raw_vel_mps[:,:,ii])
                         
                         #Apply transformation matrix for 4 beam solutions
-                        temp_t = t_mult * vel_beams
+                        temp_t = t_mult.dot(vel_beams)
                         
                         #Apply hpr_matrix
                         temp_THPR = hpr_matrix.dot(temp_t[:3])
+                        temp_THPR = np.vstack([temp_THPR, temp_t[3]])
                         
                         #Check for invalid beams
                         invalid_idx = np.isnan(vel_beams)
@@ -358,36 +359,45 @@ class WaterData(object):
                                 #3 beam solution for non-RiverRay
                                 vel_3_beam_zero = vel_3_beam
                                 vel_3_beam_zero[np.isnan(vel_3_beam)] = 0
-                                vel_error = t_mult[4,:] * vel_3_beam_zero
-                                vel_3_beam[idx_3_beam] = -1 * vel_error / t_mult[4,idx_3_beam]
-                                temp_t = t_mult * vel_3_beam
+                                vel_error = t_mult[3,:].dot(vel_3_beam_zero)
+                                vel_3_beam[idx_3_beam] = -1 * vel_error / t_mult[3,idx_3_beam]
+                                temp_t = t_mult.dot(vel_3_beam)
                                 
                                 #Apply transformation matrix for 3
                                 #beam solutions
-                                temp_THPR[0:3,col_idx[i3]] = hpr_matrix*temp_t[:3,:]
+                                temp_THPR[0:3,col_idx[i3]] = hpr_matrix.dot(temp_t[:3])
                                 temp_THPR[3,col_idx[i3]] = np.nan
                             
                     else:
                         #Get velocity data
-                        vel_raw = np.squeeze(self.__raw_vel_mps[:,ii,:]).T
+                        vel_raw = np.squeeze(self.__raw_vel_mps[:,:,ii])
                         temp_THPR = np.array(hpr_matrix).dot(vel_raw[:3,:])
                         temp_THPR = np.vstack([temp_THPR, vel_raw[3,:]])
                         
-                    # Because of padded arrays with zeros and RR has a variable number of bins,
-                    # the raw data may be padded with zeros.  The next 4 statements changes
-                    # those to nan
-                    self.__u_mps[self.__u_mps == 0] = np.nan
-                    self.__v_mps[self.__v_mps == 0] = np.nan
-                    self.__w_mps[self.__w_mps == 0] = np.nan
-                    self.__d_mps[self.__d_mps == 0] = np.nan
+                    #Update object
+                    temp_THPR = temp_THPR.T
+                    self.__u_mps[:,ii] = temp_THPR[:,0]
+                    self.__v_mps[:,ii] = temp_THPR[:,1]
+                    self.__w_mps[:,ii] = temp_THPR[:,2]
+                    self.__d_mps[:,ii] = temp_THPR[:,3]
                     
-                    #Assign processed object properties
-                    self.__u_processed_mps = self.__u_mps
-                    self.__v_processed_mps = self.__v_mps
+                    #end n_ens --------------------------------------------------------
                     
-                    #Assign coordinate system and reference properties
-                    self.coord_sys = new_coord_sys
-                    self.nav_ref = self.__orig_nav_ref
+                # Because of padded arrays with zeros and RR has a variable number of bins,
+                # the raw data may be padded with zeros.  The next 4 statements changes
+                # those to nan
+                self.__u_mps[self.__u_mps == 0] = np.nan
+                self.__v_mps[self.__v_mps == 0] = np.nan
+                self.__w_mps[self.__w_mps == 0] = np.nan
+                self.__d_mps[self.__d_mps == 0] = np.nan
+                
+                #Assign processed object properties
+                self.__u_processed_mps = np.copy(self.__u_mps)
+                self.__v_processed_mps = np.copy(self.__v_mps)
+                
+                #Assign coordinate system and reference properties
+                self.coord_sys = new_coord_sys
+                self.nav_ref = self.__orig_nav_ref
                     
             else:
                 
@@ -404,8 +414,8 @@ class WaterData(object):
                     self.__d_mps[self.__d_mps == 0] = np.nan
                     
                 #Assign processed properties
-                self.__u_processed_mps = self.__u_mps
-                self.__v_processed_mps = self.__v_mps
+                self.__u_processed_mps = np.copy(self.__u_mps)
+                self.__v_processed_mps = np.copy(self.__v_mps)
                 
         else:
             
@@ -422,12 +432,12 @@ class WaterData(object):
                 self.__d_mps[self.__d_mps == 0] = np.nan
                 
             #Assign processed properties
-            self.__u_processed_mps = self.__u_mps
-            self.__v_processed_mps = self.__v_mps
+            self.__u_processed_mps = np.copy(self.__u_mps)
+            self.__v_processed_mps = np.copy(self.__v_mps)
             
         if new_coord_sys == 'Earth':
-            self.__u_earth_no_ref_mps = self.__u_mps
-            self.__v_earth_no_ref_mps = self.__v_mps
+            self.__u_earth_no_ref_mps = np.copy(self.__u_mps)
+            self.__v_earth_no_ref_mps = np.copy(self.__v_mps)
                 
     def set_nav_reference(self, boat_vel):           
         '''This function sets the navigation reference.  The current
@@ -450,7 +460,7 @@ class WaterData(object):
             elif boat_vel.selected == 'vtg_vel':
                 self.nav_ref = 'VTG'
         
-        valid_data2 = self.__cells_above_sl
+        valid_data2 = np.copy(self.__cells_above_sl)
         valid_data2[np.isnan(self.__u_mps)] = False
         self.valid_data[1] = valid_data2
         
@@ -543,13 +553,13 @@ class WaterData(object):
                 if kargs[n] == 'Beam':
                     n += 1
                     beam_filter_setting = kargs[n]
-                    self.filter_beam(beam_filter_setting)
+                    self.__filter_beam(beam_filter_setting)
                 elif kargs[n] == 'Difference':
                     n += 1
                     d_filter_setting = kargs[n]
                     if d_filter_setting == 'Manual':
                         n+=1
-                        self.filter_diff_vel(d_filter_setting, kargs[n])
+                        self.filter_diff_vel(d_filter_setting, [kargs[n]])
                     else:
                         self.filter_diff_vel(d_filter_setting)
                 elif kargs[n] == 'Vertical':
@@ -560,21 +570,21 @@ class WaterData(object):
                         setting = kargs[n]
                         if np.isnan(setting):
                             setting = self.w_filter_threshold
-                        self.filter_vert_vel(w_filter_setting, setting)
+                        self.__filter_vert_vel(w_filter_setting, [setting])
                     else:
-                        self.filter_vert_vel(w_filter_setting, setting)
+                        self.__filter_vert_vel(w_filter_setting, [setting])
                 elif kargs[n] == 'Other':
                     n += 1
-                    self.filter_smooth(transect, kargs[n])
+                    self.__filter_smooth(transect, [kargs[n]])
                 elif kargs[n] == 'Excluded':
                     n += 1
-                    self.filter_excluded(transect, kargs[n])
+                    self.__filter_excluded(transect, [kargs[n]])
                 elif kargs[n] == 'SNR':
                     n += 1
-                    self.filter_snr(kargs[n])
+                    self.__filter_snr(kargs[n])
                 elif kargs[n] == 'wtDepth':
                     n += 1
-                    self.filter_WT_depth(transect, kargs[n])
+                    self.__filter_WT_depth(transect, [kargs[n]])
                     
                 n += 1
         else:
@@ -599,8 +609,8 @@ class WaterData(object):
         cells_above_SLBT = self.__cells_above_slbt
         
         #Compute cutoff for vertical beam depths
-        if depth_selected == 'vbDepths':
-            depth_selected = getattr(transect.depths, 'depth_selected')
+        if depth_selected == 'vb_depths':
+            depth_selected = getattr(transect.depths, transect.depths.selected)
             sl_cutoff_VB = depth_selected.depth_processed_m - \
                 depth_selected.draft_use_m * cosd(transect.adcp.beam_angle_deg) \
                 - self.__sl_lag_effect_m + depth_selected.draft_use_m
@@ -699,7 +709,7 @@ class WaterData(object):
             #Apply automatic filter
             #Create temporary object
             
-            temp = self
+            temp = np.copy(self)
             #Apply 3 beam filter to temporary object
             temp.__filter_beam(4)
             

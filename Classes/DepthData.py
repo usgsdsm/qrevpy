@@ -68,7 +68,11 @@ class DepthData(object):
             self.avg_method = 'IDW'
         else:
             self.avg_method = 'None'
-        
+#             self.depth_cell_depth_orig_m = kargs[0]
+#             self.depth_cell_size_orig_m = kargs[1]
+#             self.depth_cell_size_m = kargs[1]
+#             self.depth_cell_depth_m = kargs[0]
+#         
         self.apply_filter('dummy', kargs=['None'])
         
 
@@ -100,7 +104,7 @@ class DepthData(object):
         '''
         
         self.depth_cell_depth_orig_m = bt_depths.depth_cell_depth_orig_m
-        self.depth_cell_size = bt_depths.depth_cell_size_m
+        self.depth_cell_size_m = bt_depths.depth_cell_size_m
         self.depth_cell_depth_m = bt_depths.depth_cell_depth_m
         
     def set_avg_method(self, setting):

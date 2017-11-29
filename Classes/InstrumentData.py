@@ -28,6 +28,7 @@ class InstrumentData(object):
         
         if manufacturer == 'TRDI':
             
+            self.manufacturer = manufacturer
             mmt_transect = kargs[0]
             pd0 = kargs[1]
             mmt = kargs[2]

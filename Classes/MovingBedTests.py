@@ -4,9 +4,9 @@ Created on Sep 26, 2017
 @author: gpetrochenkov
 '''
 import numpy as np
-from Classes.TransectData import TransectData, allocate_transects, adjusted_ensemble_duration
+from Classes.TransectData import adjusted_ensemble_duration
 from Classes.QComp import QComp
-from MiscLibs.convenience import cart2pol
+from MiscLibs.convenience import cart2pol, sind, pol2cart, rad2azdeg
 
 class MovingBedTests(object):
     
@@ -54,7 +54,7 @@ class MovingBedTests(object):
                 self.loop_test(delta_t)
             else:
                 self.loop_test()
-        elif self.type == 'Stationary':
+        elif self.__type == 'Stationary':
             self.stationary_test()
         else:
             pass
@@ -78,6 +78,9 @@ class MovingBedTests(object):
         n_ensembles = len(in_transect_idx)
         bt_valid = trans_data.boat_vel.bt_vel._BoatData__valid_data[0,in_transect_idx]
         #Check that there is some valid BT data
+        
+        self.__messages = []
+        vel_criteria = 0.012
         if np.nansum(bt_valid) > 0:
             wt_U = trans_data.w_vel._WaterData__u_processed_mps[:,in_transect_idx]
             wt_V = trans_data.w_vel._WaterData__v_processed_mps[:,in_transect_idx]
@@ -98,8 +101,8 @@ class MovingBedTests(object):
             wght = np.abs(q)
             se = np.nansum(np.nansum(wt_U * wght)) / np.nansum(np.nansum(wght))
             sn = np.nansum(np.nansum(wt_V * wght)) / np.nansum(np.nansum(wght))
-            dir, flow_speed_q = cart2pol(se,sn)
-            self.__flow_dir = np.rad2deg(dir)
+            direct, flow_speed_q = cart2pol(se,sn)
+            self.__flow_dir = rad2azdeg(direct)
             
             #compute the area weighted mean velocity components for the
             #purposed of computing the mean flow speed
@@ -110,14 +113,14 @@ class MovingBedTests(object):
             se = np.nansum(np.nansum(wt_U[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
             sn = np.nansum(np.nansum(wt_V[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
             dir_a, self.__flow_spd_mps = cart2pol(se,sn)
-            flow_dir_a = np.rad2deg(dir_a)
+            flow_dir_a = rad2azdeg(dir_a)
             
-            #Compute moving bed velocity and potential erro in discharge
+            #Compute moving bed velocity and potential error in discharge
             #compute closure distance and direction
             bt_X = np.nancumsum(bt_U * ens_duration)
             bt_Y = np.nancumsum(bt_V * ens_duration)
-            dir, self.__dist_us_m = cart2pol(bt_X[-1], bt_Y[-1])
-            self.mb_dir = np.rad2deg(dir)
+            direct, self.__dist_us_m = cart2pol(bt_X[-1], bt_Y[-1])
+            self.__mb_dir = rad2azdeg(direct)
             
             #compute duration of test
             self.duration_sec = np.nansum(ens_duration)
@@ -136,7 +139,7 @@ class MovingBedTests(object):
             consect_BT_time = np.zeros(n_ensembles)
             for n in range(1, n_ensembles):
                 if bt_valid[n] == False:
-                    consect_BT_time = consect_BT_time(n-1) + ens_duration[n]
+                    consect_BT_time[n] = consect_BT_time[n-1] + ens_duration[n]
                 else:
                     consect_BT_time[n] = 0
                     
@@ -158,17 +161,17 @@ class MovingBedTests(object):
             dmg_idx = np.where(distance == np.nanmax(distance))[0][0]
             
             #Compute flow direction on outgoing part of loop
-            u_out = wt_U[:,:dmg_idx]    
-            v_out = wt_V[:,:dmg_idx]
-            wght = np.abs(q[:,:dmg_idx])
+            u_out = wt_U[:,:dmg_idx+1]    
+            v_out = wt_V[:,:dmg_idx+1]
+            wght = np.abs(q[:,:dmg_idx+1])
             se = np.nansum(u_out * wght) / np.nansum(wght)
             sn = np.nansum(v_out * wght) / np.nansum(wght)  
-            dir, _ = cart2pol(se, sn)
-            flow_dir1 = np.rad2deg(dir)
+            direct, _ = cart2pol(se, sn)
+            flow_dir1 = rad2azdeg(direct)
             
             #Compute unweighted flow direction in each cell
-            dir, _ = cart2pol(u_out, v_out)
-            flow_dir_cell = np.rad2deg(dir)
+            direct, _ = cart2pol(u_out, v_out)
+            flow_dir_cell = rad2azdeg(direct)
             
             #compute difference from mean and correct to +/- 180
             v_dir_corr = flow_dir_cell - flow_dir1
@@ -179,19 +182,266 @@ class MovingBedTests(object):
             
             #number of invalid weights
             idx2 = np.where(np.isnan(wght) == False)     
-            nwght = len(idx2)             
+            nwght = len(idx2[0])             
             
             #Compute 95% uncertainty using wieghted standard deviation
-            uncert1 = 2 * np.sqrt(np.nansum(np.nansum(wght * v_dir_corr**2)) / (((nwght - 1) * np.nansum(np.nansum(wght))) / wght)) /  np.sqrt(nwght)
+            uncert1 = 2. * np.sqrt(np.nansum(np.nansum(wght * v_dir_corr**2)) / (((nwght - 1) * np.nansum(np.nansum(wght))) / nwght)) /  np.sqrt(nwght)
             
             #Compute flow direction on returning part of loop
-            u_ret = wt_U[:, dmg_idx:]
-            v_ret = wt_V[:, dmg_idx:]
-            wght = np.abs(q[:, dmg_idx:])
+            u_ret = wt_U[:, dmg_idx+1:]
+            v_ret = wt_V[:, dmg_idx+1:]
+            wght = np.abs(q[:, dmg_idx+1:])
             se = np.nansum(u_ret * wght) /  np.nansum(wght)
+            sn = np.nansum(v_ret * wght) / np.nansum(wght)
+            direct, _ = cart2pol(se, sn)
+            flow_dir2 = rad2azdeg(direct)
+            
+            #compute unwieghted flow direction in each cell
+            direct, _ = cart2pol(u_ret, v_ret)
+            flow_dir_cell = rad2azdeg(direct)
+            
+            #Compute difference from mean and correct to +/- 180
+            v_dir_corr = flow_dir_cell - flow_dir2
+            v_dir_idx = v_dir_corr > 180
+            v_dir_corr[v_dir_idx] = 360 - v_dir_corr[v_dir_idx]
+            v_dir_idx = v_dir_corr < -180
+            v_dir_corr[v_dir_idx] = 360 + v_dir_corr[v_dir_idx]
+            
+            #Number of valid weights
+            idx2 = np.where(np.isnan(wght) == False)
+            nwght = len(idx2[0])
+            
+            #Compute 95% uncertainty using weighted standard deviation
+            uncert2 = 2.*np.sqrt(np.nansum(np.nansum(wght * (v_dir_corr)**2)) / (((nwght-1)*np.nansum(np.nansum(wght))) / nwght)) / np.sqrt(nwght)
+            
+            #Compute and report difference in flow direction
+            diff_dir = np.abs(flow_dir1 - flow_dir2)
+            if diff_dir > 180:
+                diff_dir = diff_dir - 360
+            self.__compass_diff_deg = diff_dir
+            uncert = uncert1 + uncert2
+            
+            #Compute potential compass error
+            idx = np.where(np.isnan(bt_X)==False)
+            if len(idx[0]) > 0:
+                idx = idx[0][-1]
+            width = np.sqrt((bt_X[dmg_idx] - bt_X[idx] /2)**2 + (bt_Y[dmg_idx] - bt_Y[idx] / 2)**2)
+            compass_error = (2*width * sind(diff_dir / 2) * 100) / (self.duration_sec * self.__flow_spd_mps)
+            
+            #Initialize message counter
+            self.__test_quality = 'Good'
+            
+            
+            #Low water velocity
+            if self.__flow_spd_mps < 0.25:
+                self.__messages.append('WARNING: The water velocity is less than recommended minimum for' \
+                'this test and could cause the loop method to be inaccurate.  ' \
+                'CONSIDER USING A STATIONARY TEST TO CHECK MOVING-BED CONDITIONS')
+                self.__test_quality = 'Warnings'
+                
+            #Percent invalid bottom track
+            if self.__percent_invlaid_BT > 20:
+                self.__messages.append('ERROR: Percent invalid bottom track exceeds 20 percent. THE LOOP IS NOT ACCURATE. TRY A STATIONARY MOVING-BED TEST.')
+                self.__test_quality = 'Errors'
+            elif self.__percent_invlaid_BT > 5:
+                self.__messages('WARNING: Percent invalid bottom track exceeds 5 percent. Loop may not be accurate. PLEASE REVIEW DATA.')
+                self.__test_quality = 'Warnings'
+                
+            #More than 9 consecutive seconds of invalid BT
+            if max_consect_BT_time > 9:
+                self.__messages.append('ERROR: Bottom track is invalid for more than 9 consecutive seconds. THE LOOP IS NOT ACCURATE. TRY A STATIONARY MOVING-BED TEST.')
+                self.__test_quality = 'Errors'
+                
+            if np.abs(compass_error) > 5 and np.abs(diff_dir) > 3 and np.abs(diff_dir) > uncert:
+                self.__messages.append('ERROR: Difference in flow direction between out and back sections of loop could result in a 5 percent or greater error in final discharge. REPEAT LOOP AFTER COMPASS CAL. OR USE A STATIONARY MOVING-BED TEST.')
+                self.__test_quality = 'Errors'
+        
+        else:
+            self.__messages.append('ERROR: Loop has no valid bottom track data. REPEAT OR USE A STATIONARY MOVING-BED TEST.')  
+            self.__test_quality = 'Errors'
+            
+        #If loop is valid then evaluate moving-bed condition
+        if self.__test_quality != 'Errors':
+            
+            #Check minimum moving-bed velocity criteria
+            if self.__mb_spd_mps > vel_criteria:
+                #Check that closure error is in upstream direction
+                if np.abs(self.__flow_dir - self.__mb_dir) > 135 and np.abs(self.__flow_dir - self.__mb_dir) < 225:
+                    #Check if moving-bed is greater than 1% of the mean flow speed
+                    if self.__percent_mb > 1:
+                        self.__messages.append('Loop Indicates a Moving Bed -- Use GPS as reference. If GPS is unavailable or invalid use the loop method to correct the final discharge.')
+                        self.__moving_bed = 'Yes'
+                    else:
+                        self.__messages.append('Moving Bed Velocity < 1% of Mean Velocity -- No Correction Recommended')
+                        self.__moving_bed = 'No'
+                else:
+                    self.__messages.append('ERROR: Loop closure error not in upstream direction. REPEAT LOOP or USE STATIONARY TEST') 
+                    self.__test_quality = 'Errors'
+                    self.__moving_bed = 'Uknown'
+            else:
+                self.__messages.append('Moving-bed velocity < Minimum moving-bed velocity criteria -- No correction recommended')
+                self.__moving_bed = 'No'
+        else:
+            self.__messages.append('ERROR: Due to ERRORS noted above this loop is NOT VALID. Please consider suggestions.')
+            self.__moving_bed = 'Uknown'
+            
+            
+    def stationary_test(self):
+        '''Processed the stationary moving-bed tests'''
+        #Assign data from treansect to local variables
+        trans_data = self.__transect
+        in_transect_idx = self.__transect.in_transect_idx
+        n_ensembles = len(in_transect_idx)
+        bt_valid = trans_data.boat_vel.bt_vel.valid_data[0,in_transect_idx]
+        #Check to see that there is some valid bottom track data
+        self.__messages = []
+        if np.nansum(bt_valid) > 0:
+            wt_U = trans_data.w_vel.__u_processed_mps[:, in_transect_idx]
+            wt_V = trans_data.w_vel.__v_processed_mps[:, in_transect_idx]
+            ens_duration = trans_data.datetime.ens_duration_sec[in_transect_idx]
+            bt_U = trans_data.boat_vel.bt_vel.__u_processed_mps[in_transect_idx]
+            bt_V = trans_data.boat_vel.bt_vel.__v_processed_mps[in_transect_idx]
+            
+            bin_depth = trans_data.depths.bt_depths.depth_cell_depth_m[:, in_transect_idx]
+            trans_select = getattr(trans_data.depths, trans_data.depths.selected)
+            depth_ens = trans_select.depth_processed_m[in_transect_idx]
+            
+            nb_U, nb_V, unit_NBU, unit_NBV = self.near_bed_velocity(wt_U, wt_V, depth_ens, bin_depth)
+            
+            #Compute bottom track parallel to water velocity
+            unit_NB_vel = [[unit_NBU],[unit_NBV]]
+            bt_vel = [[bt_U],[bt_V]]
+            bt_vel_up_strm = -1 * np.dot(bt_vel, unit_NB_vel)
+            bt_up_strm_dist = bt_vel_up_strm * ens_duration
+            bt_up_strm_dist_cum = np.nancumsum(bt_up_strm_dist)
+            
+            #Compute bottom track perpendicular to water velocity
+            nb_vel_ang, _ = cart2pol(unit_NBU, unit_NBV)
+            nb_vel_unit_cs1, nb_vel_unit_cs2 = pol2cart(nb_vel_ang + np.pi / 2, np.ones(nb_vel_ang.shape))
+            nb_vel_unit_cs = np.hstack([nb_vel_unit_cs1, nb_vel_unit_cs2])
+            bt_vel_cs = np.dot(bt_vel, nb_vel_unit_cs.T,1)
+            bt_cs_strm_dist = bt_vel_cs * ens_duration
+            bt_cs_strm_dist_cum = np.nancumsum(bt_cs_strm_dist)
+            
+            #Compute cumulative mean moving bed velocity
+            valid_bt_vel_up_strm = np.isnan(bt_vel_up_strm) == False
+            mb_vel = np.nancumsum(bt_vel_up_strm) / np.nancumsum(valid_bt_vel_up_strm)
+            
+            #Compute the average ensemble velocities corrected for moving bed
+            if mb_vel[-1] > 0:
+                u_corrected = np.add(wt_U, (unit_NB_vel[0,:]) * bt_vel_up_strm)
+                v_corrected = np.add(wt_V, (unit_NB_vel[1,:]) * bt_vel_up_strm)
+            else:
+                u_corrected = wt_U
+                v_corrected = wt_V
+                
+            ''' Compute the mean of the ensemble magnitudes
+                Mean is computed using magnitudes because if a Streampro with no
+                 compass is the data source the change in direction could be
+                either real change in water direction or an uncompensated turn of
+                 the floating platform. This approach is the best compromise when
+                 there is no compass or the compass is unreliable, which is often
+                 why the stationary method is used. A weighted average is used
+                 to account for the possible change in cell size within and
+                 ensemble for the RiverRay and RiverPro.'''
+            
+            mag = np.sqrt(u_corrected**2 + v_corrected**2)
+            depth_cell_size = trans_data.depths.bt_depths.depth_cell_size_m[:, in_transect_idx]
+            depth_cell_size[np.isnan(mag)] = np.nan
+            mag_w = mag * depth_cell_size
+            avg_vel = np.nansum(mag_w) / np.nansum(depth_cell_size)
+            pot_error_per = (mb_vel[-1] / avg_vel) * 100
+            if pot_error_per < 0:
+                pot_error_per = 0   
+                
+            #Compute percent invalid bottom track
+            self.__percent_invlaid_BT = (np.nansum(bt_valid == False) / len(bt_valid)) * 100
+            self.__dist_us_m = bt_up_strm_dist_cum[-1]
+            self.duration_sec = np.nansum(ens_duration)
+            self.__compass_diff_deg = []
+            self.__flow_dir = []
+            self.__mb_dir = []
+            self.__flow_spd_mps = avg_vel
+            self.__mb_spd_mps = mb_vel[-1]
+            self.percent_mb = pot_error_per
+            self.__near_bed_speed_mps = np.sqrt(np.nanmean(nb_U)**2 + np.nanmean(nb_V)**2)
+            self.__stationary_us_track = bt_up_strm_dist_cum
+            self.__stationary_cs_track = bt_cs_strm_dist_cum
+            self.__stationary_mb_vel = mb_vel
+            
+            #Quality check
+            self.test_quality = 'Good'
+            #check duration
+            if self.__duration_sec < 300:
+                self.__messages.append('WARNING - Duration of stationary test is less than 5 minutes')
+                self.__test_quality = 'Warnings'
+                
+            #Check validity of mean moving-bed velocity
+            if self.duration_sec > 60:
+                mb_vel_std = np.nanstd(mb_vel[-30:])
+                cov = mb_vel_std / mb_vel[-1]
+                if cov > 0.25 and mb_vel_std > 0.03:
+                    self.__messages.append('WARNING - Moving-bed velocity may not be consistent. Average maybe inaccurate.')
+                    self.__test_quality = 'Warnings'
+                else:
+                    cov = np.nan
+                    
+            #Check percentage of invalid BT data
+            #if sum(bt_valid) <= 150
+            if np.nansum(ens_duration[valid_bt_vel_up_strm]) <= 120:
+                
+                self.__messages.append('ERROR - Total duration of valid BT data is insufficient for a valid test.')
+                self.__test_quality = 'Errors'
+                self.__moving_bed = 'Unknown'
+            elif self.__percent_invlaid_BT > 10:
+                self.__messages.append('WARNING - Number of ensembles with invalid bottom track exceeds 10%')
+                self.__test_quality = 'Warnings'
+                
+            #Determine if the test indicates a moving bed
+            if self.__test_quality != 'Errors':
+                if self.__percent_mb > 1:
+                    self.__moving_bed = 'Yes'
+                else:
+                    self.__moving_bed = 'No'
+                    
+        else:
+            self.__messages.append('ERROR - Stationary moving-bed test has no valid bottom track data.')
+            self.__test_quality = 'Errors'
+            self.__moving_bed = 'Unknown'
+            
+        
+    def near_bed_velocity(self, u, v, depth, bin_depth):
+        '''Compute near bed velocities'''
+        #Compute z near bed as 10% of depth
+        z_near_bed = depth * 0.1
+        
+        #Begin computing near-bed velocities
+        
+        n_ensembles = u.shape[1]
+        nb_U = np.tile([np.nan], (1,n_ensembles))
+        nb_V = np.tile([np.nan], (1,n_ensembles))
+        unit_NBU = np.tile([np.nan], (1,n_ensembles))
+        unit_NBV = np.tile([np.nan], (1,n_ensembles))
+        z_depth = np.tile([np.nan], (1,n_ensembles)) 
+        u_mean = np.tile([np.nan], (1,n_ensembles))
+        v_mean = np.tile([np.nan], (1,n_ensembles))               
+        speed_near_bed = np.tile([np.nan], (1, n_ensembles))
+        for n in range(n_ensembles):
+            idx = np.where(np.isnan(u[:,n])==False)
+            if len(idx) > 0:
+                idx = idx[1][-1]
+                #compute near-bed velocity
+                z_depth[n] = depth[n] - np.nanmean(bin_depth[idx,n])
+                u_mean[n] = np.nanmean(u[idx,n])
+                v_mean[n] = np.nanmean(v[idx,n])
+                nb_U[n] = (u_mean[n] / z_depth[n]**(1./6.)) * (z_near_bed[n]**(1./6.))
+                nb_V[n] = (v_mean[n] / z_depth[n]**(1./6.)) * (z_near_bed[n]**(1./6.))
+                speed_near_bed[n] = np.sqrt(nb_U**2 + nb_V[n]**2)
+                unit_NBU[n] = nb_U[n] / speed_near_bed[n]
+                unit_NBV[n] = nb_V[n] / speed_near_bed[n]
 
-            
-            
+        return (nb_U, nb_V, unit_NBU, unit_NBV)    
+        
         
          
     

@@ -129,8 +129,8 @@ class BoatData(object):
             self.__interpolate = 'None'
             
         #Assign data to processed property
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps
+        self.__u_processed_mps = np.copy(self.__u_mps)
+        self.__v_processed_mps = np.copy(self.__v_mps)
      
         #Preallocate arrays
         n_ensembles = vel_in.shape[1]
@@ -152,7 +152,7 @@ class BoatData(object):
             self.__valid_data[1, np.sum(valid_vel,0) < 2] = False
             
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
+        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:],0)
         self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
         self.__processed_source = np.tile('',self.__u_mps.shape)
         self.__processed_source[np.where(self.__valid_data[0,:] == True)] = nav_ref_in
@@ -245,9 +245,9 @@ class BoatData(object):
                         #Determine frequency index for transformation matrix
                         if len(t_matrix.shape) > 2:
                             idx_freq = np.where(t_matrix_freq==self.__frequency_hz[ii])
-                            t_mult = t_matrix[idx_freq]
+                            t_mult = np.copy(t_matrix[idx_freq])
                         else:
-                            t_mult = t_matrix
+                            t_mult = np.copy(t_matrix)
                             
                         #Get velocity data
                         vel = np.squeeze(self.__raw_vel_mps[:,ii])
@@ -406,8 +406,8 @@ class BoatData(object):
                 self.__w_mps = -1 * vel_changed[2,:]
                 self.__d_mps = -1 * vel_changed[3,:]
                 self.__coord_sys = new_coord_sys
-                self.__u_processed_mps = self.__u_mps
-                self.__v_processed_mps = self.__v_mps
+                self.__u_processed_mps = np.copy(self.__u_mps)
+                self.__v_processed_mps = np.copy(self.__v_mps)
                 
                 
                         
@@ -579,13 +579,13 @@ class BoatData(object):
             ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
             
             #Apply linear interpolation
-            self.__u_processed_mps = np.interp(ens_time[self.__valid_data[0,:]],
-                                               u[self.__valid_data[0,:]],
-                                               ens_time)
+            self.__u_processed_mps = np.interp(ens_time,
+                                               ens_time[self.__valid_data[0,:]],
+                                               u[self.__valid_data[0,:]])
             #Apply linear interpolation
-            self.__v_processed_mps = np.interp(ens_time[self.__valid_data[0,:]],
-                                               v[self.__valid_data[0,:]],
-                                               ens_time)
+            self.__v_processed_mps = np.interp(ens_time,
+                                               ens_time[self.__valid_data[0,:]],
+                                               v[self.__valid_data[0,:]])
             
          
     def interpolate_composite(self, transect):
@@ -605,6 +605,149 @@ class BoatData(object):
             #Compute ensTime
             ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
             
+            
+    def apply_filter(self, transect, kargs):
+        '''Function to apply filters to navigation data
+        
+        Input:
+        transect: object of TransectData
+        kargs: specified filter method(s) and associated thresholds
+        if different from that saved in object.  More than one filter
+        can be applied during a single call
+        '''
+        
+        if kargs is not None:
+            nargs = len(kargs)
+            n=1
+            while n < nargs:
+                if kargs[n] == 'Beam':
+                    n += 1
+                    beam_filter_setting = kargs[n]
+                    filter
+                    
+                    
+    #-----------------------------------------------Private Methods--------------
+    def __filter_beam(self, setting):
+        '''The determination of invalid data depends on the whether 
+        3-beam or 4-beam solutions are acceptable. This function can be
+        applied by specifying 3 or 4 beam solutions are setting
+        obj.beamFilter to -1 which will trigger an automatic mode. The
+        automatic mode will find all 3 beam solutions and then compare
+        the velocity of the 3 beam solutions to nearest 4 beam solution
+        before and after the 3 beam solution. If the 3 beam solution is
+        within 50% of the average of the neighboring 3 beam solutions the
+        data are deemed valid if not invalid. Thus in automatic mode only
+        those data from 3 beam solutions that appear sufficiently
+        than the 4 beam solutions are marked invalid. The process happens
+        for each ensemble. If the number of beams is specified manually
+        it is applied uniformly for the whole transect.
+        
+        Input:
+        setting: setting for beam filter (3, 4, -1)  
+        '''
+        
+        self.__beam_filter = setting
+        
+        #In manual mode determine number of raw invalid and number of 3 beam solutions  
+        #3 beam solutions if selected
+        if self.__beam_filter > 0:
+            
+            #Find invalid raw data
+            valid_vel = np.ones(self.__raw_vel_mps.shape)
+            valid_vel[np.isnan(self.__raw_vel_mps)] = 0
+            
+            #Determine how many beams transformed coordinates are valid
+            valid_vel_sum = np.sum(valid_vel, 0)
+            valid = np.ones(valid_vel_sum.shape)
+            
+            #Compare number of valid beams or coordinates to filter value
+            valid[valid_vel_sum < self.beam_filter] = False
+            
+            #Save logical of valid data to object
+            self.__valid_data[5,:] = valid
+            
+        else:
+            
+            #Apply automatic filter
+            #----------------------
+            #Find all 3 beam solutions
+            temp = np.copy(self)
+            temp.__filter_beam(4)
+            temp3 = np.copy(temp)
+            temp3.__filter_beam(3)
+            valid_3_beams = temp3.__valid_data[5,:] - temp.__valid_data[5,:]
+            n_ens = len(temp.__valid_data[5,:])
+            idx = np.where(valid_3_beams == True)[0]
+            
+            #If 3 beam solutions exist evaluate there validity
+            if len(idx) > 0:
+                
+                #Identify 3 beam solutions that appear to be invalid
+                n3_beam_ens = len(idx)
+                
+                #Check each three beam solution for validity
+                
+                for m in range(n3_beam_ens):
+                    
+                    #Check if 3 beam idx is first or last ensemble
+                    if idx[m] > 1 and idx[m] < n_ens:
+                        
+                        #Find nearest 4 beam solutions before and after
+                        #3 beam solution
+                        ref_idx_before = np.where(temp.__valid_data[5,:idx[m]] == True)[0]
+                        if len(ref_idx_before) > 0:
+                            ref_idx_before = ref_idx_before[0][-1]
+                        else:
+                            ref_idx_before = None
+                            
+                        ref_idx_after = np.where(temp.__valid_data[5, :idx[m]] == True)[0]
+                        if len(ref_idx_after) > 0:
+                            ref_idx_after = idx[m] + ref_idx_after[0]
+                        else:
+                            ref_idx_after = None
+                            
+                        if ref_idx_after is not None and ref_idx_before is not None:
+                            u_ratio = (temp.__u_mps[idx[m]]) / ((temp.__u_mps[ref_idx_before] + temp.__u_mps[ref_idx_after]) / 2.) - 1            
+                            v_ratio = (temp.__v_mps[idx[m]]) / ((temp.__v_mps[ref_idx_before] + temp.__v_mps[ref_idx_after]) / 2.) - 1
+                        else:
+                            u_ratio = 1
+                            v_ratio = 1
+                            
+                        #If 3-beam differs from 4-beam by more than 50% mark it invalid
+                        if np.abs(u_ratio) > 0.5 or np.abs(v_ratio) > 0.5:
+                            temp.__valid_data[5,idx[m]] = 0
+                        else:
+                            temp.__valid_data[5,idx[m]] = 1  
+            
+            self.__beam_filter = -1
+        
+        #Combine all filter data to composite valid data
+        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
+        self.__num_invalid = np.sum(self.__valid_data, 0)
+        
+    def filter_diff_vel(self, setting, kargs = None):
+        '''Applies either manual or automatic filtering of the difference
+        (error) velocity. The automatic mode is based on the following:
+        This filter is based on the assumption that the water error velocity
+        should follow a gaussian distribution. Therefore, 5 iqr
+        should encompass all of the valid data. The standard deviation and
+        limits (multiplier*standard deviation) are computed in an iterative 
+        process until filtering out additional data does not change the computed 
+        standard deviation. 
+        
+        Input:
+        setting: difference velocity setting (Off, Manual, Auto)
+        kargs: if manual, the user specified threshold
+        '''
+        
+        self.__d_filter = setting
+        if kargs is not None:
+            self.__d_filter_threshold = kargs[0]
+            
+        #Set multiplier
+        multiplier = 5
+        minimum_window = 0.01
+    
 def run_std_trim(half_width, my_data):
     ''' The routine accepts a column vector as input. "halfWidth" number of data
           points for computing the standard deviation are selected before and

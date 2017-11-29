@@ -12,7 +12,7 @@ class Surface(object):
         self.no_cells = np.zeros(n_ensembles)
         self.cell_size_cm = np.empty(n_ensembles)
         self.dist_bin1_cm = np.empty(n_ensembles)
-        self.vel_mps = np.empty([n_velocities, max_surface_bins, n_ensembles])
+        self.vel_mps = np.tile([np.nan], [n_velocities, max_surface_bins, n_ensembles])
         self.corr = np.empty([n_velocities, max_surface_bins, n_ensembles])
         self.pergd = np.empty([n_velocities, max_surface_bins, n_ensembles])
         self.rssi = np.empty([n_velocities, max_surface_bins, n_ensembles])

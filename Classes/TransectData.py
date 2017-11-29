@@ -247,7 +247,7 @@ class TransectData(object):
             raw_GGA_lon = pd0.Gps2.lon_deg
             
             #Determine correct sign for longitude
-            idx = np.where(pd0.Gps2.lon_ref=='W')
+            idx = np.where(pd0.Gps2.lon_ref == 'W')
             if len(idx) > 0:
                 raw_GGA_lon[idx] = raw_GGA_lon[idx] * -1
             
@@ -734,6 +734,24 @@ class TransectData(object):
         
         self.w_vel.apply_filter(self, kargs)
         
+        
+    def wt_interpolations(self, kargs = None):
+        '''Coordinate water velocity interpolation
+        
+        Input:
+        kargs: specifies whether ensembles or cells are to be interpolated and the method
+        used for interpolation.  Both setting can be included in the same call.
+        
+        Example:
+        kargs[0]: 'Ensembles'
+        kargs[1]: 'Linear'
+        kargs[2]: 'Cells'
+        kargs[3]: 'TRDI'
+        '''
+        
+        #Process transect
+        self.w_vel.apply_interpolation(self, kargs)
+                
     def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, kargs):
         '''Computes side lobe vutoff based on beam angle with no allowance for lag'''
         
@@ -974,89 +992,97 @@ def sos_user(self, kargs = None):
     
 def allocate_transects(source, mmt, kargs): 
     
+    #DEBUG, set threaded to false to get manual serial commands
+    multi_threaded = True
+    
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------
-        if kargs[0] == 'Q':
-            transects = 'transects'
-            active_config = 'active_config' 
-            
-            if kargs[1] == True:
-                files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
-                file_names = [x.Files for x in mmt.transects]
-            else:
-                files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
-                file_names = [x.Files for x in mmt.transects]
-                    
+    if kargs[0] == 'Q':
+        transects = 'transects'
+        active_config = 'active_config' 
+        
+        if kargs[1] == True:
+            files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
+            file_names = [x.Files for x in mmt.transects]
+        else:
+            files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
+            file_names = [x.Files for x in mmt.transects]
                 
-        elif kargs[0] == 'MB':
-            transects = 'mbt_transects'
-            active_config = 'mbt_active_config'
-            files_to_load =np.array([x.Checked for x in mmt.mbt_transects], dtype=bool)
-            file_names = [x.Files for x in mmt.mbt_transects if x.Checked == 1]
-        
-        files_to_load_idx = np.where(files_to_load == True)[0]
-          
-        pathname = mmt.infile[:mmt.infile.rfind('/')]
-        
-        # Determine if any files are missing
-        
-        valid_files = []
-        for x in file_names:
-            x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
-            if os.path.exists(''.join([pathname,'/',x[0].Path])):
-                valid_files.append((x, 1))
-            else:
-                valid_files.append((None, 0))
-                
-        pd0_data = []
-        pd0_threads = []
-        thread_id = 0
-        
-        def add_pd0(file_name):
-            pd0_data.append(Pd0TRDI(file_name))
             
+    elif kargs[0] == 'MB':
+        transects = 'mbt_transects'
+        active_config = 'mbt_active_config'
+        files_to_load =np.array([x.Checked for x in mmt.mbt_transects], dtype=bool)
+        file_names = [x.Files for x in mmt.mbt_transects if x.Checked == 1]
+    
+    files_to_load_idx = np.where(files_to_load == True)[0]
+      
+    pathname = mmt.infile[:mmt.infile.rfind('/')]
+    
+    # Determine if any files are missing
+    
+    valid_files = []
+    for x in file_names:
+        x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
+        if os.path.exists(''.join([pathname,'/',x[0].Path])):
+            valid_files.append((x, 1))
+        else:
+            valid_files.append((None, 0))
+            
+    pd0_data = []
+    pd0_threads = []
+    thread_id = 0
+    
+    def add_pd0(file_name):
+        pd0_data.append(Pd0TRDI(file_name))
+        
+    if multi_threaded == True:
         for x in valid_files:
             if x[1] == 1:
-#                 add_pd0(''.join([pathname,'/',x[0][0].Path]))
                 pd0_thread = MultiThread(thread_id=thread_id, function=add_pd0, args = {'file_name': ''.join([pathname,'/',x[0][0].Path])})
                 thread_id += 1
                 pd0_thread.start()
                 pd0_threads.append(pd0_thread)
-                 
-        for x in pd0_threads:
-            x.join()
-             
+    else:   
         pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
+    
+    for x in pd0_threads:
+        x.join()
+            
+    processed_transects = []
+    transect_threads = []
+    thread_id = 0
+    
+    def add_transect(transect, source, in_file, pd0_data, mmt):
         
-        processed_transects = []
-        transect_threads = []
-        thread_id = 0
+        transect.get_data(source, in_file,pd0_data, mmt)
+        processed_transects.append(transect)
         
-        def add_transect(transect, source, in_file, pd0_data, mmt):
+    # Process each transect
+    for k in range(len(pd0_data)):
+        
+        transect = TransectData()
+        transect.active_config = active_config
+        transect.transects = transects
+       
+        if active_config == 'mbt_active_config' or active_config == 'mbt_field_config':
             
-            transect.get_data(source, in_file,pd0_data, mmt)
-            processed_transects.append(transect)
-            
-        # Process each transect
-        for k in range(len(pd0_data)):
-            
-            transect = TransectData()
-            transect.active_config = active_config
-            transect.transects = transects
-           
-            if active_config == 'mbt_active_config' or active_config == 'mbt_field_config':
-                    
-#                 add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
+            if multi_threaded == True:
                 p_thread = MultiThread(thread_id = thread_id, function= add_transect, 
-                                       args = {'transect': transect, 
-                                               'source':'TRDI', 
-                                               'in_file': mmt.mbt_transects[k], 
-                                               'pd0_data': pd0_data[k], 
-                                               'mmt': mmt})
+                                    args = {'transect': transect, 
+                                            'source':'TRDI', 
+                                            'in_file': mmt.mbt_transects[k], 
+                                            'pd0_data': pd0_data[k], 
+                                            'mmt': mmt})
                 p_thread.start()
                 transect_threads.append(p_thread)
+                
+                
             else:
-                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt)
+                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
+            
+        else:
+            if multi_threaded == True:
                 p_thread = MultiThread(thread_id = thread_id, function= add_transect, 
                                        args = {'transect': transect, 
                                                'source':'TRDI', 
@@ -1065,28 +1091,32 @@ def allocate_transects(source, mmt, kargs):
                                                'mmt': mmt})
                 p_thread.start()
                 transect_threads.append(p_thread)
-                 
-         
+                
+                
+            else:
+                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt)
+    
+    if multi_threaded:
         for x in transect_threads:
-            x.join()
-        
-        return processed_transects   
+                x.join()
+                
+    return processed_transects   
         
 def adjusted_ensemble_duration(transect, kargs=None):
         
     if transect.adcp.manufacturer == 'TRDI':
-        if kargs is not None:
+        if kargs is None:
             valid = np.isnan(transect.w_vel.__u_processed_mps) == False
             valid_sum = np.sum(valid)
         else:
-            valid_sum = np.isnan(transect.boat_vel.__u_processed_mps) == False
+            valid_sum = np.isnan(transect.boat_vel.bt_vel._BoatData__u_processed_mps) == False
             
         valid_ens = valid_sum > 0
         n_ens = len(valid_ens)
         ens_dur = transect.datetime.ens_duration_sec
-        delta_t = np.tile([np.nan], (1,n_ens))
+        delta_t = np.tile([np.nan], n_ens)
         cum_dur = 0
-        for j in n_ens:
+        for j in range(n_ens):
             cum_dur = np.nansum(np.hstack([cum_dur, ens_dur[j]]))
             if valid_ens[j] == True:
                 delta_t[j] = cum_dur

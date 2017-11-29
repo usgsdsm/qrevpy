@@ -391,7 +391,8 @@ class Pd0TRDI(object):
                         #update data types counter
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.vel_mps.shape[1]:
-                            self.Wt.vel_mps.resize([self.Wt.vel_mps.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.vel_mps.shape[2]])
+                            append = np.zeros([self.Wt.vel_mps.shape[0], int(self.Cfg.wn[i_ens] - self.Wt.vel_mps.shape[1]), self.Wt.vel_mps.shape[2]])
+                            self.Wt.vel_mps = np.hstack([self.Wt.vel_mps, append])
                             
                         dummy = np.fromfile(f, np.int16, count=int(self.Cfg.wn[i_ens] *4))
                         dummy = np.reshape(dummy,[int(self.Cfg.wn[i_ens]), n_velocities])
@@ -403,7 +404,9 @@ class Pd0TRDI(object):
                         
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.corr.shape[1]:
-                            self.Wt.corr.resize([self.Wt.corr.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.corr.shape[2]])
+                            append = np.zeros([self.Wt.corr.shape[0], int(self.Cfg.wn[i_ens] - self.Wt.corr.shape[1]), self.Wt.corr.shape[2]])
+                            self.Wt.corr = np.hstack([self.Wt.corr, append])
+                            
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
                         dummy = np.reshape(dummy, [int(self.Cfg.wn[i_ens]), n_velocities])
                         self.Wt.corr[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
@@ -414,7 +417,9 @@ class Pd0TRDI(object):
                         
                         i_data_types += 1
                         if self.Cfg.wn[i_ens] > self.Wt.rssi.shape[1]:
-                            self.Wt.rssi.resize([self.Wt.rssi.shape[0], int(self.Cfg.wn[i_ens]), self.Wt.rssi.shape[2]])
+                            append = np.zeros([self.Wt.rssi.shape[0], int(self.Cfg.wn[i_ens] - self.Wt.rssi.shape[1]), self.Wt.rssi.shape[2]])
+                            self.Wt.rssi = np.hstack([self.Wt.rssi, append])
+                            
                         dummy = np.fromfile(f, np.uint8, count=int(self.Cfg.wn[i_ens]*4))
                         dummy = np.reshape(dummy, [int(self.Cfg.wn[i_ens]), n_velocities])
                         self.Wt.rssi[:n_velocities, :int(self.Cfg.wn[i_ens]),i_ens] = dummy.T
@@ -1000,8 +1005,8 @@ class Pd0TRDI(object):
                         i_data_types += 1 
                         
                         dummy = np.fromfile(f, np.int16, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
-                        self.Surface.vel_mps[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Surface.no_cells[i_ens]), n_velocities])
+                        self.Surface.vel_mps[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1012,8 +1017,8 @@ class Pd0TRDI(object):
                         i_data_types += 1 
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [n_velocities,int(self.Surface.no_cells[i_ens])])
-                        self.Surface.corr[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy
+                        dummy = np.reshape(dummy, [int(self.Surface.no_cells[i_ens]), n_velocities,])
+                        self.Surface.corr[:n_velocities,:int(self.Surface.no_cells[i_ens]), i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
@@ -1033,7 +1038,7 @@ class Pd0TRDI(object):
                         i_data_types += 1
                         
                         dummy = np.fromfile(f, np.uint8, count= int((self.Surface.no_cells[i_ens]*4)))
-                        dummy = np.reshape(dummy, [self.Surface.no_cells[i_ens],n_velocities])
+                        dummy = np.reshape(dummy, [int(self.Surface.no_cells[i_ens]),n_velocities])
                         self.Surface.pergd[:n_velocities,:self.Surface.no_cells[i_ens], i_ens] = dummy.T
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
@@ -1407,10 +1412,6 @@ class Pd0TRDI(object):
         else:
             f.seek(file_loc+bytes_per_ens-2,0) 
             
-    def pol2cart(self, rho, phi):
-        x = rho * np.cos(phi)
-        y = rho * np.sin(phi)
-        return(x, y)
        
 # -------------------------------------------------thus far testing individual pd0 file extraction until comfortable  
 if __name__ == '__main__':
