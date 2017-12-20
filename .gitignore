@@ -3,7 +3,8 @@
 build/
 *.pyo
 *.pyc
-qrev.egg-info/
+qrevpy.egg-info/
+.idea/
 .installed.cfg
 bin
 develop-eggs
