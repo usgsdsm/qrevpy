@@ -440,10 +440,67 @@ class MovingBedTests(object):
                 unit_NBU[n] = nb_U[n] / speed_near_bed[n]
                 unit_NBV[n] = nb_V[n] / speed_near_bed[n]
 
-        return (nb_U, nb_V, unit_NBU, unit_NBV)    
+        return (nb_U, nb_V, unit_NBU, unit_NBV)  
+    
+    
+    def auto_use_2_correct(self, kargs = None):  
+        '''Applie logic to determine which moving-bed tests should be used
+        for correcting bottom track referenced discharges with moving-bed conditions'''
         
+        #Initialize variables
+        self.__use_2_correct = False
+        self.__selected = False
         
-         
+        #Select moving-bed tests
+        
+        #Valid test according to user
+        lidx_user = self.__user_valid == 1
+        
+        #Valid test according to quality assessment
+        lidx_no_errors = self.__test_quality == 'Errors'
+        
+        #Identify type of test
+        test_type = self.__type
+        lidx_stationary = test_type == 'Stationary'
+        lidx_loop = test_type == 'Loop'
+        
+        #Combine
+        lidx_valid_loop = np.all([lidx_user, lidx_no_errors, lidx_loop])
+        lidx_valid_stationary =  np.all([lidx_user, lidx_no_errors, lidx_stationary])
+        
+        #Check flow speed
+        flow_speed = self.__flow_spd_mps
+        lidx_flow_speed = flow_speed > 0.25
+        
+        #Determine if there are valid loop tests
+        if lidx_valid_loop and lidx_flow_speed:
+            self.__selected = True
+            
+            if self.__moving_bed == 'Yes':
+                self.__use_2_correct = True
+                
+        #If there are no valid loop loof for valid stationary tests
+        elif lidx_valid_stationary:
+            self.__selected = True
+            self.__use_2_correct = True
+            
+        elif lidx_valid_loop:
+            self.__selected = True
+            
+            if self.__moving_bed == 'Yes':
+                self.__use_2_correct = True
+        
+        # If the navigation reference for discharge computations is set
+        # GPS then none of test should be used for correction. The
+        # selected test should be used to determine if there is a valid
+        # moving-bed and a moving-bed condition. 
+        if kargs is None:
+            ref = 'BT'
+        else:
+            ref = kargs[0]
+
+        if ref != 'BT':
+            self.__use_2_correct = False
     
         
         

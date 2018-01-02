@@ -43,16 +43,17 @@ class TransectData(object):
         self.active_config = None
         self.transects = None
         self.cells_above_sl = None
+        self.mbt = False
 
-    def get_data(self, source, in_file, pd0_data, mmt):
+    def get_data(self, source, in_file, pd0_data, mmt, mbt_idx):
         
         if source == 'TRDI':
-            self.TRDI(in_file, pd0_data, mmt)
+            self.TRDI(in_file, pd0_data, mmt, mbt_idx)
             
                                 #files2load idx
-    def TRDI(self, mmt_transect, pd0_data, mmt, kargs=None):
+    def TRDI(self, mmt_transect, pd0_data, mmt, mbt_idx, kargs=None):
        
-       
+        self.mbt = mbt_idx
         pd0 = pd0_data
         
         #get the configuration prooperty of the mmt_transect
@@ -1053,9 +1054,9 @@ def allocate_transects(source, mmt, kargs):
     transect_threads = []
     thread_id = 0
     
-    def add_transect(transect, source, in_file, pd0_data, mmt):
+    def add_transect(transect, source, in_file, pd0_data, mmt, mbt):
         
-        transect.get_data(source, in_file,pd0_data, mmt)
+        transect.get_data(source, in_file,pd0_data, mmt, mbt)
         processed_transects.append(transect)
         
     # Process each transect
@@ -1065,6 +1066,8 @@ def allocate_transects(source, mmt, kargs):
         transect.active_config = active_config
         transect.transects = transects
        
+        mbt_idx = 0
+        
         if active_config == 'mbt_active_config' or active_config == 'mbt_field_config':
             
             if multi_threaded == True:
@@ -1073,7 +1076,9 @@ def allocate_transects(source, mmt, kargs):
                                             'source':'TRDI', 
                                             'in_file': mmt.mbt_transects[k], 
                                             'pd0_data': pd0_data[k], 
-                                            'mmt': mmt})
+                                            'mmt': mmt,
+                                            'mbt': mbt_idx})
+                mbt_idx += 1
                 p_thread.start()
                 transect_threads.append(p_thread)
                 
@@ -1088,7 +1093,8 @@ def allocate_transects(source, mmt, kargs):
                                                'source':'TRDI', 
                                                'in_file': mmt.transects[k], 
                                                'pd0_data': pd0_data[k], 
-                                               'mmt': mmt})
+                                               'mmt': mmt,
+                                               'mbt': False})
                 p_thread.start()
                 transect_threads.append(p_thread)
                 

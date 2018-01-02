@@ -283,9 +283,9 @@ if __name__ == '__main__':
 #          
 #     sys.exit(app.exec_())
 
-    Measurement('C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RG_1308000_359/13038000_359.mmt')
-#     Measurement('C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RG_Multi_Eval/11523000_752.mmt')
-#     Measurement(r'C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/RR_Multi_Cal/05LC004_20140812.AQ1_0.mmt')
-#     Measurement(r'C:/Users/gpetrochenkov/Desktop/drive-download-20170522T150040Z-0014/SP_13038000_356/13038000_356.mmt')
+#     Measurement(r'C:\Users\gpetrochenkov\Desktop\QRev\Qrev Files/RG_1308000_359/13038000_359.mmt')
+#     Measurement(r'C:\Users\gpetrochenkov\Desktop\QRev\Qrev Files/RG_Multi_Eval/11523000_752.mmt')
+#     Measurement(r'C:\Users\gpetrochenkov\Desktop\QRev\Qrev Files/RR_Multi_Cal/05LC004_20140812.AQ1_0.mmt')
+    Measurement(r'C:\Users\gpetrochenkov\Desktop\QRev\Qrev Files/SP_13038000_356/13038000_356.mmt')
 #     
 

@@ -58,7 +58,7 @@ class DepthStructure(object):
             self.selected = 'ds_depths'
             
     def set_valid_data_method(self, setting):
-        self.bt_depths = self.bt_depths.set_valid_data_method(setting)
+        self.bt_depths.set_valid_data_method(setting)
         
     def composite_depths(self, transect, kargs=None):
         '''Depth compsiting is based on the following assumptions

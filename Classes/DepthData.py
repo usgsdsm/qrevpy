@@ -153,7 +153,7 @@ class DepthData(object):
         elif setting == 'Smooth':
             self.filter_smooth()
         elif setting == 'TRDI':
-            self.filter_trdi()
+            self.filter_trdi(transect)
             self.filter_type = 'TRDI'
             
         self.__valid_mean_data()
