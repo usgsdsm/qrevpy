@@ -7,6 +7,8 @@ from Classes.PreMeasurement import PreMeasurement
 from Classes.MovingBedTests import MovingBedTests
 from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
+from Classes.NormData import NormData
+from Classes.ComputeExtrap import ComputeExtrap
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -64,6 +66,9 @@ class Measurement(object):
             
             for x in self.transects:
                 self.apply_settings(x, settings)
+                
+            self.composite_norm = NormData()
+            self.composite_norm.get_composite(self.transects)
         
         elif proc_type == 'None':
             #UpdateStatus "Proicessing with no filters and interpolation
@@ -604,12 +609,46 @@ class Measurement(object):
         
         transect.wt_filters(wtSettings) 
         
+        
+    def apply_settings2(self, trans_data, s, kargs=None):
+        '''Refactored so that the previous calculations can be multithreaded
+        #Extrap Q Sensitivity the way it is now will not allow this so in this
+        method trans_data is all transects instead of just one'''
+        
         # Recompute extrapolations
         # NOTE: Extrapolations should be determined prior to WT
         # interpolations because the TRDI approach for power/power
         # using the power curve and exponent to estimate invalid cells.
         if self.extrap_fit is None or self.extrap_fit.__fit_method == 'Automatic':
-            pass
+            self.extrapfit = ComputeExtrap()
+            self.extrapfit.populate_data(trans_data, 0)
+            top = self.extrap_fit.sel_fit.__top_method
+            bot = self.extrap_fit.sel_fit.__bot_method
+            exp = self.extrap_fit.sel_fit.__exponent
+            
+            self.set_extrapolation(trans_data, top, bot, exp)
+        
+        else:
+            if 'extrapTop' in s:
+                s['extrapTop'] = self.extrap_fit.sel_fit.__top_method
+                s['extrapBot'] = self.extrap_fit.sel_fit.__bot_method
+                s['extrapExp'] = self.extrap_fit.sel_fit.__exponent
+                
+            self.set_extrapolation(trans_data, s['extrapTop'], s['extrapBot'], s['extrapExp'])
+        
+            self.extrap_fit.change_fit_method(trans_data, 'Manual', 'All', s['extrapTop'], s['extrapBot'], s['extrapExp'])
+            
+        for n in trans_data:
+            n.wt_interpolations('Ensembles', s['WTEnsInterpolation'])
+            n.wt_interpolations('Cells', s['WTCellInterpolation'])
+            
+        #Edge methods
+        for n in trans_data:
+            n.edges._EdgeData__vel_method = s['edgeVelMethod']
+            n.edges._EdgeData__rec_edge_method = s['edgeRecEdgeMethod']
+            
+        #Update sensitivities for water track interpolations
+        self.extrap_fit.update_q_sensitivity(trans_data)
         
     
             

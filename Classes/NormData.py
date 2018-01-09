@@ -155,6 +155,76 @@ class NormData(object):
         n_ens = np.hstack([0, n_ens])
         sum_ens = np.cumsum(n_ens)
         
+        #This portion of the code needs to be abstracted, will return to this block
+        
+        #Compute median values and other statistics
+        
+        avg_interval = np.arange(0,1,0.05)
+        unit_norm_med = np.tile([np.nan], len(avg_interval) - 1)
+        unit_norm_med_no = np.tile([np.nan], len(avg_interval) - 1)
+        unit_25 = np.tile([np.nan], len(avg_interval) - 1)
+        unit_75 = np.tile([np.nan], len(avg_interval) - 1)
+        avgz = np.tile([np.nan], len(avg_interval) - 1)
+        
+        #Process each normalized increment
+        for i in range(len(avg_interval) - 1):
+            idx = np.where(self.__cell_depth_normalized > avg_interval[i] \
+                           and self.__cell_depth_normalized <= avg_interval[i+1] \
+                           and np.isnan(self.__unit_normalized))
+            
+            unit_norm_med[i] = np.nanmedian(self.__unit_normalized[idx])
+            unit_norm_med_no[i] = np.sum(np.isnan(self.__unit_normalized[idx]) == False)
+            unit_25[i] = np.percentile(self.__unit_normalized, 25)
+            unit_75[i] = np.percentile(self.__unit_normalized, 75)
+            avgz[i] = 1 - np.nanmean(self.__cell_depth_normalized)
+            
+        #Mark increments invalid if the don't have the sufficient data
+        cutoff = np.nanmedian(unit_norm_med_no[unit_norm_med_no > 0] * (threshold / 100))
+        valid = np.where(unit_norm_med_no > cutoff)
+        
+        #Store data
+        self.__unit_normalized = unit_norm_med
+        self.__unit_normalized_no = unit_norm_med_no
+        self.__unit_normalized_25 = unit_25
+        self.__unit_normalized_75 = unit_75
+        self.__data_type = data_type
+        self.__unit_normalized_z = avgz
+        self.__data_extent = data_extent
+        self.__valid_data = valid
+        
+    def get_composite_data(self, transects):
+        
+        in_transect_idx = transects[0].in_transect_idx
+        depth_select = getattr(transects[0].depths, transects[0].depths.selected)
+        cell_depth = depth_select.__depth_cell_depth_m[:, in_transect_idx]
+        cells_above_sl = transects[0].w_vel.__cells_above_sl
+        cell_depth[cells_above_sl == False] = np.nan
+        depth_ens = depth_select.__depth_processed_m[in_transect_idx]
+        w_vel_x = transects[0].w_vel.__u_processed_mps[:, in_transect_idx]
+        w_vel_y = transects[0].w_vel.__v_processed_mps[:, in_transect_idx]
+        invalid_data = transects[0].w_vel.__u_processed_mps[:, in_transect_idx] == False
+        w_vel_x[invalid_data] = np.nan
+        w_vel_y[invalid_data] = np.nan
+        n_cells = w_vel_y.shape[0]
+        n_ens = w_vel_y.shape[1]
+       
+        n_cells = transects[0].__WaterData__w_vel_y.shape[0]
+        n_ens = w_vel_y.shape[1]
+        
+        ##Create object for measurement composite
+        #Create arrays of composited data
+        maxcells= np.nanmax(n_cells);
+        n_ens=[0,n_ens.T];
+        sum_ens= np.cumsum(n_ens);
+        self.__unit_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
+        self.__cell_depth_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
+        
+        for n in range(len(transects)):
+            if transects[n].checked == 1:
+                self.__unit_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.__unit_normalized;
+                self.__cell_depth_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.__cell_depth_normalized;
+            
+        self.__file_Name= 'Measurement'
         
         
             
