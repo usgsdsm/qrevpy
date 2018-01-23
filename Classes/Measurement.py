@@ -9,6 +9,7 @@ from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
 from Classes.NormData import NormData
 from Classes.ComputeExtrap import ComputeExtrap
+from Classes import QAData
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -649,6 +650,14 @@ class Measurement(object):
             
         #Update sensitivities for water track interpolations
         self.extrap_fit.update_q_sensitivity(trans_data)
+        
+        #Compute discharge
+        self.discharge = QComp()
+        self.discharge.populate_data(self)
+        
+        #Assess measurement quality
+        self.qa = QAData()
+        self.qa.populate_data()
         
     
             
