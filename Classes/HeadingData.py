@@ -1,13 +1,13 @@
-'''
+"""
 Created on Sep 14, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 from _operator import xor
 
 class HeadingData(object):
-    '''This class stores and manipulates self.data data'''
+    """This class stores and manipulates self.data data"""
     
     def __init__(self):
         
@@ -36,14 +36,14 @@ class HeadingData(object):
             self.mag_error = kargs[2]
             
     def set_mag_var(self, mag_var, h_source):
-        '''Applies a new magvar to the object'''
+        """Applies a new magvar to the object"""
         self.mag_var_deg = mag_var
         if h_source == 'internal':
             self.data = self.original_data + self.mag_var_deg
             self.fix_upper_limit()
             
     def set_align_correction(self,align_correction, h_source):
-        '''Applies a new alignment correction to the object'''
+        """Applies a new alignment correction to the object"""
         self.align_correction_deg = align_correction
         if h_source == 'external':
             self.data = self.original_data + self.align_correction_deg
@@ -58,11 +58,11 @@ class HeadingData(object):
             self.data[idx] = self.data[idx] - 360   
             
     def interp_heading(self):
-        '''Interpolate invalid self.data.  Use linear interpolation if there are
+        """Interpolate invalid self.data.  Use linear interpolation if there are
         valid values on either side of the invalid self.data.  If the invalid self.data
         occurs at the beginning of the time series back fill using the 1st valid.
         If the invalid self.data occurs at the end of the time series forward fill
-        with the last valid self.data'''
+        with the last valid self.data"""
         
         idx = np.where(np.isnan(self.data))[0]
         

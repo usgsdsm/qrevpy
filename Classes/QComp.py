@@ -1,14 +1,14 @@
-'''
+"""
 Created on Sep 26, 2017
 
 @author: gpetrochenkov
-'''
+"""
 from Classes.TransectData import TransectData
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
 
 class QComp(object):
-    '''Computes the discharge for each transect'''
+    """Computes the discharge for each transect"""
     
     def __init__(self):
         
@@ -29,7 +29,7 @@ class QComp(object):
         self.int_ens = None #Total discharge computed for invalid ensembles
         
     def populate_data(self, data_in, kargs = None):
-        '''Discharge is computed using the data provided to the method.  Water data provided are assumed to
+        """Discharge is computed using the data provided to the method.  Water data provided are assumed to
         becorrected for the navigation reference.  If a moving-bed correction is to be applied it is computed
         and applied.  The TRDI method using expanded delta time is applied if the processing method is WR2.
         
@@ -40,7 +40,7 @@ class QComp(object):
         kargs[0]: top extrapolation method
         kargs[1]: bottom extrapolation method
         kargs[2]: extrapolation exponent
-        '''
+        """
         if isinstance(data_in, TransectData):
             trans_data = data_in
             
@@ -117,13 +117,13 @@ class QComp(object):
         if trans_data.edges.left.type == 'User Q':
             self.right = self.discharge_edge('right', trans_data, kargs)
         else:
-            self.right = trans_data.edges.right.__user_Q_cms
+            self.right = trans_data.edges.right.user_Q_cms
             
         #Compute left edge discharge
         if trans_data.edges.left.type == 'User Q':
             self.left = self.discharge_edge('left', trans_data, kargs)
         else:
-            self.left = trans_data.edges.left.__user_Q_cms
+            self.left = trans_data.edges.left.user_Q_cms
             
         #Compute moving-bed correction, if applicable.  Two checks are used to account for the
         #way the meas object is created.
@@ -137,9 +137,9 @@ class QComp(object):
                 
                 #Determine if any of the moving-bed tests indicated a moving bed
                 mb_valid = mb_data.selected
-                if mb_data[mb_valid].__moving_bed == 'Yes':
+                if mb_data[mb_valid].moving_bed == 'Yes':
                     
-                    use_2_correct = mb_data[:].__use_2_correct
+                    use_2_correct = mb_data[:].use_2_correct
                     
                     #Determine if a moving-bed test is to be used for correction
                     if np.sum(use_2_correct) > 0:
@@ -172,7 +172,7 @@ class QComp(object):
             
             
     def cross_product(self, kargs):
-        '''Computes the cross product using data from an object TransectData or input
+        """Computes the cross product using data from an object TransectData or input
         for water and navigation arrays
         
         Input:
@@ -184,7 +184,7 @@ class QComp(object):
                 kargs[0] is array of water velocity in the x direction
                 kargs[1] is array of water velocity in the y direction
                 kargs[2] is vector of navigation velocity in x-direction
-                kargs[3] is vector of naviagation velocity in y-direction'''
+                kargs[3] is vector of naviagation velocity in y-direction"""
         
         if len(kargs) < 2:
             #Assign object of TransectData to local Variable
@@ -228,7 +228,7 @@ class QComp(object):
         return xprod
     
     def discharge_middle_cells(self, xprod, transect, delta_t):
-        '''Computes the discharge in the measured or middle portion of the cross section
+        """Computes the discharge in the measured or middle portion of the cross section
         
         Input:
         xprod: cross product computed from the cross product method
@@ -237,7 +237,7 @@ class QComp(object):
         
         Output:
         q_mid_cells: discharge in each bin or depth cell
-        '''
+        """
         
         #Assign properties from transect object to local variables
         in_transect_idx = transect.in_transect_idx
@@ -254,7 +254,7 @@ class QComp(object):
     
     #Top Extrapolation
     def discharge_top(self, xprod, transect, delta_t, kargs = None):
-        '''Coordinates computation of the extrapolated top discharge
+        """Coordinates computation of the extrapolated top discharge
         
         Input:
         xprod: cross product computed from the cross product method
@@ -268,7 +268,7 @@ class QComp(object):
         
         Output:
         q_top: top extrapolated discharge for each ensemble
-        '''
+        """
         
         if kargs is not None:
             top_method = kargs[0]
@@ -311,7 +311,7 @@ class QComp(object):
     def extrapolate_top(self, top_method,exponent,idx_top,idx_top_3, top_rng,
                                      component, cell_size, cell_depth,
                                      depth_ens, delta_t, z):
-        '''Computes the top extrapolated value of the provided component
+        """Computes the top extrapolated value of the provided component
         using the specified extrapolation method
         
         Input:
@@ -329,7 +329,7 @@ class QComp(object):
         
         Output:
         top_value: total for the specified component integrated over the top range
-        '''
+        """
         
         #Identify method
         
@@ -380,7 +380,7 @@ class QComp(object):
         return top_value
     
     def top_variables(self, xprod, transect):
-        '''Computes the index to the top and top3 valid cells in each ensemble and
+        """Computes the index to the top and top3 valid cells in each ensemble and
         the range from the water surface to the top of the topmost cell
         
         Input:
@@ -391,7 +391,7 @@ class QComp(object):
         idx_top: index to the topmost valid depth cell in each ensemble
         idx_top_3: index to the top 3 valid depth cell in each ensemble
         top_rng: range from the water surface to the top of the topmost cell
-        '''
+        """
         
         #Get data from transect object
         valid_data1 = transect.w_vel.valid_data[:,:,0]
@@ -425,7 +425,7 @@ class QComp(object):
     
     #Bottom Extrapolation
     def discharge_bot(self, xprod, transect, delta_t, kargs  = None):
-        '''Coordinates computation of the extrapolated bottom discharge
+        """Coordinates computation of the extrapolated bottom discharge
         
         Input:
         xprod: cross product computed from the corss product method
@@ -438,14 +438,14 @@ class QComp(object):
         
         Output:
         q_bot: bottom extrpaolated discharge for each ensemble
-        '''
+        """
         
         #Determine extrapolation methods and exponent
         if kargs is not None:
             bot_method = kargs[1]
             exponent = kargs[3]
         else:
-            bot_method = transect.extrap.__bot_method
+            bot_method = transect.extrap.bot_method
             exponent = transect.extrap.exponent
             
         #Get index for ensembles in mocing-boat portion of transect
@@ -474,7 +474,7 @@ class QComp(object):
         
     def bot_value(self, bot_method, exponent, idx_bot, bot_rng, component, 
                                         cell_size, cell_depth, depth_ens, delta_t, z):
-        '''Computes the bottom extrapolated value of the provided component
+        """Computes the bottom extrapolated value of the provided component
         using the specified extrapolation method
         
         Input:
@@ -491,7 +491,7 @@ class QComp(object):
         
         Output:
         bot_value: total for the specified component integrated over the top range
-        '''
+        """
         
         #Identify the bottom method
         #Bottom power extrapolation
@@ -528,7 +528,7 @@ class QComp(object):
             return bot_value
         
     def bot_variables(self, x_prod, transect):
-        '''Computes the index to the bottom most valid cell in each ensemble and the range from
+        """Computes the index to the bottom most valid cell in each ensemble and the range from
         the bottom to the bottom of the bottom most cell
         
         Input:
@@ -538,7 +538,7 @@ class QComp(object):
         Output:
         idx_bot: index to the bottom most valid depth cell in each ensemble
         bot_rng: range from the streambed to the bottom of the bottom most cell
-        '''
+        """
         
         #Identify valid data
         in_transect_idx = transect.in_transect_idx
@@ -571,7 +571,7 @@ class QComp(object):
         return (idx_bot, bot_rng)
                 
     def discharge_edge(self, edge_loc, transect, kargs = None):
-        '''Computes edge discharge
+        """Computes edge discharge
         
         Input:
         edge_loc: edge location (left or right)
@@ -583,7 +583,7 @@ class QComp(object):
             
         Output:
         edge computed edge discharge
-        '''
+        """
         
         #Determine what ensembles to use for edge computation.
         #The method of determining varies by manufacturer
@@ -612,7 +612,7 @@ class QComp(object):
         return edge
     
     def edge_ensembles(self,edge_loc, transect):
-        '''This function computes the starting and ending ensemble numbers for an edge using
+        """This function computes the starting and ending ensemble numbers for an edge using
         either the method used by TRDI which used the specified number of valid ensembles or SonTek
         which uses the specified number of ensembles prior to screening for valid data
         
@@ -622,7 +622,7 @@ class QComp(object):
         
         Output:
         edge_idx: indices of ensembles used to compute edge discharge
-        '''
+        """
         
         #Assign number of ensembles in edge to local variable
         edge_select = getattr(transect.edges, edge_loc)
@@ -651,7 +651,7 @@ class QComp(object):
         return edge_idx
     
     def edge_velocity(self, edge_idx, transect, kargs = None):
-        '''Coordinates computation of edge velocity
+        """Coordinates computation of edge velocity
         
         Input:
         edge_idx: indices of ensembles used to compute edge discharge
@@ -665,7 +665,7 @@ class QComp(object):
         Output:
         edge_vel_mag: magnitude of edge velocity
         edge_vel_sign: sign of edge celocity (discharge)
-        '''
+        """
         
         #Check to make sure there is edge data
         if edge_idx is not None and len(edge_idx) > 0:
@@ -691,7 +691,7 @@ class QComp(object):
         return (edge_vel_sign, edge_vel_mag)
     
     def edge_velocity_TRDI(self, edge_idx, transect):
-        '''Computes edge velocity magnitude and sign using TRDI's method, which uses only
+        """Computes edge velocity magnitude and sign using TRDI's method, which uses only
         the measured data and no extrapolation
         
         Input:
@@ -701,11 +701,11 @@ class QComp(object):
         Output:
         edge_vel_mage: magnitude of edge velocity
         edge_vel_sign: sign of edge velocity (dicharge)
-        '''
+        """
         
         #Assign water velocity to local variables
-        x_vel = transect.w_vel.__u_processed_mps[:, edge_idx]
-        y_vel = transect.w_vel.__v_processed_mps[:, edge_idx]
+        x_vel = transect.w_vel.u_processed_mps[:, edge_idx]
+        y_vel = transect.w_vel.v_processed_mps[:, edge_idx]
         
         #Use only valid data
         valid = transect.w_vel.valid_data[:, edge_idx, 1].astype(np.double)
@@ -732,11 +732,11 @@ class QComp(object):
         in_transect_idx = transect.in_transect_idx
         trans_selected = getattr(transect.boat_vel, transect.boat_vel.selected)
         if trans_selected is not None:
-            b_vel_x = trans_selected.__u_proccesed_mps
-            b_vel_y = trans_selected.__v_processed_mps
+            b_vel_x = trans_selected.u_proccesed_mps
+            b_vel_y = trans_selected.v_processed_mps
         else:
-            b_vel_x = np.tile([np.nan], transect.boat_vel.__u_processed_mps.shape)
-            b_vel_y = np.tile([np.nan], transect.boat_vel.__v_processed_mps.shape)
+            b_vel_x = np.tile([np.nan], transect.boat_vel.u_processed_mps.shape)
+            b_vel_y = np.tile([np.nan], transect.boat_vel.v_processed_mps.shape)
             
         track_x = np.nancumsum(b_vel_x[in_transect_idx] * ens_delta_time[in_transect_idx])
         track_y = np.nancumsum(b_vel_y[in_transect_idx] * ens_delta_time[in_transect_idx])
@@ -748,7 +748,7 @@ class QComp(object):
         return (edge_vel_mag, edge_vel_sign)
     
     def edge_coef(self, edge_loc, transect):
-        '''Returns the edge coefficient based on the edge settings and transect object
+        """Returns the edge coefficient based on the edge settings and transect object
         
         Input:
         edge_loc: edge location (left_or right)
@@ -756,7 +756,7 @@ class QComp(object):
         
         Output:
         coef: edge coefficient for accounting for velocity distribution and edge shape
-        '''
+        """
         
         #Process appropriate edge type
         edge_select = getattr(transect.edges, edge_loc)
@@ -768,7 +768,7 @@ class QComp(object):
             #'Fixed' is compatible with the method used by TRDI.
             #'Variable is compatible with the method used by SonTek
             
-            if transect.edges.__rec_edge_method == 'Fixed':
+            if transect.edges.rec_edge_method == 'Fixed':
                 
                 #Fixed Method
                 coef = 0.91
@@ -800,7 +800,7 @@ class QComp(object):
         return coef  
     
     def correction_factor(self, top_q, middle_q, bottom_q, trans_data, mb_data, delta_t):
-        '''Computes the discharge correction factor from stationary moving-bed tests
+        """Computes the discharge correction factor from stationary moving-bed tests
         
         Input:
         top_q: top discharge from extrapolation
@@ -812,7 +812,7 @@ class QComp(object):
         
         Output:
         correction_factor: correction factor to be applied to the discharge to correct for moving-bed tests
-        '''
+        """
         
         #Find and composite results of all stationary test that are selected for use
         n_mb_tests = len(mb_data)

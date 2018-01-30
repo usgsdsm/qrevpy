@@ -1,60 +1,140 @@
-'''
+"""
 Created on Sep 5, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.convenience import cosd, sind, cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
+# TODO check if frequency is an array or single value for TRDI
+
 
 class BoatData(object):
-    '''Class to process and store boat velocity data'''
+    """Class to process and store boat velocity data.
+
+    Original data provided to the class:
+        raw_vel_mps: np.array
+            Contains the raw unfiltered velocity data in m/s.
+            First index is 1-4 are beams 1,2,3,3 if if beam or u,v,w,d if otherwise.
+        frequency_kHz: np.array or float
+            Defines ADCP frequency used for velocity Measurement.
+        orig_coord_sys: str
+            Defines the original raw data velocity Coordinate, "Beam", "Inst", "Ship", "Earth".
+        nav_ref: str
+            Defines the original raw data navigation reference, "None", "BT", "GGA" "VTG".
+
+    Coordinate transformed data:
+        coord_sys: str
+            Defines the current coordinate system "Beam", "Inst", "Ship", "Earth" used to compute u, v, w, and d.
+        u_mps: np.array(float)
+            Horizontal velocity in x-direction, in m/s.
+        v_mps: np.array(float)
+            Horizontal velocity in y-direction, in m/s.
+        w_mps: np.array(float)
+            Vertical velocity (+ up), m/s.
+        d_mps: np.array(float)
+            Difference in vertical velocities compute from opposing beam pairs in m/s.
+        num_invalid: float
+            Number of ensembles with invalid velocity data.
+        bottom_mode: str
+            BT mode for TRDI, 'Variable' for SonTek.
+
+    Processed data:
+        u_processed_mps: np.array(float)
+            Horizontal velocity in x-direction filtered and interpolated.
+        v_processed_mps: np.array(float)
+            Horizontal velocity in y-direction filtered and interpolated.
+        processed_source: str
+            Source of velocity: BT, VTG, GGA, INT.
+
+    Settings:
+        d_filter: str
+            Difference velocity filter "Manual", "Off", "Auto".
+        d_filter_threshold: float
+            Threshold for difference velocity filter.
+        w_filter: str
+            Vertical velocity filter "Manual", "Off", "Auto".
+        w_filter_threshold: float
+            Threshold for vertical velocity filter.
+        gps_diff_qual_filter: integer
+            Differential correction quality (1,2,4).
+        gps_altitude_filter: str
+            Change in altitude filter "Auto", "Manual", "Off".
+        gps_altitude_filter_change: float
+            Threshold from mean for altitude filter.
+        gps_HDOP_filter: str
+            HDOP filter "Auto", "Manual", "Off".
+        gps_HDOP_filter_max: float
+            Max acceptable value for HDOP.
+        gps_HDOP_filter_change: float
+            Maximum change allowed from mean.
+        smooth_filter: bool
+            Setting to use filter based on smoothing function.
+        smooth_speed: np.array(float)
+            Smoothed boat speed.
+        smooth_upper_limit: np.array(float)
+            Smooth function upper limit of window.
+        smooth_lower_limit: np.array(float)
+            Smooth function lower limit of window.
+        interpolate: str
+            Type of interpolation: "None", "Linear", "Smooth" etc.
+        beam_filter: integer
+            Minumum number of beams for valid data, 3 for 3-beam solutions, 4 for 4-beam.
+        valid_data: np.array(bool)
+            Logical array of identifying valid and invalid data for each filter applied.
+                Row 1 [0] - composite
+                Row 2 [1] - original
+                Row 3 [2] - d_filter of diff_qual
+                Row 4 [3] - w_filter or altitude
+                Row 5 [4] - smooth_filter
+                Row 6 [5] - beam_filter or HDOP
+    """
     
     def __init__(self):
         
-        #Variables passed to the constructor
-        self.__raw_vel_mps = None   #contains the raw unfiltered velocity data in m/s.
-                                    #Rows 1-4 are beams 1,2,3,3 if if beam or u,v,w,d if otherwise 
-        self.__frequency_hz = None #Defines ADCP frequency used for velocity Measurement
-        self.__orig_coord_sys = None #Defines the original raw data velocity Coordinate
-                                    #"Beam", "Inst", "Ship", "Earth"
-        self.__nav_ref = None #Defines the original raw data navigation reference
-                                #"None", "BT", "GGA" "VTG"
+        # Variables passed to the constructor
+        self.raw_vel_mps = None     # contains the raw unfiltered velocity data in m/s.
+                                    # Rows 1-4 are beams 1,2,3,3 if if beam or u,v,w,d if otherwise
+        self.frequency_hz = None    # Defines ADCP frequency used for velocity Measurement
+        self.orig_coord_sys = None  # Defines the original raw data velocity Coordinate
+                                    # "Beam", "Inst", "Ship", "Earth"
+        self.nav_ref = None         # Defines the original raw data navigation reference
+                                    # "None", "BT", "GGA" "VTG"
                                 
-        #Coordinate transformed data
-        self.__coord_sys = None #Defines the current coordinate system "Beam", "Inst", "Ship", "Earth"
-                                #For u, v, w, and d
-        self.__u_mps = None #Horizontal velocity in x-direction, in m/s
-        self.__v_mps = None #Horizontal velocity in y-direction, in m/s
-        self.__w_mps = None #Vertical velocity (+ up), m/s
-        self.__d_mps = None #Difference in vertical velocities compute from opposing beam pairs in m/s
-        self.__num_invalid = None #Number of ensembles with invalid velocity data
-        self.__bottom_mode = None #BT mode for TRDI, 'Variable' for SonTek
+        # Coordinate transformed data
+        self.coord_sys = None       # Defines the current coordinate system "Beam", "Inst", "Ship", "Earth"
+                                    # For u, v, w, and d
+        self.u_mps = None           # Horizontal velocity in x-direction, in m/s
+        self.v_mps = None           # Horizontal velocity in y-direction, in m/s
+        self.w_mps = None           # Vertical velocity (+ up), m/s
+        self.d_mps = None           # Difference in vertical velocities compute from opposing beam pairs in m/s
+        self.num_invalid = None     # Number of ensembles with invalid velocity data
+        self.bottom_mode = None     # BT mode for TRDI, 'Variable' for SonTek
         
-        #Processed data
-        self.__u_processed_mps = None # Horizontal velocity in x-direction filtered and interpolated
-        self.__v_processed_mps = None # Horizontal velocity in y-direction filtered and interpolated
-        self.__proecessed_source = None
+        # Processed data
+        self.u_processed_mps = None  # Horizontal velocity in x-direction filtered and interpolated
+        self.v_processed_mps = None  # Horizontal velocity in y-direction filtered and interpolated
+        self.proecessed_source = None  # Source of data, BT, GGA, VTG, INT
         
-        #filter and interpolation properties
-        self.__d_filter = None #Difference velocity filter "Manual", "Off", "Auto"
-        self.__d_filter_threshold = None #Threshold for difference velocity filter
-        self.__w_filter = None #Vertical velocity filter "On", "Off"
-        self.__w_filter_threshold = None #Threshold for vertical velocity filter
-        self.__gps_diff_qual_filter = None #Differential correction quality (1,2,4)
-        self.__gps_altitude_filter = None # Change in altitude filter "Auto", "Manual", "Off"
-        self.__gps_altitude_filter_change = None # Threshold from mean for altitude filter
-        self.__gps_HDOP_filter = None # HDOP filter "Auto", "Manual", "Off"
-        self.__gps_HDOP_filter_max = None # Max acceptable value for HDOP
-        self.__gps_HDOP_filter_change = None # Maximum change allowed from mean
-        self.__smooth_filter = None #Filter based on smoothing function 
-        self.__smooth_speed = None #Smoothed boat speed
-        self.__smooth_upper_limit = None #Smooth function upper limit of window
-        self.__smooth_lower_limit = None #Smooth function lower limit of window
-        self.__interpolate = None #Type of interpolation: "None", "Linear", "Smooth" etc.
-        self.__beam_filter = None #3 for 3-beam solutions, 4 for 4-beam SolutionStackDescription
-        self.__valid_data = None #Logical array of identifying valid and invalid data for each filter applied
+        # filter and interpolation properties
+        self.d_filter = None            # Difference velocity filter "Manual", "Off", "Auto"
+        self.d_filter_threshold = None  # Threshold for difference velocity filter
+        self.w_filter = None            # Vertical velocity filter "On", "Off"
+        self.w_filter_threshold = None  # Threshold for vertical velocity filter
+        self.gps_diff_qual_filter = None  # Differential correction quality (1,2,4)
+        self.gps_altitude_filter = None  # Change in altitude filter "Auto", "Manual", "Off"
+        self.gps_altitude_filter_change = None  # Threshold from mean for altitude filter
+        self.gps_HDOP_filter = None     # HDOP filter "Auto", "Manual", "Off"
+        self.gps_HDOP_filter_max = None  # Max acceptable value for HDOP
+        self.gps_HDOP_filter_change = None  # Maximum change allowed from mean
+        self.smooth_filter = None       # Filter based on smoothing function
+        self.smooth_speed = None        # Smoothed boat speed
+        self.smooth_upper_limit = None  # Smooth function upper limit of window
+        self.smooth_lower_limit = None  # Smooth function lower limit of window
+        self.interpolate = None     # Type of interpolation: "None", "Linear", "Smooth" etc.
+        self.beam_filter = None     # 3 for 3-beam solutions, 4 for 4-beam SolutionStackDescription
+        self.valid_data = None  # Logical array of identifying valid and invalid data for each filter applied
                                 # Row 1 [0] - composite
                                 # Row 2 [1] - original
                                 # Row 3 [2] - d_filter of diff_qual
@@ -62,119 +142,128 @@ class BoatData(object):
                                 # Row 5 [4] - smooth_filter
                                 # Row 6 [5] - beam_filter or HDOP
                                 
-    def populate_data(self, source, vel_in, freq_in, coord_sys_in, nav_ref_in, kargs = None):
-        '''Creates object and sets properties with data provided
+    def populate_data(self, source, vel_in, freq_in, coord_sys_in, nav_ref_in, beam_filter_in=3,
+                      bottom_mode_in='Variable'):
+        """Creates object and sets properties with data provided
         
-        Input:
-        source: manufacturer (TRDI, SonTek)
-        vel_in: boat velocity array
-        freq_in: acoustic frequency boat velocity
-        coord_sys_in: coordinate system of boat velocity
-        nav_ref_in: source of boat velocity (BT, GGA, VTG)
-        kargs: [0]: for TRDI data and specifies whether 3 beam solutions were selected
-                    in the mmt file and the bottom mode.  These are not specified for SonTek data.
-               [1]: bottom mode for TRDI ADCP
-        '''
-        
+        Parameters
+        ----------
+        source: str
+            Manufacturer (TRDI, SonTek)
+        vel_in: np.array(float)
+            Boat velocity array
+        freq_in: np.array(float)
+            Acoustic frequency boat velocity
+        coord_sys_in: str
+            Coordinate system of boat velocity
+        nav_ref_in: str
+            Source of boat velocity (BT, GGA, VTG)
+        beam_filter_in: int
+            Minimum number of valid beams for valid data.
+        bottom_mode_in: str
+            Bottom mode for TRDI ADCP
+        """
+
+        # Indentify invalid ensembles for SonTek data.
         if source == 'SonTek':
-            vel_in = self.__filter_sontek(vel_in)
+            vel_in = self.filter_sontek(vel_in)
             
-        self.__raw_vel_mps = vel_in
-        self.__frequency_hz = freq_in
-        self.__coord_sys = coord_sys_in
-        self.__orig_coord_sys = coord_sys_in
-        self.__nav_ref = nav_ref_in
-        self.__beam_filter = 3
+        self.raw_vel_mps = vel_in
+        self.frequency_hz = freq_in
+        self.coord_sys = coord_sys_in
+        self.orig_coord_sys = coord_sys_in
+        self.nav_ref = nav_ref_in
+        self.beam_filter = beam_filter_in
         
         #Bottom mode is variable unless TRDI with BT reference
-        self.__bottom_mode = 'Variable'
-        if source == 'TRDI' and nav_ref_in == 'BT':
-            self.bottom_mode = kargs[1]
-            #Apply 3-beam setting from mmt file
-            if kargs[0] < .5:
-                self.__beam_filter = 4
-                
+        self.bottom_mode = bottom_mode_in
+        # DSM changed 1/30/2018 if source == 'TRDI' and nav_ref_in == 'BT':
+        #     self.bottom_mode = kargs[1]
+        #     #Apply 3-beam setting from mmt file
+        #     if kargs[0] < .5:
+        #         self.beam_filter = 4
+# TODO check TRDI for beam_filter settings
         if nav_ref_in == 'BT':
             
             #Boat velocities are referenced to ADCP not the streambed and thus must be reversed
-            self.__u_mps = -1 * vel_in[0,:]
-            self.__v_mps = -1 * vel_in[1,:]
-            self.__w_mps = vel_in[2,:]
-            self.__d_mps = vel_in[3,:]
+            self.u_mps = -1 * vel_in[0,:]
+            self.v_mps = -1 * vel_in[1,:]
+            self.w_mps = vel_in[2,:]
+            self.d_mps = vel_in[3,:]
             
             #Default filtering applied during initial construction of object
-            self.__d_filter = 'Off'
-            self.__d_filter_threshold = 99
-            self.__wfilter = 'Off'
-            self.__w_filter_threshold = 99
-            self.__smooth_filter = 'Off'
+            self.d_filter = 'Off'
+            self.d_filter_threshold = 99
+            self.wfilter = 'Off'
+            self.w_filter_threshold = 99
+            self.smooth_filter = 'Off'
             self.interpolate = 'None'
             
         else:
             
             #GPS referenced boat velocity
-            self.__u_mps = vel_in[0,:]
-            self.__v_mps = vel_in[1,:]
-            self.__w_mps = np.nan
-            self.__d_mps = np.nan
+            self.u_mps = vel_in[0,:]
+            self.v_mps = vel_in[1,:]
+            self.w_mps = np.nan
+            self.d_mps = np.nan
             
             #Default filtering
-            self.__gps_diff_qual_filter = 2
-            self.__gps_altitude_filter = 'Off'
-            self.__gps_altitude_filter_change = 3
-            self.__gps_HDOP_filter = 'Off'
-            self.__gps_HDOP_filter_max = 2.5
-            self.__gps_HDOP_filter_change = 1
-            self.__smooth_filter = 'Off'
-            self.__interpolate = 'None'
+            self.gps_diff_qual_filter = 2
+            self.gps_altitude_filter = 'Off'
+            self.gps_altitude_filter_change = 3
+            self.gps_HDOP_filter = 'Off'
+            self.gps_HDOP_filter_max = 2.5
+            self.gps_HDOP_filter_change = 1
+            self.smooth_filter = 'Off'
+            self.interpolate = 'None'
             
         #Assign data to processed property
-        self.__u_processed_mps = np.copy(self.__u_mps)
-        self.__v_processed_mps = np.copy(self.__v_mps)
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
      
         #Preallocate arrays
         n_ensembles = vel_in.shape[1]
-        self.__valid_data = repmat([True], 6, n_ensembles)
-        self.__smooth_speed = repmat([np.nan], 1, n_ensembles)
-        self.__smooth_upper_limit = repmat([np.nan], 1, n_ensembles)
-        self.__smooth_lower_limit = repmat([np.nan], 1, n_ensembles)
+        self.valid_data = repmat([True], 6, n_ensembles)
+        self.smooth_speed = repmat([np.nan], 1, n_ensembles)
+        self.smooth_upper_limit = repmat([np.nan], 1, n_ensembles)
+        self.smooth_lower_limit = repmat([np.nan], 1, n_ensembles)
         
         #Determine number of raw invalid
         #--------------------------------
         # Find invalid raw data
-        valid_vel = np.tile([True], self.__raw_vel_mps.shape)
-        valid_vel[np.isnan(self.__raw_vel_mps)] = False
+        valid_vel = np.tile([True], self.raw_vel_mps.shape)
+        valid_vel[np.isnan(self.raw_vel_mps)] = False
         
         #Identify invalid ensembles
         if nav_ref_in == 'BT':
-            self.__valid_data[1, np.sum(valid_vel,0) < 3] = False
+            self.valid_data[1, np.sum(valid_vel,0) < 3] = False
         else:
-            self.__valid_data[1, np.sum(valid_vel,0) < 2] = False
+            self.valid_data[1, np.sum(valid_vel,0) < 2] = False
             
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:],0)
-        self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
-        self.__processed_source = np.tile('',self.__u_mps.shape)
-        self.__processed_source[np.where(self.__valid_data[0,:] == True)] = nav_ref_in
-        self.__processed_source[np.where(self.__valid_data[0,:] == False)] = "INT"
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:],0)
+        self.num_invalid = np.sum(self.valid_data[0,:] == False)
+        self.processed_source = np.tile('',self.u_mps.shape)
+        self.processed_source[np.where(self.valid_data[0,:] == True)] = nav_ref_in
+        self.processed_source[np.where(self.valid_data[0,:] == False)] = "INT"
         
     def change_coord_sys(self, new_coord_sys, sensors, adcp):
-        '''This function allows the coordinate system to be changed.  Current implementation
+        """This function allows the coordinate system to be changed.  Current implementation
         is only to allow change to a higher order coordinate system Beam - Inst - Ship - Earth
         
         Input:
         new_coord_sys: new coordinate_sys (Beam, Inst, Ship, Earth)
         sensors: object of Sensors
         adcp: object of InstrumentData
-        '''
+        """
         
         #Remove any trailing spaces
-        if isinstance(self.__orig_coord_sys, str):
-            o_coord_sys = self.__orig_coord_sys.strip()
+        if isinstance(self.orig_coord_sys, str):
+            o_coord_sys = self.orig_coord_sys.strip()
         else:
-            o_coord_sys = self.__orig_coord_sys[0].strip()
+            o_coord_sys = self.orig_coord_sys[0].strip()
         
-        if self.__orig_coord_sys[0].strip() != new_coord_sys.strip():
+        if self.orig_coord_sys[0].strip() != new_coord_sys.strip():
             #Assign the transformation matrix and retrieve the sensor data
             t_matrix = adcp.t_matrix.matrix
             t_matrix_freq = adcp.frequency_hz
@@ -223,8 +312,8 @@ class BoatData(object):
                 CR = cosd(r)
                 SR = sind(r)
                 
-                vel_changed = np.tile([np.nan], self.__raw_vel_mps.shape)
-                n_ens = self.__raw_vel_mps.shape[1]
+                vel_changed = np.tile([np.nan], self.raw_vel_mps.shape)
+                n_ens = self.raw_vel_mps.shape[1]
                 
                 for ii in range(n_ens):
                     
@@ -244,13 +333,13 @@ class BoatData(object):
                         
                         #Determine frequency index for transformation matrix
                         if len(t_matrix.shape) > 2:
-                            idx_freq = np.where(t_matrix_freq==self.__frequency_hz[ii])
+                            idx_freq = np.where(t_matrix_freq==self.frequency_hz[ii])
                             t_mult = np.copy(t_matrix[idx_freq])
                         else:
                             t_mult = np.copy(t_matrix)
                             
                         #Get velocity data
-                        vel = np.squeeze(self.__raw_vel_mps[:,ii])
+                        vel = np.squeeze(self.raw_vel_mps[:,ii])
                         
                         #Check for invalid beams
                         idx_3_beam = np.where(np.isnan(vel))
@@ -382,7 +471,7 @@ class BoatData(object):
                         else:
                             
                             #Apply transormation matrix for 4 beam solutions
-                            temp_t = t_mult.dot(np.squeeze(self.__raw_vel_mps[:,ii]))
+                            temp_t = t_mult.dot(np.squeeze(self.raw_vel_mps[:,ii]))
                             
                             #Apply hpr_matrix
                             temp_THPR = np.array(hpr_matrix).dot(temp_t[:3])
@@ -391,7 +480,7 @@ class BoatData(object):
                     else:
                         
                         #Getvelocity data
-                        vel = np.squeeze(self.__raw_vel_mps[:,ii])
+                        vel = np.squeeze(self.raw_vel_mps[:,ii])
                         
                         #Apply heading pitch roll for inst and ship coordinate data
                         temp_THPR = np.array(hpr_matrix).dot(vel[:3])
@@ -401,30 +490,32 @@ class BoatData(object):
                     vel_changed[:,ii] = temp_THPR.T
                 
                 #Assign results to object
-                self.__u_mps = -1 * vel_changed[0,:]
-                self.__v_mps = -1 * vel_changed[1,:]
-                self.__w_mps = -1 * vel_changed[2,:]
-                self.__d_mps = -1 * vel_changed[3,:]
-                self.__coord_sys = new_coord_sys
-                self.__u_processed_mps = np.copy(self.__u_mps)
-                self.__v_processed_mps = np.copy(self.__v_mps)
-                
-                
-                        
+                self.u_mps = -1 * vel_changed[0,:]
+                self.v_mps = -1 * vel_changed[1,:]
+                self.w_mps = -1 * vel_changed[2,:]
+                self.d_mps = -1 * vel_changed[3,:]
+                self.coord_sys = new_coord_sys
+                self.u_processed_mps = np.copy(self.u_mps)
+                self.v_processed_mps = np.copy(self.v_mps)
+
+        # TODO change_magvar
+        # TODO change_offset
+        # TODO change_heading_source
+
     def apply_interpolation(self, transect, kargs = None):
-        '''Function to apply interpolations to navigation data
+        """Function to apply interpolations to navigation data
         
         Input:
         transect: object of TransectData
         kargs: specified interpolation method if different from that
         in saved object
-        '''
+        """
         
         #Reset processed data
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps               
-        self.__u_processed_mps[self.__valid_data[0,:] == False] = np.nan
-        self.__v_processed_mps[self.__valid_data[0,:] == False] = np.nan
+        self.u_processed_mps = self.u_mps
+        self.v_processed_mps = self.v_mps
+        self.u_processed_mps[self.valid_data[0,:] == False] = np.nan
+        self.v_processed_mps[self.valid_data[0,:] == False] = np.nan
         
         #Determine interpolation methods to apply
         interp = self.interpolate
@@ -464,87 +555,83 @@ class BoatData(object):
             # For TRDI the interpolation is done on discharge not on velocities
             self.interpolate_none()
             
-            
-            
-    def __interpolate_hold_9(self):
-        '''This function applies Sontek's  approach to maintaining the last valid boat speed
+    def interpolate_hold_9(self):
+        """This function applies Sontek's  approach to maintaining the last valid boat speed
         for up to nine invalid samples
-        '''
+        """
         
         #Initialize variables
-        n_ensembles = self.__u_mps.shape[1]
+        n_ensembles = self.u_mps.shape[1]
        
         #Get data from object
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps
-        self.__u_processed_mps[self.__valid_data[0,:] == False] = np.nan
-        self.__v_processed_mps[self.__valid_data[0,:] == False] = np.nan
+        self.u_processed_mps = self.u_mps
+        self.v_processed_mps = self.v_mps
+        self.u_processed_mps[self.valid_data[0,:] == False] = np.nan
+        self.v_processed_mps[self.valid_data[0,:] == False] = np.nan
         
         n_invalid = 0
         #Process data by ensembles
         for n in range(1,n_ensembles):
             #Check if ensemble is invalid and number of consecutive invalids is less than 9
-            if self.__valid_data[0,n] == False and n_invalid < 9:
-                self.__u_processed_mps = self.__u_processed_mps[n - 1]
-                self.__v_processed_mps = self.__v_processed_mps[n - 1]
+            if self.valid_data[0,n] == False and n_invalid < 9:
+                self.u_processed_mps = self.u_processed_mps[n - 1]
+                self.v_processed_mps = self.v_processed_mps[n - 1]
                 n_invalid += 1
             else:
                 n_invalid = 0
                 
     def interpolate_none(self):
-        '''This function removes any interpolation from the data and sets filtered data to nan'''
+        """This function removes any interpolation from the data and sets filtered data to nan"""
         
         #Reset processed data
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps
-        self.__u_processed_mps[self.__valid_data[0,:] == False] = np.nan
-        self.__v_processed_mps[self.__valid_data[0,:] == False] = np.nan  
+        self.u_processed_mps = self.u_mps
+        self.v_processed_mps = self.v_mps
+        self.u_processed_mps[self.valid_data[0,:] == False] = np.nan
+        self.v_processed_mps[self.valid_data[0,:] == False] = np.nan
         
     def interpolate_hold_last(self):
-        '''This function holds the last valid value until the next valid data point'''
+        """This function holds the last valid value until the next valid data point"""
         
         #Initialize variables
-        n_ensembles = self.__u_mps.shape[1]
+        n_ensembles = self.u_mps.shape[1]
        
         #Get data from object
-        self.__u_processed_mps = self.__u_mps
-        self.__v_processed_mps = self.__v_mps
-        self.__u_processed_mps[self.__valid_data[0,:] == False] = np.nan
-        self.__v_processed_mps[self.__valid_data[0,:] == False] = np.nan
+        self.u_processed_mps = self.u_mps
+        self.v_processed_mps = self.v_mps
+        self.u_processed_mps[self.valid_data[0,:] == False] = np.nan
+        self.v_processed_mps[self.valid_data[0,:] == False] = np.nan
         
         n_invalid = 0
         #Process data by ensembles
         for n in range(1,n_ensembles):
             #Check if ensemble is invalid and number of consecutive invalids is less than 9
-            if self.__valid_data[0,n] == False and n_invalid < 9:
-                self.__u_processed_mps = self.__u_processed_mps[n - 1]
-                self.__v_processed_mps = self.__v_processed_mps[n - 1]
-               
-               
+            if self.valid_data[0,n] == False and n_invalid < 9:
+                self.u_processed_mps = self.u_processed_mps[n - 1]
+                self.v_processed_mps = self.v_processed_mps[n - 1]
+
     def interpolate_next(self):
-        '''This function uses the next valid data to back fill for invalid'''
+        """This function uses the next valid data to back fill for invalid"""
         
         #Get valid ensembles
-        valid_ens = self.__valid_data[0,:]
+        valid_ens = self.valid_data[0,:]
         
         #Process ensembles
         n_ens = len(valid_ens)
         
         for n in np.arange(0,n_ens-1)[::-1]:
             if valid_ens[n] == False:
-                self.__u_processed_mps[n] = self.__u_processed_mps[n+1]
-                self.__v_processed_mps[n] = self.__v_processed_mps[n+1]
-                
+                self.u_processed_mps[n] = self.u_processed_mps[n+1]
+                self.v_processed_mps[n] = self.v_processed_mps[n+1]
                 
     def interpolate_smooth(self, transect):
-        '''This function interpolates data flagged invalid using the smooth function'''
+        """This function interpolates data flagged invalid using the smooth function"""
         
         #Get data from object
         
-        u = self.__u_mps
-        v = self.__v_mps
-        u[self.__valid_data[0,:] == False] = np.nan
-        v[self.__valid_data[0,:] == False] = np.nan
+        u = self.u_mps
+        v = self.v_mps
+        u[self.valid_data[0,:] == False] = np.nan
+        v[self.valid_data[0,:] == False] = np.nan
         
         #Compute ens_time
         ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
@@ -554,48 +641,46 @@ class BoatData(object):
         v_smooth = lowess(ens_time, v, 10/len(v))
         
         #Save data in object
-        self.__u_processed_mps = u
-        self.__v_processed_mps = v
-        self.__u_processed_mps[np.isnan(u)] = u_smooth[np.isnan(u)]
-        self.__v_processed_mps[np.isnan(v)] = v_smooth[np.isnan(v)]
-            
-            
+        self.u_processed_mps = u
+        self.v_processed_mps = v
+        self.u_processed_mps[np.isnan(u)] = u_smooth[np.isnan(u)]
+        self.v_processed_mps[np.isnan(v)] = v_smooth[np.isnan(v)]
+
     def interpolate_linear(self, transect):
-        '''This function interpolates data flagged invalid using linear interpolation
+        """This function interpolates data flagged invalid using linear interpolation
         
         Input:
         transect: object of TransectData
-        '''  
+        """
         
-        u = self.__u_mps
-        v = self.__v_mps            
+        u = self.u_mps
+        v = self.v_mps
         
         valid = np.isnan(u) == False
         
         #Check for valid data
-        if sum(valid) > 1 and sum(self.__valid_data[0,:]) > 1:
+        if sum(valid) > 1 and sum(self.valid_data[0,:]) > 1:
             
             #Compute ens_time
             ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
             
             #Apply linear interpolation
-            self.__u_processed_mps = np.interp(ens_time,
-                                               ens_time[self.__valid_data[0,:]],
-                                               u[self.__valid_data[0,:]])
+            self.u_processed_mps = np.interp(ens_time,
+                                               ens_time[self.valid_data[0,:]],
+                                               u[self.valid_data[0,:]])
             #Apply linear interpolation
-            self.__v_processed_mps = np.interp(ens_time,
-                                               ens_time[self.__valid_data[0,:]],
-                                               v[self.__valid_data[0,:]])
-            
+            self.v_processed_mps = np.interp(ens_time,
+                                               ens_time[self.valid_data[0,:]],
+                                               v[self.valid_data[0,:]])
          
     def interpolate_composite(self, transect):
-        '''This function interpolates processed data flagged invalid using linear interpolation
+        """This function interpolates processed data flagged invalid using linear interpolation
         
         Input:
         transect: object of TransectData
-        '''
-        u = self.__u_processed_mps
-        v = self.__v_processed_mps
+        """
+        u = self.u_processed_mps
+        v = self.v_processed_mps
         
         valid = np.isnan(u) == False
         
@@ -604,17 +689,17 @@ class BoatData(object):
             
             #Compute ensTime
             ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
-            
-            
+
+    # TODO apply_composite ??
     def apply_filter(self, transect, kargs):
-        '''Function to apply filters to navigation data
+        """Function to apply filters to navigation data
         
         Input:
         transect: object of TransectData
         kargs: specified filter method(s) and associated thresholds
         if different from that saved in object.  More than one filter
         can be applied during a single call
-        '''
+        """
         
         if kargs is not None:
             nargs = len(kargs)
@@ -625,7 +710,7 @@ class BoatData(object):
                 if kargs[n] == 'Beam':
                     n += 1
                     beam_filter_setting = kargs[n]
-                    self.__filter_beam(beam_filter_setting)
+                    self.filter_beam(beam_filter_setting)
                 
                 #Filter based on difference velocity
                 elif kargs[n] == 'Difference':
@@ -633,9 +718,9 @@ class BoatData(object):
                     d_filter_setting = kargs[n]
                     if d_filter_setting == 'Manual':
                         n+=1
-                        self.__filter_diff_vel(d_filter_setting, [kargs[n]])
+                        self.filter_diff_vel(d_filter_setting, [kargs[n]])
                     else:
-                        self.__filter_diff_vel(d_filter_setting)
+                        self.filter_diff_vel(d_filter_setting)
                         
                 #Filter based on vertical velocity
                 elif kargs[n] == 'Vertical':
@@ -645,31 +730,30 @@ class BoatData(object):
                         n+=1
                         setting = kargs[n]
                         if setting is not None:
-                            setting = self.__w_filter_threshold
-                        self.__filter_vert_vel(w_filter_setting, [setting])
+                            setting = self.w_filter_threshold
+                        self.filter_vert_vel(w_filter_setting, [setting])
                     else:
-                        self.__filter_vert_vel(w_filter_setting)
+                        self.filter_vert_vel(w_filter_setting)
                         
                 #Filter based on lowess smooth
                 elif kargs[n] == 'Other':
                     n += 1
-                    self.__filter_smooth(transect, [kargs[n]])
+                    self.filter_smooth(transect, [kargs[n]])
                     
                 n += 1
         else:
             
             #Apply all filters based on stored settings
-            self.__filter_beam(self.__beam_filter)
-            self.__filter_diff_vel(self.__d_filter, [self.__d_filter_threshold])
-            self.__filter_vert_vel(self.__w_filter, [self.__w_filter_threshold])
-            self.__filter_smooth(transect, self.__smooth_filter)
+            self.filter_beam(self.beam_filter)
+            self.filter_diff_vel(self.d_filter, [self.d_filter_threshold])
+            self.filter_vert_vel(self.w_filter, [self.w_filter_threshold])
+            self.filter_smooth(transect, self.smooth_filter)
             
         #Apply previously specified interpolation method
         self.apply_interpolation(transect)
                     
-    #-----------------------------------------------Private Methods--------------
-    def __filter_beam(self, setting):
-        '''The determination of invalid data depends on the whether 
+    def filter_beam(self, setting):
+        """The determination of invalid data depends on the whether
         3-beam or 4-beam solutions are acceptable. This function can be
         applied by specifying 3 or 4 beam solutions are setting
         obj.beamFilter to -1 which will trigger an automatic mode. The
@@ -685,17 +769,17 @@ class BoatData(object):
         
         Input:
         setting: setting for beam filter (3, 4, -1)  
-        '''
+        """
         
-        self.__beam_filter = setting
+        self.beam_filter = setting
         
         #In manual mode determine number of raw invalid and number of 3 beam solutions  
         #3 beam solutions if selected
-        if self.__beam_filter > 0:
+        if self.beam_filter > 0:
             
             #Find invalid raw data
-            valid_vel = np.ones(self.__raw_vel_mps.shape)
-            valid_vel[np.isnan(self.__raw_vel_mps)] = 0
+            valid_vel = np.ones(self.raw_vel_mps.shape)
+            valid_vel[np.isnan(self.raw_vel_mps)] = 0
             
             #Determine how many beams transformed coordinates are valid
             valid_vel_sum = np.sum(valid_vel, 0)
@@ -705,7 +789,7 @@ class BoatData(object):
             valid[valid_vel_sum < self.beam_filter] = False
             
             #Save logical of valid data to object
-            self.__valid_data[5,:] = valid
+            self.valid_data[5,:] = valid
             
         else:
             
@@ -713,11 +797,11 @@ class BoatData(object):
             #----------------------
             #Find all 3 beam solutions
             temp = np.copy(self)
-            temp.__filter_beam(4)
+            temp.filter_beam(4)
             temp3 = np.copy(temp)
-            temp3.__filter_beam(3)
-            valid_3_beams = temp3.__valid_data[5,:] - temp.__valid_data[5,:]
-            n_ens = len(temp.__valid_data[5,:])
+            temp3.filter_beam(3)
+            valid_3_beams = temp3.valid_data[5,:] - temp.valid_data[5,:]
+            n_ens = len(temp.valid_data[5,:])
             idx = np.where(valid_3_beams == True)[0]
             
             #If 3 beam solutions exist evaluate there validity
@@ -735,39 +819,39 @@ class BoatData(object):
                         
                         #Find nearest 4 beam solutions before and after
                         #3 beam solution
-                        ref_idx_before = np.where(temp.__valid_data[5,:idx[m]] == True)[0]
+                        ref_idx_before = np.where(temp.valid_data[5,:idx[m]] == True)[0]
                         if len(ref_idx_before) > 0:
                             ref_idx_before = ref_idx_before[0][-1]
                         else:
                             ref_idx_before = None
                             
-                        ref_idx_after = np.where(temp.__valid_data[5, :idx[m]] == True)[0]
+                        ref_idx_after = np.where(temp.valid_data[5, :idx[m]] == True)[0]
                         if len(ref_idx_after) > 0:
                             ref_idx_after = idx[m] + ref_idx_after[0]
                         else:
                             ref_idx_after = None
                             
                         if ref_idx_after is not None and ref_idx_before is not None:
-                            u_ratio = (temp.__u_mps[idx[m]]) / ((temp.__u_mps[ref_idx_before] + temp.__u_mps[ref_idx_after]) / 2.) - 1            
-                            v_ratio = (temp.__v_mps[idx[m]]) / ((temp.__v_mps[ref_idx_before] + temp.__v_mps[ref_idx_after]) / 2.) - 1
+                            u_ratio = (temp.u_mps[idx[m]]) / ((temp.u_mps[ref_idx_before] + temp.u_mps[ref_idx_after]) / 2.) - 1
+                            v_ratio = (temp.v_mps[idx[m]]) / ((temp.v_mps[ref_idx_before] + temp.v_mps[ref_idx_after]) / 2.) - 1
                         else:
                             u_ratio = 1
                             v_ratio = 1
                             
                         #If 3-beam differs from 4-beam by more than 50% mark it invalid
                         if np.abs(u_ratio) > 0.5 or np.abs(v_ratio) > 0.5:
-                            temp.__valid_data[5,idx[m]] = 0
+                            temp.valid_data[5,idx[m]] = 0
                         else:
-                            temp.__valid_data[5,idx[m]] = 1  
+                            temp.valid_data[5,idx[m]] = 1
             
-            self.__beam_filter = -1
+            self.beam_filter = -1
         
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self.__valid_data, 0)
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+        self.num_invalid = np.sum(self.valid_data, 0)
         
-    def __filter_diff_vel(self, setting, kargs = None):
-        '''Applies either manual or automatic filtering of the difference
+    def filter_diff_vel(self, setting, kargs = None):
+        """Applies either manual or automatic filtering of the difference
         (error) velocity. The automatic mode is based on the following:
         This filter is based on the assumption that the water error velocity
         should follow a gaussian distribution. Therefore, 5 iqr
@@ -779,26 +863,26 @@ class BoatData(object):
         Input:
         setting: difference velocity setting (Off, Manual, Auto)
         kargs: if manual, the user specified threshold
-        '''
+        """
         
-        self.__d_filter = setting
+        self.d_filter = setting
         if kargs is not None:
-            self.__d_filter_threshold = kargs[0]
+            self.d_filter_threshold = kargs[0]
             
         #Set multiplier
         multiplier = 5
         minimum_window = 0.01
         
-        d_vel = np.copy(self.__d_mps)
+        d_vel = np.copy(self.d_mps)
         
         #apply selected method
-        if self.__d_filter == 'Manual':
-            d_vel_max_ref = np.abs(self.__d_filter_threshold)
+        if self.d_filter == 'Manual':
+            d_vel_max_ref = np.abs(self.d_filter_threshold)
             d_vel_min_ref = -1 * d_vel_max_ref
-        elif self.__d_filter == 'Off':
+        elif self.d_filter == 'Off':
             d_vel_max_ref = np.nanmax(d_vel) + 99
             d_vel_min_ref = np.nanmin(d_vel) - 99
-        elif self.__d_filter == 'Auto':
+        elif self.d_filter == 'Auto':
             #Initialize variables
             d_vel_filtered = np.copy(d_vel)
             
@@ -834,46 +918,46 @@ class BoatData(object):
                 std_diff[k] = d_vel_std2 - d_vel_std
         
         #Set valid data row 3 for difference velocity filter results
-        self.__valid_data[2,:] = False
-        self.__valid_data[3, (d_vel <= d_vel_max_ref) and (d_vel >= d_vel_min_ref)] = True
-        self.__valid_data[3, self.__valid_data[2,:] == False] = True
-        self.__valid_data[3, np.isnan(self.__d_mps)] = True
-        self.__d_filter_threshold = d_vel_max_ref
+        self.valid_data[2,:] = False
+        self.valid_data[3, (d_vel <= d_vel_max_ref) and (d_vel >= d_vel_min_ref)] = True
+        self.valid_data[3, self.valid_data[2,:] == False] = True
+        self.valid_data[3, np.isnan(self.d_mps)] = True
+        self.d_filter_threshold = d_vel_max_ref
         
         #Combine all filter data to composite filter data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self.__valid_data == False, 0)
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+        self.num_invalid = np.sum(self.valid_data == False, 0)
     
-    def __filter_vert_vel(self, setting, kargs=None):
-        '''Applies either manual or automatic filtering of the vertical
+    def filter_vert_vel(self, setting, kargs=None):
+        """Applies either manual or automatic filtering of the vertical
         velocity.  Uses same assumptions as difference filter.
         
         Input:
         setting: filter setting (Off, Manual, Auto)
         kargs: if setting is manual, the user specified threshold
-        '''
+        """
         
         #Set vertical velocity filter properties
-        self.__w_filter = setting
+        self.w_filter = setting
         if kargs is not None:
-            self.__w_filter_threshold = kargs[0]
+            self.w_filter_threshold = kargs[0]
             
         #Set multiplier
         multiplier = 5
         
         #Get vertical velocity data from object
-        w_vel = np.copy(self.__w_mps)
+        w_vel = np.copy(self.w_mps)
         
         #Apply selected method
-        if self.__w_filter == 'Manual':
-            w_vel_max_ref = np.abs(self.__w_filter_threshold)
+        if self.w_filter == 'Manual':
+            w_vel_max_ref = np.abs(self.w_filter_threshold)
             w_vel_min_ref = -1 * w_vel_max_ref
             
-        elif self.__w_filter == 'Off':
+        elif self.w_filter == 'Off':
             w_vel_max_ref = np.nanmax(w_vel) + 1
             w_vel_min_ref = np.nanmin(w_vel) - 1 
               
-        elif self.__w_filter == 'Auto':     
+        elif self.w_filter == 'Auto':
             
             #Initialize variables
             w_vel_filtered = np.copy(w_vel)
@@ -902,17 +986,17 @@ class BoatData(object):
                 std_diff = w_vel_std2 - w_vel_std
         
         #Set valid data row 4 for difference velocity filter results     
-        self.__valid_data[3,:] = False
-        self.__valid_data[3, np.where((w_vel <= w_vel_max_ref) & (w_vel >= w_vel_min_ref))] = True
-        self.__valid_data[3, self.__valid_data[1,:] == False] = True
-        self.__w_filter_threshold = w_vel_max_ref
+        self.valid_data[3,:] = False
+        self.valid_data[3, np.where((w_vel <= w_vel_max_ref) & (w_vel >= w_vel_min_ref))] = True
+        self.valid_data[3, self.valid_data[1,:] == False] = True
+        self.w_filter_threshold = w_vel_max_ref
         
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self.__valid_data[0,:])
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+        self.num_invalid = np.sum(self.valid_data[0,:])
         
-    def __filter_smooth(self, transect, setting):
-        '''This filter employs a running trimmed standard deviation filter to
+    def filter_smooth(self, transect, setting):
+        """This filter employs a running trimmed standard deviation filter to
         identify and mark spikes in the boat speed. First a robust Loess 
         smooth is fitted to the boat speed time series and residuals between
         the raw data and the smoothed line are computed. The trimmed standard
@@ -936,20 +1020,20 @@ class BoatData(object):
         Input:
         transect: object of clsTransectData
         setting: filter setting (On, Off)
-        '''
+        """
         
         #Set property
-        self.__smooth_filter = setting
+        self.smooth_filter = setting
         
         #Compute ens_time
         ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
         
         #Determine if smooth filter should be applied
-        if self.__smooth_filter == 'On':
+        if self.smooth_filter == 'On':
             
             #Boat velocity components
-            b_vele = np.copy(self.__u_mps)
-            b_veln = np.copy(self.__v_mps)
+            b_vele = np.copy(self.u_mps)
+            b_veln = np.copy(self.v_mps)
             
             #Set filter parameters
             filter_width = 10
@@ -990,63 +1074,62 @@ class BoatData(object):
                 speed_res[bt_bad_idx] = np.nan
                 
             #Update valid_data properth
-            self.__valid_data[4,:] = True
-            self.__valid_data[4, bt_bad_idx] = False
-            self.__valid_data[4, self.__valid_data[1,:] == False] = True
-            self.__smooth_upper_limit = upper_limit
-            self.__smooth_lower_limit = lower_limit
-            self.__smooth_speed = speed_smooth
+            self.valid_data[4,:] = True
+            self.valid_data[4, bt_bad_idx] = False
+            self.valid_data[4, self.valid_data[1,:] == False] = True
+            self.smooth_upper_limit = upper_limit
+            self.smooth_lower_limit = lower_limit
+            self.smooth_speed = speed_smooth
         
         else:
             
             #Not filter applied all data assumed valid
-            self.__valid_data[4,:] = True
-            self.__smooth_upper_limit = np.nan
-            self.__smooth_lower_limit = np.nan
-            self.__smooth_speed = np.nan
+            self.valid_data[4,:] = True
+            self.smooth_upper_limit = np.nan
+            self.smooth_lower_limit = np.nan
+            self.smooth_speed = np.nan
             
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,])
-        self.__num_invalid = np.sum(self.__valid_data[0,:] == False, 0)
+        self.valid_data[0,:] = np.all(self.valid_data[1:,])
+        self.num_invalid = np.sum(self.valid_data[0,:] == False, 0)
         
-    def __filter_diff_qual(self, gps_data, kargs = None):
-        '''Filters GPS data based on the minimum acceptable differential correction quality
+    def filter_diff_qual(self, gps_data, kargs = None):
+        """Filters GPS data based on the minimum acceptable differential correction quality
         
         Input:
         gps_data: object of GPSData
         kargs: new setting for filter.
-        '''
+        """
         
         #New filter setting if provided
         if kargs is not None:
-            self.__gps_diff_qual_filter = kargs[0]
+            self.gps_diff_qual_filter = kargs[0]
             
         #Reset valid_data property
-        self.__valid_data[2,:] = True
-        self.__valid_data[5,:] = True
+        self.valid_data[2,:] = True
+        self.valid_data[5,:] = True
         
         #Determine and apply appropriate filter type
-        self.__valid_data[2, np.isnan(gps_data.diff_qual_ens)] = False
-        if self.__gps_diff_qual_filter is not None:
+        self.valid_data[2, np.isnan(gps_data.diff_qual_ens)] = False
+        if self.gps_diff_qual_filter is not None:
             
-            if self.__gps_diff_qual_filter == 1: #autonomous
-                self.__valid_data[2, gps_data.diff_qual_ens < 1] = False
-            elif self.__gps_diff_qual_filter == 2: #differential correction
-                self.__valid_data[2, gps_data.diff_qual_ens < 2] = False
-            elif self.__gps_diff_qual_filter == 4: #RTK
-                self.__valid_data[2, gps_data.diff_qual_ens < 4] = False
+            if self.gps_diff_qual_filter == 1: #autonomous
+                self.valid_data[2, gps_data.diff_qual_ens < 1] = False
+            elif self.gps_diff_qual_filter == 2: #differential correction
+                self.valid_data[2, gps_data.diff_qual_ens < 2] = False
+            elif self.gps_diff_qual_filter == 4: #RTK
+                self.valid_data[2, gps_data.diff_qual_ens < 4] = False
                 
             #If there is no indication of the quality assume 1 fot vtg
-            if self.__nav_ref == 'VTG':
-                self.__valid_data[2, np.isnan(gps_data.diff_qual_ens)] = True
+            if self.nav_ref == 'VTG':
+                self.valid_data[2, np.isnan(gps_data.diff_qual_ens)] = True
                 
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
-        
-        
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+        self.num_invalid = np.sum(self.valid_data[0,:] == False)
+
     def filter_altitude(self, gps_data, kargs):
-        '''Filter GPS data based on a change in altitude. Assuming the data
+        """Filter GPS data based on a change in altitude. Assuming the data
         are collected on the river the altitude should not change
         substantially during the transect. Since vertical resolution is
         about 3 x worse that horizontal resolution the automatic filter
@@ -1058,27 +1141,27 @@ class BoatData(object):
         kargs:
         kargs[0]: new setting for filter (Off, Manual, Auto)
         kargs[1]: change threshold
-        '''
+        """
         
         #New filter settings if provided
         if kargs is not None:
-            self.__gps_altitude_filter = kargs[0]
+            self.gps_altitude_filter = kargs[0]
             if len(kargs) > 1:
-                self.__gps_altitude_filter_change = kargs[1]
+                self.gps_altitude_filter_change = kargs[1]
                 
         #Set threshold for Auto
-        if self.__gps_altitude_filter == 'Auto':
-            self.__gps_altitude_filter_change = 3
+        if self.gps_altitude_filter == 'Auto':
+            self.gps_altitude_filter_change = 3
             
         #Set all data to valid
-        self.__valid_data[3,:] = True
-        self.__valid_data[5,:] = True
+        self.valid_data[3,:] = True
+        self.valid_data[5,:] = True
         
         #Manual or Auto is selected, apply filter
-        if self.__gps_altitude_filter == 'Off':
+        if self.gps_altitude_filter == 'Off':
             
             #Initialize variables
-            num_valid_old = np.sum(self.__valid_data[3,:])
+            num_valid_old = np.sum(self.valid_data[3,:])
             k = 0
             change = 1
             
@@ -1092,18 +1175,18 @@ class BoatData(object):
                 diff = np.abs(gps_data.altitude_ens_m - alt_mean)
                 
                 #Mark invalid those ensembles with differences greater than the change threshold
-                self.__valid_data[3, diff > self.__gps_altitude_filter_change] = False
+                self.valid_data[3, diff > self.gps_altitude_filter_change] = False
                 k += 1
-                num_valid = np.sum(self.__valid_data[3,:])
+                num_valid = np.sum(self.valid_data[3,:])
                 change = num_valid_old - num_valid
                 
         
         #Combine all filter data to composite valid data
-        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-        self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
+        self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+        self.num_invalid = np.sum(self.valid_data[0,:] == False)
         
-    def __filter_HDOP(self, gps_data, kargs = None):
-        '''Filter GPS data based on both a maxumym HDOP and a change in HDOP
+    def filter_HDOP(self, gps_data, kargs = None):
+        """Filter GPS data based on both a maxumym HDOP and a change in HDOP
         over the transect
         
         Input:
@@ -1113,30 +1196,30 @@ class BoatData(object):
         kargs[0]: filter setting (On, off, Auto)
         kargs[1]: maximum threshold
         kargs[2]: change threshold
-        '''
+        """
         
         if gps_data.hdop_ens is None:
-            self.__valid_data[5,:self.__valid_data.shape[1]] = True
+            self.valid_data[5,:self.valid_data.shape[1]] = True
         else:
             #New settings if provided
-            self.__gps_HDOP_filter = kargs[0]
+            self.gps_HDOP_filter = kargs[0]
             if len(kargs) > 1:
-                self.__gps_HDOP_filter_max = kargs[1]
-                self.__gps_HDOP_filter_change = kargs[2]
+                self.gps_HDOP_filter_max = kargs[1]
+                self.gps_HDOP_filter_change = kargs[2]
                 
             #Settings for auto mode
-            if self.__gps_HDOP_filter == 'Auto':
-                self.__gps_HDOP_filter_change = 3
-                self.__gps_HDOP_filter_max = 4
+            if self.gps_HDOP_filter == 'Auto':
+                self.gps_HDOP_filter_change = 3
+                self.gps_HDOP_filter_max = 4
                 
             #Set all ensembles to valid
-            self.__valid_data[5,:] = True
+            self.valid_data[5,:] = True
             
             #Apply filter for manual or auto
-            if self.__gps_HDOP_filter == 'Off':
+            if self.gps_HDOP_filter == 'Off':
                 
                 #Initialize variables
-                num_valid_old = np.sum(self.__valid_data[5,:])
+                num_valid_old = np.sum(self.valid_data[5,:])
                 k = 0
                 change = 1
                 
@@ -1144,79 +1227,118 @@ class BoatData(object):
                 while k < 100 and change > 0.1:
                     
                     #Compute mean HDOP for all valid ensembles
-                    hdop_mean = np.nanmean(gps_data.hdop_ens[self.__valid_data[5,:]])
+                    hdop_mean = np.nanmean(gps_data.hdop_ens[self.valid_data[5,:]])
                     
                     #Compute the difference in HDOP and the mean for all ensembles
                     diff = np.abs(gps_data.hdop_ens - hdop_mean)
                     
                     #If the change is HDOP or the value of HDOP is greater
                     #than the threshold setting mark the data invalid
-                    self.__valid_data[5, diff > self.__gps_HDOP_filter_change] = False
+                    self.valid_data[5, diff > self.gps_HDOP_filter_change] = False
                     
                     k+=1
-                    num_valid = np.sum(self.__valid_data[5,:])
+                    num_valid = np.sum(self.valid_data[5,:])
                     change = num_valid_old - num_valid
                     num_valid_old = num_valid
                     
             #combine all filter data to composite data
-            self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
-            self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
-    
-                
+            self.valid_data[0,:] = np.all(self.valid_data[1:,:])
+            self.num_invalid = np.sum(self.valid_data[0,:] == False)
+
+    def filter_sontek(self, vel_in):
+        """Determines invalid raw bottom track samples for SonTek data.
+
+        Invalid data are those that are zero or where the velocity doesn't change between ensembles.
+
+        Parameters
+        ----------
+        vel_in: np.array(float)
+            Bottom track velocity data, in m/s.
+
+        Returns
+        -------
+        vel_out: np.array(float)
+            Filtered bottom track velocity data with all invalid data set to np.nan.
+        """
+
+        # Identify all samples where the velocity did not change
+        test1 = np.abs(np.diff(vel_in, 1, 1)) < 0.00001
+
+        # Identify all samples with all zero values
+        test2 = np.nansum(np.abs(vel_in), 0) < 0.00001
+        test2 = test2[1:] * 4  # using 1: makes the array dimension consistent with test1 as diff results in 1 less.
+
+        # Combine criteria
+        test_sum = np.sum(test1, 0) + test2
+
+        # Develop logical vector of invalid ensembles
+        invalid_bool = np.full(test_sum.size, False)
+        invalid_bool[test_sum > 3] = True
+        # Handle first ensemble
+        invalid_bool = np.concatenate((np.array([False]), invalid_bool),0)
+        if np.nansum(vel_in[:, 0]) == 0:
+            invalid_bool[:, 0] = True
+
+        # Set invalid ensembles to nan
+        vel_out = np.copy(vel_in)
+        vel_out[:, invalid_bool] = np.nan
+        return vel_out
+
+# Module level function
+# =====================
 def run_std_trim(half_width, my_data):
-    ''' The routine accepts a column vector as input. "halfWidth" number of data
-          points for computing the standard deviation are selected before and
-          after the target data point, but not including the target data point.
-          Near the ends of the series the number of points before or after are
-          reduced. nan in the data are counted as points. The selected subset of
-          points are sorted and the points with the highest and lowest values are
-          removed from the subset and the standard deviation computed on the
-          remaining points in the subset. The process occurs for each point in the
-          provided column vector. A column vector with the computed standard
-          deviation at each point is returned.
-          
-        Input:
-        half_width: number of ensembles on each side of target ensemble to used
-            for compuring trimmed standard deviation
-        my_data: data to be processed
-        
-        Output:
-        fill_array: column vector with computed standard
-    '''
-    #Determine number of points to process
-    n_pts = my_data.shape[0]
-    if n_pts < 20:
-        half_width = np.floor(n_pts/2)
-        
-    fill_array = []
-    #Compute standard deviation for each point
-    for i in range(n_pts):
-        
-        #Sample selection for 1st point
-        if i == 0:
-            sample = my_data[1:1+half_width]
+        """ The routine accepts a column vector as input. "halfWidth" number of data
+              points for computing the standard deviation are selected before and
+              after the target data point, but not including the target data point.
+              Near the ends of the series the number of points before or after are
+              reduced. nan in the data are counted as points. The selected subset of
+              points are sorted and the points with the highest and lowest values are
+              removed from the subset and the standard deviation computed on the
+              remaining points in the subset. The process occurs for each point in the
+              provided column vector. A column vector with the computed standard
+              deviation at each point is returned.
+
+            Input:
+            half_width: number of ensembles on each side of target ensemble to used
+                for compuring trimmed standard deviation
+            my_data: data to be processed
+
+            Output:
+            fill_array: column vector with computed standard
+        """
+        #Determine number of points to process
+        n_pts = my_data.shape[0]
+        if n_pts < 20:
+            half_width = np.floor(n_pts/2)
+
+        fill_array = []
+        #Compute standard deviation for each point
+        for i in range(n_pts):
+
+            #Sample selection for 1st point
+            if i == 0:
+                sample = my_data[1:1+half_width]
+
+            #Sample selection at end of data set
+            elif i+half_width > n_pts:
+                sample = np.hstack([my_data[i-half_width:i-1]], my_data[i+1:n_pts])
+
+            #Sample selection at beginning of data set
+            elif half_width >= i:
+                sample = np.hstack([my_data[:i-1], my_data[i+1:i+half_width]])
+
+            #Samples selection in body of data set
+            else:
+                sample = np.hstack([my_data[i-half_width:i-1], my_data[i+1:i+half_width]])
+
+            #Sort and ompute trummed standard deviation
+            sample = np.sort(sample)
+            fill_array.append(np.nanstd(sample[1:sample.shape[0] - 1]))
+
+        return np.array(fill_array)
             
-        #Sample selection at end of data set
-        elif i+half_width > n_pts:
-            sample = np.hstack([my_data[i-half_width:i-1]], my_data[i+1:n_pts])
-            
-        #Sample selection at beginning of data set
-        elif half_width >= i:
-            sample = np.hstack([my_data[:i-1], my_data[i+1:i+half_width]])
-            
-        #Samples selection in body of data set
-        else:
-            sample = np.hstack([my_data[i-half_width:i-1], my_data[i+1:i+half_width]])
-            
-        #Sort and ompute trummed standard deviation
-        sample = np.sort(sample)
-        fill_array.append(np.nanstd(sample[1:sample.shape[0] - 1]))
-        
-    return np.array(fill_array)
-            
-            
-          
-            
+
+
             
     
         

@@ -1,8 +1,8 @@
-'''
+"""
 Created on Aug 1, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 
 def cosd(angle):

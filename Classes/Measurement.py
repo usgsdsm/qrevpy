@@ -7,15 +7,17 @@ from Classes.PreMeasurement import PreMeasurement
 from Classes.MovingBedTests import MovingBedTests
 from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
-from Classes.NormData import NormData
-from Classes.ComputeExtrap import ComputeExtrap
+# from Classes.NormData import NormData
+# from Classes.ComputeExtrap import ComputeExtrap
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
         Analogous to matlab class: clsMeasurement
     """
 
-    def __init__(self, in_file, source='TRDI', kargs=None):
+    # def __init__(self, in_file, source='TRDI', **kargs):
+    def __init__(self, in_file, source, proc_type='QRev', checked=False):
+
         self.station_name = None
         self.station_number = None
         self.transects = []
@@ -33,15 +35,13 @@ class Measurement(object):
         self.qa = None
         self.userRating = None
         self.comments = []
-        
         self.ext_temp_chk = {}
+
         if source == 'TRDI':
-            self.load_trdi(in_file, **{'type': 'Q', 'checked': False})
+            self.load_trdi(in_file, checked=checked)
             
-            if kargs is not None and len(kargs) > 2:
-                proc_type = kargs[2]
-            else:
-                proc_type= 'QRev'
+        elif source == 'SonTek':
+            self.load_SonTek(in_file)
                 
         select = self.transects[0].boat_vel.selected
         if select == 'bt_vel':
@@ -67,8 +67,8 @@ class Measurement(object):
             for x in self.transects:
                 self.apply_settings(x, settings)
                 
-            self.composite_norm = NormData()
-            self.composite_norm.get_composite(self.transects)
+            # self.composite_norm = NormData()
+            # self.composite_norm.get_composite(self.transects)
         
         elif proc_type == 'None':
             #UpdateStatus "Proicessing with no filters and interpolation
@@ -83,8 +83,9 @@ class Measurement(object):
         
         
 
-    def load_trdi(self, mmt, **kargs):
-        '''method to load trdi MMT file'''
+    # DSM change 1/23/2018 def load_trdi(self, mmt, **kargs):
+    def load_trdi(self, mmt, type='Q', checked=False):
+        """method to load trdi MMT file"""
 
         #read in the MMT file
         self.trdi = MMT_TRDI(mmt)
@@ -92,16 +93,14 @@ class Measurement(object):
     
         #Get properties if they exist, otherwise set them as blank strings
         self.station_name = str(self.trdi.site_info['Name'])
-        
         self.station_number = str(self.trdi.site_info['Number'])
-        
+
+        # DSM Not sure this is needed 1/19/2018
         self.processing = 'WR2'
 
-#         if len(kargs) > 1:
-#             self.transects = TransectData('TRDI', mmt,'Q',kargs[1])
-#         else:
 
-        self.transects = allocate_transects('TRDI', mmt, kargs=['Q', kargs['checked']])
+        # DSM change 1/23/2018 self.transects = allocate_transects('TRDI', mmt, kargs=['Q', kargs['checked']])
+        self.transects = allocate_transects('TRDI', mmt, type, checked)
             
         #-------------------------Done Refactor----------------------------------------------
         #Create object for pre-measurement tests
@@ -219,9 +218,9 @@ class Measurement(object):
                 
             #Update status 'Applying filters and interpolation to WT')
             
-            '''Note: this is where some computation efficiency could be gained by
+            """Note: this is where some computation efficiency could be gained by
             not recomputing each time but applying all filters, interpolating,
-            and then computing Q'''
+            and then computing Q"""
                 
             idx = 0
             for x in self.transects:
@@ -236,15 +235,14 @@ class Measurement(object):
                     self.change_SOS(idx, 'sosSrc', 'user', mmt.transects[idx].active_config['Proc_Fixed_Speed_of_Sound'])  
                     
                 idx += 1
-        
-            
+
     def qaqc_TRDI(self, mmt):
-        '''Processes qaqc test, calibrations, and evaluations
+        """Processes qaqc test, calibrations, and evaluations
         
         Input:
         mmt: object of MMT_TRDI
         
-        '''
+        """
         #ADCP Test
         if 'RG_Test_TimeStamp' in mmt.qaqc:
             for n in range(len(mmt.qaqc['RG_Test'])):
@@ -295,16 +293,25 @@ class Measurement(object):
                                 
                     self.mb_tests.append(mb_test)
                                 
-        
+    def load_SonTek(self, fullNames):
+        """Coordinates reading of all SonTek data files.
+
+        Parameters
+        ----------
+        fullNames: list
+            File names including path for all discharge transects converted to Matlab files.
+        """
+        self.transects = TransectData()
+        self.transects.SonTek(fullNames)
             
     def thresholds_TRDI(self, transect, settings):
-        '''Retrieve and pply manual filter settings from mmt file
+        """Retrieve and pply manual filter settings from mmt file
         
         Input:
         mmt: object of MMT_TRDI
         transect: object of TransectData
         settings: threshold settings computed before processing
-        '''
+        """
         
         #Apply WT settings
         wt_settings = ['Beam', settings['num_beam_WT'], 'Manual', settings['diff_vel_threshold_WT'],
@@ -325,14 +332,14 @@ class Measurement(object):
             
             
     def set_3_beam_WT_threshold_TRDI(self, mmt_transect):
-        '''Get 3-beam processing for WT from mmt file
+        """Get 3-beam processing for WT from mmt file
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         num_3_beam_WT_Out
-        '''
+        """
         
         #check consistency
         use_3_beam_WT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_WT']
@@ -346,14 +353,14 @@ class Measurement(object):
         return num_beam_WT_out
     
     def set_vert_vel_threshold_WT_TRDI(self, mmt_transect):
-        '''Get the vertical celocity threshold for WT from mmt
+        """Get the vertical celocity threshold for WT from mmt
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         vert_vel_threshold_WT[0]: vertical celocity threshold (m/s)
-        '''
+        """
         
         #Check consistency of vertical velocity threshold (m/s)
         vert_vel_threshold_WT = mmt_transect.active_config['Proc_WT_Up_Velocity_Threshold']
@@ -368,14 +375,14 @@ class Measurement(object):
     
     
     def set_3_beam_BT_threshold_TRDI(self, mmt_transect):
-        '''Get 3-beam processing for WT from mmt file
+        """Get 3-beam processing for WT from mmt file
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         num_3_beam_WT_Out
-        '''
+        """
         
         #check consistency
         use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_BT']
@@ -389,14 +396,14 @@ class Measurement(object):
         return num_beam_BT_out
     
     def set_diff_vel_threshold_WT_TRDI(self, mmt_transect):
-        '''Get difference (error) velocity threshold for WT from mmt
+        """Get difference (error) velocity threshold for WT from mmt
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         diff_vel_threshold_WT[0]: difference velocity threshold (m/s)
-        '''
+        """
         
         #Check consistency of difference (error) velocity for WT
         diff_vel_threshold_WT = mmt_transect.active_config['Proc_WT_Error_Velocity_Threshold']
@@ -408,14 +415,14 @@ class Measurement(object):
             return diff_vel_threshold_WT[0]
     
     def set_diff_vel_threshold_BT_TRDI(self, mmt_transect):
-        '''Get difference (error) velocity threshold for BT from mmt
+        """Get difference (error) velocity threshold for BT from mmt
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         diff_vel_threshold_BT[0]: difference velocity threshold (m/s)
-        '''
+        """
         
         #Check consistency of difference (error) velocity for BT
         diff_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Error_Velocity_Threshold']
@@ -427,14 +434,14 @@ class Measurement(object):
             return diff_vel_threshold_BT[0]
     
     def set_depth_weighting_TRDI(self, mmt_transect):
-        '''Get the average depth method from mmt
+        """Get the average depth method from mmt
         
         Input:
         mmt_transect: Object of Transect
         
         Output:
         depth_weighting_setting: method for computing average depth
-        '''
+        """
         
         #Check consistency of depth averaging method
         depth_weighting = mmt_transect.active_config['Proc_Use_Weighted_Mean_Depth']
@@ -458,14 +465,14 @@ class Measurement(object):
         return depth_weighting_setting
     
     def set_depth_screening_TRDI(self, mmt_transect):
-        '''Get the depth screening setting from mmt
+        """Get the depth screening setting from mmt
         
         Input:
         mmt_transect: object of Transect
         
         Output:
         depth_screening_setting: depth screening setting
-        '''
+        """
         
         #Check consistency of depth screening
         depth_screen = mmt_transect.active_config['Proc_Screen_Depth']
@@ -490,7 +497,7 @@ class Measurement(object):
         return depth_screening_setting
         
     def change_SOS(self, transect, kargs=None):
-        '''Applies a change in speed of sound to one or all transects
+        """Applies a change in speed of sound to one or all transects
         and update the discharge and uncertainty computations
         
         Input:
@@ -498,7 +505,7 @@ class Measurement(object):
         change is applied to all transects
         kargs[0/1]: sensor property to change
         kargs[1/2]: settinf for sensor property
-        '''
+        """
         
         s = self.current_settings()
         transect.change_SOS(kargs = kargs[1:])    
@@ -506,12 +513,12 @@ class Measurement(object):
         self.apply_settings(transect, s)
         
     def apply_settings(self, transect, s, kargs = None):
-        '''Applies reference, filter, and interpolation settings
+        """Applies reference, filter, and interpolation settings
         
         Input:
         s: data structure of reference, filter, and interpolation settings
         kargs: transect number to apply settings to only 1 transect
-        '''
+        """
         
         #Moving-boat ensembles
         if 'processing' in s.keys():
@@ -611,28 +618,28 @@ class Measurement(object):
         
         
     def apply_settings2(self, trans_data, s, kargs=None):
-        '''Refactored so that the previous calculations can be multithreaded
+        """Refactored so that the previous calculations can be multithreaded
         #Extrap Q Sensitivity the way it is now will not allow this so in this
-        method trans_data is all transects instead of just one'''
+        method trans_data is all transects instead of just one"""
         
         # Recompute extrapolations
         # NOTE: Extrapolations should be determined prior to WT
         # interpolations because the TRDI approach for power/power
         # using the power curve and exponent to estimate invalid cells.
-        if self.extrap_fit is None or self.extrap_fit.__fit_method == 'Automatic':
-            self.extrapfit = ComputeExtrap()
+        if self.extrap_fit is None or self.extrap_fit.fit_method == 'Automatic':
+            # self.extrapfit = ComputeExtrap()
             self.extrapfit.populate_data(trans_data, 0)
-            top = self.extrap_fit.sel_fit.__top_method
-            bot = self.extrap_fit.sel_fit.__bot_method
-            exp = self.extrap_fit.sel_fit.__exponent
-            
+            top = self.extrap_fit.sel_fit.top_method
+            bot = self.extrap_fit.sel_fit.bot_method
+            exp = self.extrap_fit.sel_fit.exponent
+
             self.set_extrapolation(trans_data, top, bot, exp)
-        
+
         else:
             if 'extrapTop' in s:
-                s['extrapTop'] = self.extrap_fit.sel_fit.__top_method
-                s['extrapBot'] = self.extrap_fit.sel_fit.__bot_method
-                s['extrapExp'] = self.extrap_fit.sel_fit.__exponent
+                s['extrapTop'] = self.extrap_fit.sel_fit.top_method
+                s['extrapBot'] = self.extrap_fit.sel_fit.bot_method
+                s['extrapExp'] = self.extrap_fit.sel_fit.exponent
                 
             self.set_extrapolation(trans_data, s['extrapTop'], s['extrapBot'], s['extrapExp'])
         
@@ -655,10 +662,10 @@ class Measurement(object):
             
         
     def current_settings(self):
-        '''Saves the current settings for a measurement. Since all settings
+        """Saves the current settings for a measurement. Since all settings
         in QRev are consistent among all transects in a measurement onlyt the
         settings from the first transect are saved
-        '''
+        """
         settings = {}
         checked = np.array([x.checked for x in self.transects])
         first_idx = np.where(checked == 1)[0][0]
@@ -741,8 +748,8 @@ class Measurement(object):
         settings['depthAvgMethod'] = transect.depths.bt_depths.avg_method
         settings['depthValidMethod'] = transect.depths.bt_depths.valid_data_method
         
-        '''Depth settings are always applied to all available depth sources.
-        Only those saved in the btDepths are used here but are applied to all sources'''
+        """Depth settings are always applied to all available depth sources.
+        Only those saved in the btDepths are used here but are applied to all sources"""
         settings['depthFilterType'] = transect.depths.bt_depths.filter_type
         settings['depthReference'] = transect.depths.selected
         settings['depthComposite'] = transect.depths.composite

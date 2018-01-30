@@ -12,7 +12,7 @@ class MeasurementWidget(QWidget):
     """description of class"""
 
     def __init__(self, **kargs):
-        super(MeasurementWidget, self).__init__()
+        super(MeasurementWidget, self).init__()
        
         self.layout = QGridLayout()
         self.expand = []

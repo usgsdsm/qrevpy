@@ -1,8 +1,8 @@
-'''
+"""
 Created on Sep 14, 2017
 
 @author: gpetrochenkov
-'''
+"""
 
 from Classes.HeadingData import HeadingData
 from Classes.SensorStructure import SensorStructure

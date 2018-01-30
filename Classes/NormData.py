@@ -1,13 +1,13 @@
-'''
+"""
 Created on Sep 26, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
 
 class NormData(object):
-    '''
+    """
     Class definition for normalized data. The input data are normalized
     for relative depth and relative unit discharge or velocity. The
     constuctor method allows an object to be formed without any data or
@@ -36,20 +36,20 @@ class NormData(object):
      
     Modified 3/3/2014 dsm
     5) Modified for use in QRev
-    '''
+    """
     
     def __init__(self):
-        self.__file_name = None #name of transect file
-        self.__cell_depth_normalized = None #normalized depth of cell
-        self.__unit_normalized = None #normalized discharge or velocity for all depth cells
-        self.__unit_normalized_med = None #median of normalized data within 5% partitions
-        self.__unit_normalized_no = None #number of data points in each median
-        self.__unit_normalized_z = None #relative depth for each median (5% increments)
-        self.__unit_normalized_25 = None #value for which 25% of normalized values are smaller
-        self.__unit_normalized_75 = None #value for which 75% or normalized values are larger
-        self.__data_type = None #type of data (v, q, V, or Q)
-        self.__data_extent = None 
-        self.__valid_data = None #index of median values with point count greater than threshold cutoff
+        self.file_name = None #name of transect file
+        self.cell_depth_normalized = None #normalized depth of cell
+        self.unit_normalized = None #normalized discharge or velocity for all depth cells
+        self.unit_normalized_med = None #median of normalized data within 5% partitions
+        self.unit_normalized_no = None #number of data points in each median
+        self.unit_normalized_z = None #relative depth for each median (5% increments)
+        self.unit_normalized_25 = None #value for which 25% of normalized values are smaller
+        self.unit_normalized_75 = None #value for which 75% or normalized values are larger
+        self.data_type = None #type of data (v, q, V, or Q)
+        self.data_extent = None 
+        self.valid_data = None #index of median values with point count greater than threshold cutoff
         
     def populate_data(self, trans_data, data_type, threshold, kargs = None):
         
@@ -66,13 +66,13 @@ class NormData(object):
         filename = trans_data.file_name
         in_transect_idx = trans_data.in_transect_idx
         depth_select = getattr(trans_data.depths, trans_data.depths.selected)
-        cell_depth = depth_select.__depth_cell_depth_m[:, in_transect_idx]
-        cells_above_sl = trans_data.w_vel.__cells_above_sl
+        cell_depth = depth_select.depth_cell_depth_m[:, in_transect_idx]
+        cells_above_sl = trans_data.w_vel.cells_above_sl
         cell_depth[cells_above_sl == False] = np.nan
-        depth_ens = depth_select.__depth_processed_m[in_transect_idx]
-        w_vel_x = trans_data.w_vel.__u_processed_mps[:, in_transect_idx]
-        w_vel_y = trans_data.w_vel.__v_processed_mps[:, in_transect_idx]
-        invalid_data = trans_data.w_vel.__u_processed_mps[:, in_transect_idx] == False
+        depth_ens = depth_select.depth_processed_m[in_transect_idx]
+        w_vel_x = trans_data.w_vel.u_processed_mps[:, in_transect_idx]
+        w_vel_y = trans_data.w_vel.v_processed_mps[:, in_transect_idx]
+        invalid_data = trans_data.w_vel.u_processed_mps[:, in_transect_idx] == False
         w_vel_x[invalid_data] = np.nan
         w_vel_y[invalid_data] = np.nan
         n_cells = w_vel_y.shape[0]
@@ -80,11 +80,11 @@ class NormData(object):
         
         boat_select = getattr(trans_data.boat_vel, trans_data.boat_vel.selected)
         if boat_select is not None:
-            bt_vel_x = boat_select.__u_processed_mps[in_transect_idx]
-            bt_vel_y = boat_select.__v_processed_mps[in_transect_idx]
+            bt_vel_x = boat_select.u_processed_mps[in_transect_idx]
+            bt_vel_y = boat_select.v_processed_mps[in_transect_idx]
         else:
-            bt_vel_x = np.tile([np.nan], trans_data.boat_vel.bt_vel.__u_processed_mps[in_transect_idx].shape)
-            bt_vel_y = np.tile([np.nan], trans_data.boat_vel.bt_vel.__u_processed_mps[in_transect_idx].shape)
+            bt_vel_x = np.tile([np.nan], trans_data.boat_vel.bt_vel.u_processed_mps[in_transect_idx].shape)
+            bt_vel_y = np.tile([np.nan], trans_data.boat_vel.bt_vel.u_processed_mps[in_transect_idx].shape)
             
         #Compute normalized cell depth by average depth in each ensemble
         norm_cell_depth = np.divide(cell_depth, depth_ens)
@@ -146,9 +146,9 @@ class NormData(object):
             idx_neg2[c] = len(np.where(np.isnan(unit_norm[:,c]) == False))
         idx_neg = idx_neg1 == idx_neg2
         unit_norm[:, idx_neg] = unit_norm[:,idx_neg] * -1
-        self.__file_name = filename
-        self.__cell_depth_normalized = norm_cell_depth
-        self.__unit_normalized = unit_norm
+        self.file_name = filename
+        self.cell_depth_normalized = norm_cell_depth
+        self.unit_normalized = unit_norm
         
         #Create arrays of composited data
         max_cells = np.nanmax(n_cells)
@@ -168,47 +168,47 @@ class NormData(object):
         
         #Process each normalized increment
         for i in range(len(avg_interval) - 1):
-            idx = np.where(self.__cell_depth_normalized > avg_interval[i] \
-                           and self.__cell_depth_normalized <= avg_interval[i+1] \
-                           and np.isnan(self.__unit_normalized))
+            idx = np.where(self.cell_depth_normalized > avg_interval[i] \
+                           and self.cell_depth_normalized <= avg_interval[i+1] \
+                           and np.isnan(self.unit_normalized))
             
-            unit_norm_med[i] = np.nanmedian(self.__unit_normalized[idx])
-            unit_norm_med_no[i] = np.sum(np.isnan(self.__unit_normalized[idx]) == False)
-            unit_25[i] = np.percentile(self.__unit_normalized, 25)
-            unit_75[i] = np.percentile(self.__unit_normalized, 75)
-            avgz[i] = 1 - np.nanmean(self.__cell_depth_normalized)
+            unit_norm_med[i] = np.nanmedian(self.unit_normalized[idx])
+            unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[idx]) == False)
+            unit_25[i] = np.percentile(self.unit_normalized, 25)
+            unit_75[i] = np.percentile(self.unit_normalized, 75)
+            avgz[i] = 1 - np.nanmean(self.cell_depth_normalized)
             
         #Mark increments invalid if the don't have the sufficient data
         cutoff = np.nanmedian(unit_norm_med_no[unit_norm_med_no > 0] * (threshold / 100))
         valid = np.where(unit_norm_med_no > cutoff)
         
         #Store data
-        self.__unit_normalized = unit_norm_med
-        self.__unit_normalized_no = unit_norm_med_no
-        self.__unit_normalized_25 = unit_25
-        self.__unit_normalized_75 = unit_75
-        self.__data_type = data_type
-        self.__unit_normalized_z = avgz
-        self.__data_extent = data_extent
-        self.__valid_data = valid
+        self.unit_normalized = unit_norm_med
+        self.unit_normalized_no = unit_norm_med_no
+        self.unit_normalized_25 = unit_25
+        self.unit_normalized_75 = unit_75
+        self.data_type = data_type
+        self.unit_normalized_z = avgz
+        self.data_extent = data_extent
+        self.valid_data = valid
         
     def get_composite_data(self, transects):
         
         in_transect_idx = transects[0].in_transect_idx
         depth_select = getattr(transects[0].depths, transects[0].depths.selected)
-        cell_depth = depth_select.__depth_cell_depth_m[:, in_transect_idx]
-        cells_above_sl = transects[0].w_vel.__cells_above_sl
+        cell_depth = depth_select.depth_cell_depth_m[:, in_transect_idx]
+        cells_above_sl = transects[0].w_vel.cells_above_sl
         cell_depth[cells_above_sl == False] = np.nan
-        depth_ens = depth_select.__depth_processed_m[in_transect_idx]
-        w_vel_x = transects[0].w_vel.__u_processed_mps[:, in_transect_idx]
-        w_vel_y = transects[0].w_vel.__v_processed_mps[:, in_transect_idx]
-        invalid_data = transects[0].w_vel.__u_processed_mps[:, in_transect_idx] == False
+        depth_ens = depth_select.depth_processed_m[in_transect_idx]
+        w_vel_x = transects[0].w_vel.u_processed_mps[:, in_transect_idx]
+        w_vel_y = transects[0].w_vel.v_processed_mps[:, in_transect_idx]
+        invalid_data = transects[0].w_vel.u_processed_mps[:, in_transect_idx] == False
         w_vel_x[invalid_data] = np.nan
         w_vel_y[invalid_data] = np.nan
         n_cells = w_vel_y.shape[0]
         n_ens = w_vel_y.shape[1]
        
-        n_cells = transects[0].__WaterData__w_vel_y.shape[0]
+        n_cells = transects[0].WaterData__w_vel_y.shape[0]
         n_ens = w_vel_y.shape[1]
         
         ##Create object for measurement composite
@@ -216,15 +216,15 @@ class NormData(object):
         maxcells= np.nanmax(n_cells);
         n_ens=[0,n_ens.T];
         sum_ens= np.cumsum(n_ens);
-        self.__unit_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
-        self.__cell_depth_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
+        self.unit_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
+        self.cell_depth_normalized = np.tile([np.nan], (maxcells,sum_ens(-1)))
         
         for n in range(len(transects)):
             if transects[n].checked == 1:
-                self.__unit_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.__unit_normalized;
-                self.__cell_depth_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.__cell_depth_normalized;
+                self.unit_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.unit_normalized;
+                self.cell_depth_normalized(n_cells(n),np.arange(sum_ens(n),sum_ens(n+1))) = transects[n].extrap_fit.norm_data.cell_depth_normalized;
             
-        self.__file_Name= 'Measurement'
+        self.file_Name= 'Measurement'
         
         
             

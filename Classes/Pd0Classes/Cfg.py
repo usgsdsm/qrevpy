@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jun 16, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 
 class Cfg(object):

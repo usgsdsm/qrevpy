@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 
 class MatplotlibWidget(Canvas):        
     def __init__(self, parent=None, title='Title', xlabel='x label', ylabel='y label', dpi=70, hold=False):
-        super(MatplotlibWidget, self).__init__(Figure())
+        super(MatplotlibWidget, self).init__(Figure())
 
         self.setParent(parent)
         self.figure = Figure(figsize=(2, 1),dpi=dpi)

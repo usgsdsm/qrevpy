@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jun 14, 2017
 
 @author: gpetrochenkov
-'''
+"""
 
 import numpy as np
 from numpy.matlib import repmat
@@ -23,12 +23,12 @@ from Classes.Pd0Classes.Nmea import Nmea
 from scipy.special._ufuncs import sindg, cosdg
 
 class Pd0TRDI(object):
-    '''Class to extract data from PD0 files
+    """Class to extract data from PD0 files
         Analogous to matlab class: clsPd0TRDI
-    '''
+    """
     
     def __init__(self, file_name):
-        '''Constructor initializing properties'''
+        """Constructor initializing properties"""
         
         self.file_name = None
         self.WR2 = 0
@@ -1254,13 +1254,7 @@ class Pd0TRDI(object):
                             else:
                                 self.Gps2.gga_velE_mps = np.nan
                                 self.Gps2.gga_velN_mps = np.nan
-                         
-                            
-                    
-                   
-                      
-                    
-                        
+
     def number_of_ensembles(self, f, f_info):
         i=0
         leader_id='0000'
@@ -1303,12 +1297,12 @@ class Pd0TRDI(object):
         return last_num-first_num+1
     
     def find_ens_no(self, f):
-        '''
+        """
         This method finds the appropriate ensemble and performs a checksum for QA
         Terminology: bof (Seek from beginning of file x bytes)
                      cof (Seek from current location x bytes)
                      eof (Seek from end of file x bytes)
-        '''
+        """
         try:
             fileloc = f.tell()-2
             if self.check_sum(f, fileloc):
@@ -1340,8 +1334,7 @@ class Pd0TRDI(object):
                 return -1
         except:
             return np.nan
-        
-        
+
     def check_sum(self, f, fileloc, bytes_per_ens=None):
         #get file locatuion and number of bytes in an ensemble
           

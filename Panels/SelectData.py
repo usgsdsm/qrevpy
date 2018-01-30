@@ -8,7 +8,7 @@ class SelectData(QWidget):
     """description of class"""
 
     def __init__(self):
-        super(SelectData, self).__init__()
+        super(SelectData, self).init__()
         self.initUI()
 
     def initUI(self):

@@ -1,8 +1,8 @@
-'''
+"""
 Created on Sep 14, 2017
 
 @author: gpetrochenkov
-'''
+"""
 class SensorStructure(object):
     
     def __init__(self):
@@ -13,6 +13,6 @@ class SensorStructure(object):
         self.user = None #Contains user supplied value
         
     def set_selected(self,selected_name):
-        '''Set the selected source for the specified object'''
+        """Set the selected source for the specified object"""
         self.selected = selected_name
         

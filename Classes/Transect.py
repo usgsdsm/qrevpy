@@ -2,7 +2,7 @@ class Transect(object):
     """Class to hold properties of MMT transect dictionary attributes"""
 
     def __init__(self, trans, mbt = False):
-        '''Constructor immediately begins extraction of data'''
+        """Constructor immediately begins extraction of data"""
         
         self.Checked = int(trans['@Checked'])
         self.Files = []
@@ -71,11 +71,11 @@ class Transect(object):
         
 
     def set_moving_bed_type(self, mvb_type):
-        '''Setter for moving bed type in the case of MBT Transects'''
+        """Setter for moving bed type in the case of MBT Transects"""
         self.moving_bed_type = mvb_type
 
     def config(self, config):
-        '''Method to parse configuration file from mmt xml'''
+        """Method to parse configuration file from mmt xml"""
         
         config_dict = {}
 
@@ -255,7 +255,7 @@ class Transect(object):
 
 
 class File(object):
-    '''Class for files in a transect'''
+    """Class for files in a transect"""
 
     def __init__(self, file):
         self.Path = file['@PathName']
@@ -263,7 +263,7 @@ class File(object):
         self.Number = file['@TransectNmb']
 
 class Note(object):
-    '''Class for notes in a transect'''
+    """Class for notes in a transect"""
     def __init__(self, note):
 
         if 'Number' in note.keys():

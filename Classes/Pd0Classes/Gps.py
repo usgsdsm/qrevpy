@@ -1,20 +1,20 @@
-'''
+"""
 Created on Jun 16, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 
 class Gps(object):
-    '''
+    """
     classdocs
-    '''
+    """
 
 
     def __init__(self, n_ensembles):
-        '''
+        """
         Constructor
-        '''
+        """
         self.alt_m = np.empty(n_ensembles)
         self.gga_diff = np.empty(n_ensembles)
         self.gga_hdop = np.empty(n_ensembles)

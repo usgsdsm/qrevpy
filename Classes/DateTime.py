@@ -1,11 +1,11 @@
-'''
+"""
 Created on Sep 6, 2017
 
 @author: gpetrochenkov
-'''
+"""
 
 class DateTime(object):
-    '''This stores the date and time data'''
+    """This stores the date and time data"""
     
     def __init__(self):
         self.date = None # measurement date mm/dd/yyyy
@@ -15,7 +15,7 @@ class DateTime(object):
         self.ens_duration_sec = None #Duration of each ensemble in seconds
         
     def populate_data(self, date_in, start_in, end_in, ens_dur_in):
-        '''Populate data in object'''
+        """Populate data in object"""
         
         self.date = date_in
         self.start_serial_time = start_in

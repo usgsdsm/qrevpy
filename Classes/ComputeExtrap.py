@@ -1,14 +1,14 @@
-'''
+"""
 Created on Sep 26, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 from Classes import ExtrapQSensitivity, SelectFit
 from Classes import NormData
 
 class ComputeExtrap(object):
-    '''Class to compute the optimized or manually specified extrapolation methods'''
+    """Class to compute the optimized or manually specified extrapolation methods"""
     
     def __init__(self):
         self.threshold = None #threshold as a percent for determining if a median is valid 
@@ -30,7 +30,7 @@ class ComputeExtrap(object):
             self.q_sensitivity = ExtrapQSensitivity(trans_data,self.sel_fit)
             
     def process_profiles(self, trans_data, data_type):
-        '''Function that serves and the main control for other classes and functions'''
+        """Function that serves and the main control for other classes and functions"""
         
         
         #Compute normalized data
@@ -44,9 +44,9 @@ class ComputeExtrap(object):
             self.sel_fit = SelectFit()
             self.sel_fit.populate_data(self.norm_data, self.fit_method)
             
-        if self.sel_fit.__top_fit_r2 is not None:
+        if self.sel_fit.top_fit_r2 is not None:
             #Evaluate if there is a potential that a 3-point top method may be appropriate
-            if self.sel_fit.__top_fit_r2 > 0.9 or self.sel_fit.__top_r2 > 0.9 and np.abs(self.sel_fit.__top_max_diff) > 0.2:
+            if self.sel_fit.top_fit_r2 > 0.9 or self.sel_fit.top_r2 > 0.9 and np.abs(self.sel_fit.top_max_diff) > 0.2:
                 self.messages.append('The measurement profile may warrant a 3-point fit at the top')
                 
     def update_q_sensitivity(self, trans_data):
@@ -54,7 +54,7 @@ class ComputeExtrap(object):
         self.q_sensitivity.populate_data(trans_data, self.sel_fit)
         
     def change_fit_method(self, trans_data, new_fit_method, n, kargs = None):
-        '''Function to change the extrapolation methods and update the discharge sensitivity computations'''
+        """Function to change the extrapolation methods and update the discharge sensitivity computations"""
         self.fit_method = new_fit_method
         self.sel_fit = SelectFit()
         self.sel_fit.populate_data(self.norm_data, new_fit_method, kargs)
@@ -62,8 +62,8 @@ class ComputeExtrap(object):
         self.q_sensitivity.populate_data(trans_data, self.sel_fit)
         
     def change_threshold(self, trans_data, data_type, threshold):
-        '''Function to change the threshold for accepting the increment median as valid.  The threshold
-        is in percent of the median number of points in all increments'''
+        """Function to change the threshold for accepting the increment median as valid.  The threshold
+        is in percent of the median number of points in all increments"""
         
         self.threshold = threshold
         self.process_profiles(trans_data, data_type)
@@ -72,8 +72,8 @@ class ComputeExtrap(object):
         
         
     def change_extents(self, trans_data, data_type, extents):
-        '''Function allows the data to be subsection by specifying the percent cumulative discharge
-        for the start and end points.  Currently this function does not consider transect direction'''
+        """Function allows the data to be subsection by specifying the percent cumulative discharge
+        for the start and end points.  Currently this function does not consider transect direction"""
         
         self.subsection = extents
         self.process_profiles(trans_data, data_type)

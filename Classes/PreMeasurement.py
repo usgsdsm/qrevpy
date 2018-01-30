@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jul 12, 2017
 
 @author: gpetrochenkov
-'''
+"""
 
 import numpy as np
 import re
@@ -43,26 +43,26 @@ class CorrData(object):
 class PreMeasurement(object):
     
     def __init__(self):
-        self.__time_stamp = None
-        self.__data = None
-        self.__result = None
-        self.__compass = None
-        self.__sys_test = None
-        self.__pt3 = None
-        self.__error = None
-        self.__n_tests = None
-        self.__n_failed = None
+        self.time_stamp = None
+        self.data = None
+        self.result = None
+        self.compass = None
+        self.sys_test = None
+        self.pt3 = None
+        self.error = None
+        self.n_tests = None
+        self.n_failed = None
         
         
     def populate_data(self, time_stamp, data_in, data_type):
         
-        self.__time_stamp = time_stamp
-        self.__data = data_in
-        self.__result = self.read_result(data_type)
+        self.time_stamp = time_stamp
+        self.data = data_in
+        self.result = self.read_result(data_type)
         
         
     def read_result(self, data_type):
-        '''Function to aprse the data from the tests'''
+        """Function to aprse the data from the tests"""
         
         if data_type == 'TCC':
             self.compass_read(self.data)
@@ -77,30 +77,30 @@ class PreMeasurement(object):
             self.sys_test_read(self.data)  
             
     def compass_read(self, data):
-        '''Method for getting compass evaluation data'''
+        """Method for getting compass evaluation data"""
         
         #match regex for compass evaluation error:
         splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', data)
         if len(splits) > 0:
             error = re.search('\d+\.*\d*')
             
-            self.__error = error
+            self.error = error
         else:
-            self.__error = 'N/A'
+            self.error = 'N/A'
             
     def sys_test_read(self, data):
-        '''Method for getting the system test data'''
+        """Method for getting the system test data"""
         
         #match regex for number of tests and number of failures
         num_tests = re.findall('(Fail|FAIL|F A I L|Pass|PASS|NOT DETECTED|P A S S)', data)
         num_fails = re.findall('(Fail|FAIL|F A I L)', data)
         
         #read in the numbers as doubles
-        self.__n_tests = len(num_tests)
-        self.__n_failed = len(num_fails)
+        self.n_tests = len(num_tests)
+        self.n_failed = len(num_fails)
         
     def pt3_data(self, data):
-        '''Method for getting the data for the correlation matrices'''
+        """Method for getting the data for the correlation matrices"""
         
         #match regex for correlation tables
         match = re.findall('Lag.*?0', data)
@@ -340,7 +340,7 @@ class PreMeasurement(object):
         linear = CorrContainer(lin_hw, lin_lw, lin_hn, lin_ln)
         
         #Create PT3 class
-        self.__pt3 = PT3(hlimit, linear)
+        self.pt3 = PT3(hlimit, linear)
         
               
         

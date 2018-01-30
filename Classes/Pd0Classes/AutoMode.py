@@ -1,20 +1,20 @@
-'''
+"""
 Created on Jun 19, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 
 class AutoMode(object):
-    '''
+    """
     classdocs
-    '''
+    """
 
 
     def __init__(self, n_ensembles):
-        '''
+        """
         Constructor
-        '''
+        """
         self.beam_count = np.empty(n_ensembles)
         self.Beam1 = Beam(n_ensembles)
         self.Beam2 = Beam(n_ensembles)

@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.matlib import repmat
+from PyQt5 import QtWidgets
 import os
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.DepthStructure import DepthStructure
@@ -13,6 +14,7 @@ from Classes.Sensors import Sensors
 from Classes.DateTime import DateTime
 from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
+from Classes.MatSonTek import MatSonTek
 import matplotlib.dates as mdates
 from datetime import datetime
 from MiscLibs.convenience import nandiff
@@ -25,13 +27,13 @@ class TransectData(object):
 
     def __init__(self):
         self.adcp = None            # object of clsInstrument
-        self.file_name = None      # filename of transect data file
+        self.file_name = None       # filename of transect data file
         self.w_vel = None           # object of clsWaterData
         self.boat_vel = None        # class for various boat velocity references
                                     # (btVel, ggaVel, vtgVel)
         self.gps = None             # object of clsGPSData
         self.sensors = None         # object of clsSensorData
-        self.depths = None      # object of clsDepthStructure for depth data including cell depths & ref depths
+        self.depths = None          # object of clsDepthStructure for depth data including cell depths & ref depths
                                     # (btDepths, vbDepths, dsDepths)
         self.edges = None           # object of clsEdges
                                     # (left and right object of clsEdgeData)
@@ -51,6 +53,7 @@ class TransectData(object):
             self.TRDI(in_file, pd0_data, mmt, mbt_idx)
             
                                 #files2load idx
+
     def TRDI(self, mmt_transect, pd0_data, mmt, mbt_idx, kargs=None):
        
         self.mbt = mbt_idx
@@ -68,7 +71,7 @@ class TransectData(object):
             temp_depth += mmt_config['Offsets_Transducer_Depth']
             
             #Get instrument cell data
-            cell_size_all_m, cell_depth_m, sl_cutoff_per, sl_lag_effect = self.compute_instrument_cell_data(pd0)
+            cell_size_all_m, cell_depth_m, sl_cutoff_per, sl_lag_effect_m = self.compute_instrument_cell_data(pd0)
             
             #Adjust cell depth of draft 
             cell_depth_m = np.add(mmt_config['Offsets_Transducer_Depth'], cell_depth_m)
@@ -77,15 +80,15 @@ class TransectData(object):
             self.depths = DepthStructure()
             self.depths.add_depth_object(temp_depth, 'BT', pd0.Inst.freq, 
                                    mmt_config['Offsets_Transducer_Depth'], 
-                                   kargs = [cell_depth_m, cell_size_all_m])
+                                   cell_depth_m, cell_size_all_m)
             
             #compute cells above side lobe
-            self.side_lobe_cutoff(self.depths.bt_depths.depth_orig_m, 
+            cells_above_sl =self.side_lobe_cutoff(self.depths.bt_depths.depth_orig_m,
                                                      self.depths.bt_depths.draft_orig_m, 
                                                      self.depths.bt_depths.depth_cell_depth_m,
-                                                     sl_lag_effect,
-                                                    kargs = ['Percent', 
-                                                    1-sl_cutoff_per / 100])
+                                                     sl_lag_effect_m,
+                                                    type='Percent',
+                                                    value=1-sl_cutoff_per / 100)
             
             #Check for the presence of vertical beam data
             if np.nanmax(np.nanmax(pd0.Sensor.vert_beam_status)) > 0:
@@ -101,7 +104,7 @@ class TransectData(object):
                 #Create depth data object for vertical beam
                 self.depths.add_depth_object(temp_depth, 'VB', pd0.Inst.freq, 
                                    mmt_config['Offsets_Transducer_Depth'],
-                                   kargs = [cell_depth_m, cell_size_all_m])
+                                   cell_depth_m, cell_size_all_m)
                                    
             #check for the presence of depth sounder
             if np.nansum(np.nansum(pd0.Gps2.depth_m)) > 1e-5:
@@ -125,7 +128,7 @@ class TransectData(object):
                 if mmt_config['DS_Cor_Spd_Sound'] == 0:
                     scale_factor = mmt_config['DS_Scale_Factor']
                 else:
-                    scale_factor = pd0.sensors.sos_mps /  1500
+                    scale_factor = pd0.sensorsdata.sos_mps /  1500
                     
                 #Apply scvale factor, offset. and draft
                 #Note: Only the ADCP draft is stored.  The transducer
@@ -136,7 +139,7 @@ class TransectData(object):
                 
                 self.depths.add_depth_object(ds_depth, 'DS', pd0.Inst.freq, 
                                    mmt_config['Offsets_Transducer_Depth'],
-                                   kargs = [cell_depth_m, cell_size_all_m])
+                                   cell_depth_m, cell_size_all_m)
                 
             #Set depth reference to value from mmt file
             if 'Proc_River_Depth_Source' in mmt_config:
@@ -193,11 +196,11 @@ class TransectData(object):
                                          pd0.Wt.rssi, 
                                          'Counts', 
                                          excluded_dist, 
-                                         self.cells_above_sl, 
+                                         cells_above_sl,
                                          sl_cutoff_per, 
                                          0,
                                          'Percent', 
-                                         sl_lag_effect, 
+                                         sl_lag_effect_m,
                                          pd0.Cfg.wm[0], 
                                          pd0.Cfg.wf_cm[0] / 100, 
                                          kargs=[pd0.Wt.corr,
@@ -220,7 +223,7 @@ class TransectData(object):
                                          sl_cutoff_per, 
                                          0,
                                          'Percent', 
-                                         sl_lag_effect, 
+                                         sl_lag_effect_m,
                                          pd0.Cfg.wm[0], 
                                          pd0.Cfg.wf_cm[0] / 100, 
                                          kargs=[pd0.Wt.corr])
@@ -374,13 +377,13 @@ class TransectData(object):
             heading_offset = mmt_config['Ext_Heading_Offset']
             
             #Create internal heading sensor
-            self.sensors.add_sensor_data('heading_deg', 'internal', heading, heading_src, kargs=[magvar, heading_offset])
+            self.sensorsdata.add_sensor_data('heading_deg', 'internal', heading, heading_src, kargs=[magvar, heading_offset])
             
             #External Heading
             ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg))
             if len(ext_heading_check[0]) <= 0:
                 
-                self.sensors.set_selected('heading_deg', 'internal')
+                self.sensorsdata.set_selected('heading_deg', 'internal')
             else:
                 #Determine external heading for each ensemble
                 #Using the minimum time difference
@@ -398,14 +401,14 @@ class TransectData(object):
                         ext_heading_deg[nh] = pd0.Gps2.heading_deg[nh,idx]
                         
                 #Create external heading sensor
-                self.sensors.add_sensor_data('heading_deg', 'external', ext_heading_deg, 'GPS', kargs=[magvar,heading_offset])
+                self.sensorsdata.add_sensor_data('heading_deg', 'external', ext_heading_deg, 'GPS', kargs=[magvar,heading_offset])
             
                 #Determine heading source to use from mmt setting
                 source_used = mmt_config['Ext_Heading_Use']
                 if source_used == True:
-                    self.sensors.set_selected('heading_deg', 'external')
+                    self.sensorsdata.set_selected('heading_deg', 'external')
                 else:
-                    self.sensors.set_selected('heading_deg', 'internal')
+                    self.sensorsdata.set_selected('heading_deg', 'internal')
                 
             
             #Pitch
@@ -413,42 +416,42 @@ class TransectData(object):
             pitch_src = pd0.Cfg.pitch_src[0]
             
             #Create pitch sensor
-            self.sensors.add_sensor_data('pitch_deg', 'internal', pitch, pitch_src)
-            self.sensors.set_selected('pitch_deg', 'internal')
+            self.sensorsdata.add_sensor_data('pitch_deg', 'internal', pitch, pitch_src)
+            self.sensorsdata.set_selected('pitch_deg', 'internal')
             
             #Roll
             roll = pd0.Sensor.roll_deg.T
             roll_src = pd0.Cfg.roll_src[0]
             
             #Create Roll sensor
-            self.sensors.add_sensor_data('roll_deg', 'internal', roll, roll_src)
-            self.sensors.set_selected('roll_deg', 'internal')
+            self.sensorsdata.add_sensor_data('roll_deg', 'internal', roll, roll_src)
+            self.sensorsdata.set_selected('roll_deg', 'internal')
             
             #Temperature
             temperature = pd0.Sensor.temperature_deg_c.T
             temperature_src = pd0.Cfg.temp_src[0]
             
             #Create temperature sensor
-            self.sensors.add_sensor_data('temperature_deg_c', 'internal', temperature, temperature_src)
-            self.sensors.set_selected('temperature_deg_c', 'internal')
+            self.sensorsdata.add_sensor_data('temperature_deg_c', 'internal', temperature, temperature_src)
+            self.sensorsdata.set_selected('temperature_deg_c', 'internal')
             
             #Salinity
             pd0_salinity = pd0.Sensor.salinity_ppt.T
             pd0_salinity_src = pd0.Cfg.sal_src[0]
             
             #Create salinity sensor
-            self.sensors.add_sensor_data('salinity_ppt', 'internal', pd0_salinity, pd0_salinity_src)
+            self.sensorsdata.add_sensor_data('salinity_ppt', 'internal', pd0_salinity, pd0_salinity_src)
             mmt_salinity = mmt_config['Proc_Salinity']
-            self.sensors.add_sensor_data('salinity_ppt', 'user', mmt_salinity, 'mmt')
-            self.sensors.set_selected('salinity_ppt', 'internal')
+            self.sensorsdata.add_sensor_data('salinity_ppt', 'user', mmt_salinity, 'mmt')
+            self.sensorsdata.set_selected('salinity_ppt', 'internal')
             
             #Speed of Sound
             speed_of_sound = pd0.Sensor.sos_mps.T
             speed_of_sound_src = pd0.Cfg.sos_src[0]
-            self.sensors.add_sensor_data('speed_of_sound_mps','internal', speed_of_sound, speed_of_sound_src)
+            self.sensorsdata.add_sensor_data('speed_of_sound_mps','internal', speed_of_sound, speed_of_sound_src)
             
             #The raw data are referenced to the internal SOS
-            self.sensors.set_selected('speed_of_sound_mps', 'internal')
+            self.sensorsdata.set_selected('speed_of_sound_mps', 'internal')
             
             #Ensemble times
             #Compute time for each ensemble in seconds
@@ -514,8 +517,157 @@ class TransectData(object):
                 self.adcp = InstrumentData()
                 self.adcp.populate_data('TRDI', kargs= np.hstack([[mmt_transect, pd0, mmt], kargs]))
             
-            
-            
+    def SonTek(self, fullnames):
+        for file in fullnames:
+            rsdata = MatSonTek(file)
+            pathname, self.file_name = os.path.split(file)
+
+            # ADCP instrument information
+            # ---------------------------
+            self.adcp = InstrumentData()
+            self.adcp.populate_data('SonTek', rsdata)
+
+            # Depth
+            # -----
+
+            # Initialize depth data structure
+            self.depths = DepthStructure()
+
+            # Determine array rows and cols
+            max_cells = rsdata.WaterTrack.Velocity.shape[0]
+            numEns = rsdata.WaterTrack.Velocity.shape[2]
+
+            # Compute cell sizes and depths
+            cell_size = rsdata.System.Cell_Size.reshape(1, numEns)
+            cell_size_all = np.tile(cell_size, (max_cells, 1))
+            top_of_cells = rsdata.System.Cell_Start.reshape(1, numEns)
+            cell_depth = (np.tile(np.arange(1, max_cells+1, 1).reshape(max_cells, 1), (1, numEns)) * 0.5 * cell_size_all) + np.tile(top_of_cells, (max_cells,1))
+
+            # Prepare bottom track depth variable
+            depth = rsdata.BottomTrack.BT_Beam_Depth.reshape(4, numEns)
+            depth[depth == 0] = np.nan
+
+            # Create depth object for bottom track beams
+            self.depths.add_depth_object(depth_in=depth,
+                                         source_in='BT',
+                                         freq_in=rsdata.BottomTrack.BT_Frequency.reshape(1, numEns),
+                                         draft_in=rsdata.Setup.sensorDepth,
+                                         cell_depth_in=cell_depth,
+                                         cell_size_in=cell_size_all)
+            # Prepare vertical beam depth variable
+            depth = rsdata.BottomTrack.VB_Depth.reshape(1, numEns)
+            depth[depth == 0] = np.nan
+
+            # Create depth object for vertical beam
+            self.depths.add_depth_object(depth_in=depth,
+                                         source_in='VB',
+                                         freq_in=np.array([rsdata.Transformation_Matrices.Frequency[1]] * depth.shape[-1]),
+                                         draft_in=rsdata.Setup.sensorDepth,
+                                         cell_depth_in=cell_depth,
+                                         cell_size_in=cell_size_all)
+
+            # Set depth reference
+            if rsdata.Setup.depthReference < 0.5:
+                self.depths.set_depth_reference('VB')
+            else:
+                self.depths.set_depth_reference('BT')
+
+            # Water Velocity
+            # --------------
+
+            # Rearrange arrays for consistency with WaterData class
+            vel = np.swapaxes(rsdata.WaterTrack.Velocity, 1, 0)
+            snr = np.swapaxes(rsdata.System.SNR, 1, 0)
+            corr = np.swapaxes(rsdata.WaterTrack.Correlation, 1, 0)
+
+
+            # Correct SonTek difference velocity for error in earlier transformation matrices.
+            if abs(rsdata.Transformation_Matrices.Matrix[3, 0, 0]) < 0.5:
+                vel[3, :, :] = vel[3, :, :] * 2
+
+            # Apply TRDI scaling to SonTek difference velocity to convert to a TRDI compatible error velocity
+            vel[3, :, :] = vel[3, :, :] / ((2**0.5) * np.tan(np.deg2rad(25)))
+
+            # Convert velocity reference from what was used in RiverSurveyor Live to None by adding the boat velocity
+            # to the reported water velocity
+            boat_vel = np.swapaxes(rsdata.Summary.Boat_Vel, 1, 0)
+            vel[0, :, :] = vel[0, :, :] + boat_vel[0, :]
+            # Because Matlab pads arrays with zeros and RR data has variable
+            # number of bins, the raw data may be padded with zeros.  The next
+            # four statements changes those to nan.
+            vel[vel==0] = np.nan
+            ref_water = 'None'
+
+            # The initial coordinate system must be set to earth for early versions of RiverSurveyor firmware.
+            # This implementation forces all versions to use the earth coordinate system.
+            if rsdata.Setup.coordinateSystem == 0:
+                ref_coord = 'Beam'
+                raise ValueError('Beam Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
+            elif rsdata.Setup.coordinateSystem == 1:
+                ref_coord = 'Inst'
+                raise ValueError('Instrument Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
+            elif rsdata.Setup.coordinateSystem == 2:
+                ref_coord = 'Earth'
+
+            # Compute side lobe cutoff using Transmit Length information if availalbe, if not it is assumed to be equal
+            # to 1/2 depth_cell_size_m. The percent method is use for the side lobe cutoff computation.
+            sl_cutoff_percent = rsdata.Setup.extrapolation_dDiscardPercent
+            sl_cutoff_number = rsdata.Setup.extrapolation_nDiscardCells
+            if 'Transmit_Length' in set(rsdata.Summary._fieldnames):
+                sl_lag_effect_m = (rsdata.Summary.Transmit_Length
+                                   + self.depths.bt_depths.depth_cell_size_m[0, :]) / 2.0
+            else:
+                sl_lag_effect_m = self.depths.bt_depths.depth_cell_depth_m[0, :]
+            sl_cutoff_type = 'Percent'
+            cells_above_sl = self.side_lobe_cutoff(depths=self.depths.bt_depths.depth_orig_m,
+                                  draft=self.depths.bt_depths.draft_orig_m,
+                                  cell_depth=self.depths.bt_depths.depth_cell_depth_m,
+                                  sl_lag_effect=sl_lag_effect_m,
+                                  type=sl_cutoff_type,
+                                  value=1 - sl_cutoff_percent / 100)
+            # Determine water mode
+            corr_nan = np.isnan(corr)
+            number_of_nan = np.count_nonzero(corr_nan)
+            if number_of_nan == 0:
+                wm = 'HD'
+            elif corr_nan.size == number_of_nan:
+                wm = 'IC'
+            else:
+                wm = 'Variable'
+
+            # Determine excluded distance (Similar to SonTek's screening distance)
+            excluded_distance = rsdata.Setup.screeningDistance - rsdata.Setup.sensorDepth
+            if excluded_distance < 0:
+                excluded_distance = 0
+
+            # Create water velocity object
+            self.wVel = WaterData()
+            self.wVel.populate_data(vel_in=vel,
+                                    freq_in=rsdata.WaterTrack.WT_Frequency,
+                                    coord_sys_in=ref_coord,
+                                    nav_ref_in=ref_water,
+                                    rssi_in=snr,
+                                    rssi_units_in=rsdata.System.Units.SNR,
+                                    excluded_dist_in=excluded_distance,
+                                    cells_above_sl_in=cells_above_sl,
+                                    sl_cutoff_per_in=sl_cutoff_percent,
+                                    sl_cutoff_num_in=sl_cutoff_number,
+                                    sl_cutoff_type_in=sl_cutoff_type,
+                                    sl_lag_effect_in=sl_lag_effect_m,
+                                    wm_in=wm,
+                                    blank_in=excluded_distance,
+                                    corr_in=corr)
+
+            # Bottom Track
+            # ------------
+            self.boat_vel = BoatStructure()
+            self.boat_vel.add_boat_object(source='SonTek',
+                                          vel_in=np.swapaxes(rsdata.BottomTrack.BT_Vel, 1, 0),
+                                          freq_in=rsdata.BottomTrack.BT_Frequency,
+                                          coord_sys_in=ref_coord,
+                                          nav_ref_in='BT')
+
+            print(file)
     def compute_instrument_cell_data(self, pd0):
         
         #Number of ensembles
@@ -585,71 +737,69 @@ class TransectData(object):
         return (cell_size_all, cell_depth, sl_cutoff_per, sl_lag_effect_m)
         
     def adjust_side_lobe(self):
-        '''Coordinates side lobe cutoff calls'''
+        """Coordinates side lobe cutoff calls"""
         
         self.w_vel.adjust_side_lobe(self)
         
     def change_selection(self):
-        '''Changes whether the transect is is include in the final discharge'''
+        """Changes whether the transect is is include in the final discharge"""
         
         self.checked = not self.checked
-        
         
     def set_extrapolation(self,top,bot,exp):
         
         self.extrap.set_extrap_data(top, bot, exp)
         
-        
     def change_q_ensembles(self, proc_method):
-        '''Sets in_transect_idx to all ensembles, except in the case of Sontek data
+        """Sets in_transect_idx to all ensembles, except in the case of Sontek data
         where RSL processing is applied
         
         Input:
         proc_method: processing method WR2, RSL, Qrev
-        '''
+        """
         
         if proc_method == 'RSL':
-            num_ens = self.boat_vel.bt_vel.__u_processed_mps.shape[1]
+            num_ens = self.boat_vel.bt_vel.u_processed_mps.shape[1]
             #Determine number of ensembles for each edge
             if self.start_edge == 'Right':
-                self.in_transect_idx = np.arange(self.edges.__right.__num_ens_2_avg,num_ens-self.edges.__left.__num_ens_2_avg)
+                self.in_transect_idx = np.arange(self.edges.right.num_ens_2_avg,num_ens-self.edges.left.num_ens_2_avg)
             else:
-                self.in_transect_idx = np.arange(self.edges.__left.__num_ens_2_avg,num_ens-self.edges.__right.__num_ens_2_avg)
+                self.in_transect_idx = np.arange(self.edges.left.num_ens_2_avg,num_ens-self.edges.right.num_ens_2_avg)
         else:
-            self.in_transect_idx = np.arange(0,self.boat_vel.bt_vel.__u_processed_mps.shape[1])
+            self.in_transect_idx = np.arange(0,self.boat_vel.bt_vel.u_processed_mps.shape[1])
             
     def change_start_edge(self, setting):
-        '''start edge'''
+        """start edge"""
         self.start_edge = setting
         
     def change_edge(self, edge, property, setting):
-        '''Change an edge property (velocity or coefficient)
+        """Change an edge property (velocity or coefficient)
         
         Input:
         edge: edge object to change (left or right)
         property: property to change (rec_edge_method or vel_method)
         setting: new property setting
-        '''
+        """
         
         self.edges.change_property(property, setting, edge)    
         
     def change_coord_sys(self, new_coord_sys):
-        '''Coordinates changing the coordinate system of the water and boat data
+        """Coordinates changing the coordinate system of the water and boat data
         current implementation only allows changes for original to higher order coordinate
         systems: Beam - Inst - Ship - Earth
         
         Input:
         new_coord_sys: name of new coordinate system (Beam, Int, Ship, Earth)
-        '''
+        """
         self.w_vel.change_coord_sys(new_coord_sys, self.sensors, self.adcp)
         self.boat_vel.change_coord_sys(new_coord_sys, self.sensors, self.adcp)
         
     def change_nav_reference(self, update, new_nav_ref):
-        '''Method to set the naviagion reference for the water data
+        """Method to set the naviagion reference for the water data
         
         Input:
         new_nav_ref: new navigation reference (bt_vel, gga_vel, vtg_vel)
-        '''
+        """
         
         self.boat_vel.change_nav_reference(new_nav_ref, self)
         
@@ -657,63 +807,63 @@ class TransectData(object):
             self.update_water()
             
     def change_mag_var(self, mag_var):
-        '''Change magnetic variation
+        """Change magnetic variation
         
         Input:
         mag_var: magnetic variation in degrees
-        '''
+        """
         
         #update object
-        if (self.sensors.heading_deg.external is not None):
-            self.sensors.heading_deg.set_mag_var(mag_var, 'external')
+        if (self.sensorsdata.heading_deg.external is not None):
+            self.sensorsdata.heading_deg.set_mag_var(mag_var, 'external')
         
         if self.sensor.heading_deg.selected == 'internal':
-            old = getattr(self.sensors.heading_deg, self.sensors.heading_deg.selected)
+            old = getattr(self.sensorsdata.heading_deg, self.sensorsdata.heading_deg.selected)
             old_mag_var = old.mag_var
             mag_var_change = mag_var - old_mag_var
-            self.sensors.heading_deg.set_mag_var(mag_var, 'internal')
+            self.sensorsdata.heading_deg.set_mag_var(mag_var, 'internal')
             self.boat_vel.chang_mag_var(mag_var_change)
             self.w_vel.change_mag_var(self.boat_vel,mag_var_change)
         
-        self.sensors.heading_deg.set_mag_var(mag_var, 'internal')
+        self.sensorsdata.heading_deg.set_mag_var(mag_var, 'internal')
         
         self.update_water()
         
     def change_offset(self, h_offset):
-        '''Change the heading offset (aignment correction)
+        """Change the heading offset (aignment correction)
         
         Input:
         h_offset: heading offset in degrees
-        '''
-        self.sensors.heading_deg.set_align_correction(h_offset, 'internal')
+        """
+        self.sensorsdata.heading_deg.set_align_correction(h_offset, 'internal')
         
-        if self.sensors.heading_deg.selected == 'external':
-            old = getattr(self.sensors.heading_deg, self.sensors.heading_deg.selected)
+        if self.sensorsdata.heading_deg.selected == 'external':
+            old = getattr(self.sensorsdata.heading_deg, self.sensorsdata.heading_deg.selected)
             old_offset = old.align_correction
             offset_change = h_offset - old_offset
             self.boat_vel.bt_vel.change_offset(offset_change)
             self.w_vel.change_offset(self.boat_vel, offset_change)
         
-        self.sensors.heading_deg.set_align_correction(h_offset, 'external')
+        self.sensorsdata.heading_deg.set_align_correction(h_offset, 'external')
         
         self.update_water()
         
     def change_heading_source(self, h_source):
-        source = getattr(self.sensors.heading_deg, h_source)
+        source = getattr(self.sensorsdata.heading_deg, h_source)
         if source is not None:
-            old = getattr(self.sensors.heading_deg, self.sensors.heading_deg.selected)
+            old = getattr(self.sensorsdata.heading_deg, self.sensorsdata.heading_deg.selected)
             old_heading = old.data
             new_heading = source.data
             heading_change = new_heading - old_heading
-            self.sensors.heading_deg.set_selected(h_source)
+            self.sensorsdata.heading_deg.set_selected(h_source)
             self.boat_vel.bt_vel.change_heading_source(heading_change)
             self.w_vel.change_heading_source(self.boat_vel, heading_change)
             
         self.update_water()
             
     def update_water(self):
-        '''Method called from set_nav_reference, boat_interpolation and boat filters
-        to ensure that changes in boatvel are reflected in the water data'''
+        """Method called from set_nav_reference, boat_interpolation and boat filters
+        to ensure that changes in boatvel are reflected in the water data"""
         self.w_vel.set_nav_reference(self.boat_vel)
         
         #Reapply water filters and interpolations
@@ -722,22 +872,20 @@ class TransectData(object):
         #are applied with this one call
         
         self.wt_filters()
-        
          
     def wt_filters(self, kargs = None):
-        '''Coordinate water velocity filters
+        """Coordinate water velocity filters
         
         Input:
         kargs[0]: Filter Type (Beam, Difference, Vertical, Other, Excluded, SNR, WT_Depth)
         kargs[1]: Filter setting (Auto, Manual, Off)
         kargs[2]: Threshold if Manual
-        '''
+        """
         
         self.w_vel.apply_filter(self, kargs)
-        
-        
+
     def wt_interpolations(self, kargs = None):
-        '''Coordinate water velocity interpolation
+        """Coordinate water velocity interpolation
         
         Input:
         kargs: specifies whether ensembles or cells are to be interpolated and the method
@@ -748,13 +896,34 @@ class TransectData(object):
         kargs[1]: 'Linear'
         kargs[2]: 'Cells'
         kargs[3]: 'TRDI'
-        '''
+        """
         
         #Process transect
         self.w_vel.apply_interpolation(self, kargs)
                 
-    def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, kargs):
-        '''Computes side lobe vutoff based on beam angle with no allowance for lag'''
+    # DSM changed 1/25/2018 def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, kargs):
+    def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, type='Percent', value=None):
+        """Computes side lobe cutoff.
+
+        The side lobe cutoff is based on the beam angle and is computed to
+        ensure that the bin and any lag beyond the actual bin cutoff is
+        above the side lobe cutoff.
+
+        Parameters
+        ----------
+        depths: np.array
+            Bottom track (all 4 beams) and vertical beam depths for each ensemble, in m.
+        draft: float
+            Draft of transducers, in m.
+        cell_depth: np.array
+            Depth to the centerline of each depth cell, in m.
+        sl_lag_effect: np.array
+            The extra depth below the last depth cell that must be above the side lobe cutoff, in m.
+        type: str
+            Method used for side lobe cutoff computation.
+        value: float
+            Value used in specified method to use for side lobe cutoff computation.
+        """
         
      
         #Compute minimum depths for each ensemble
@@ -764,24 +933,25 @@ class TransectData(object):
         range_from_xducer = min_depths - draft
         
         #Adjust fro transducter angle
-        if kargs[0] == 'Percent':
-            coeff = kargs[1]
-        elif kargs[0] == 'Angle':
-            coeff = cosd(kargs[1])
+        if type == 'Percent':
+            coeff = value
+        elif type == 'Angle':
+            coeff = np.cos(np.deg2rad(value))
         
         #Compute sidelobe cutoff to centerline    
         cutoff = np.array(range_from_xducer * coeff - sl_lag_effect+draft)
         
-        #Compute logical side lobe cutoff matrix
-        self.cells_above_sl = (cell_depth - cutoff) < 0
+        #Compute boolean side lobe cutoff matrix
+        cells_above_sl = (cell_depth - cutoff) < 0
+        return cells_above_sl
         
     def boat_interpolations(self, update, target, kargs=None):
-        '''Coordinates boat velocity interpolations
+        """Coordinates boat velocity interpolations
         
         Input:
         target: boat velocity reference (BT or GPS)
         kargs: type of interpolation
-        '''
+        """
         
         if target == 'BT':
             self.boat_vel.bt_vel.apply_interpolation(self, kargs)
@@ -809,12 +979,12 @@ class TransectData(object):
             self.update_water()
             
     def composite_tracks(self, update, kargs = None):
-        '''Coordinate application of composite tracks
+        """Coordinate application of composite tracks
         
         Input:
         kargs: Optional settings for composite tracks (on or off).  If
         kargs not specified the setting currently saved in boat_vel object will be saved
-        '''
+        """
         
         #Determine if setting is specified
         if kargs is None:
@@ -829,14 +999,14 @@ class TransectData(object):
             self.update_water()
             
     def boat_filters(self, update, kargs = None):
-        '''Coordinates application of boat filters to bottom track data
+        """Coordinates application of boat filters to bottom track data
         
         Input:
         kargs: specified in pairs or triplets, can be multiple groups
         kargs[n]: filter type (Beam, Difference, Vertical, Other
         kargs[n+1]: filter setting (Auto, Manual, Off)
         kargs[n+2]: Threshold if manual
-        '''
+        """
         
         #apply filter to transect
         self.boat_vel.bt_vel.apply_filter(self, kargs)
@@ -845,13 +1015,13 @@ class TransectData(object):
             self.update_water()
             
     def gps_filters(self, update, kargs=None):
-        '''Coordinate filters for GPS based boat velocities
+        """Coordinate filters for GPS based boat velocities
         
         Input:
         kargs[n]: Filter type (Differential, Altitude, HDOP, Other)
         kargs[n+1]: Filter setting (Auto, Manual, Off)
         kargs[n+2]: Threshold if manual
-        '''
+        """
         
         if self.boat_vel.gga_vel is not None:
             self.boat_vel.gga_vel.apply_gps_filter(self, kargs)
@@ -862,11 +1032,11 @@ class TransectData(object):
             self.update_water()
             
     def set_depth_reference(self, update, setting):
-        '''Coordinates setting the depth reference
+        """Coordinates setting the depth reference
         
         Input:
         setting: depth reference (BT, VB, DS)
-        '''
+        """
         
         self.depths.set_depth_reference(setting)
         
@@ -875,26 +1045,25 @@ class TransectData(object):
             self.adjust_side_lobe()
             
     def apply_averaging_method(self, setting):
-        '''Method to apply the selected averaging method to the BT team depths to achieve a single
+        """Method to apply the selected averaging method to the BT team depths to achieve a single
         average depth.  It is only applicable to the multiple beams used for BT, not VB or DS.
         
         Input:
         setting: averaging method (IDW, Simple)
-        '''
+        """
         
         self.depths.bt_depths.compute_avg_BT_depth(setting)
         
         self.process_depths(False)
             
-            
     def process_depths(self, update, kargs=None):
-        '''Method applies filter, composite, and interpolation settings to  depth objects
+        """Method applies filter, composite, and interpolation settings to  depth objects
         so that all are update using the same filter and interpolation settings
         
         Input:
         kargs[0] process to be applied (Filter, Composite, Interpolate)
         kargs[1]: setting for process
-        '''
+        """
         
         #Get current settings
         filter = getattr(self.depths, self.depths.selected)
@@ -930,132 +1099,154 @@ class TransectData(object):
         
         if update == True:
             self.update_water()
-            
-            
+
     def change_draft(self, input):
-        '''Changes the draft for the specified transects and selected depth'''
+        """Changes the draft for the specified transects and selected depth"""
         
         if self.depths.vb_depths is not None:
             self.depths.vb_depths.change_draft(input)
         if self.depths.bt_depths is not None:
             self.depths.bt_depths.change_draft(input)
             
-            
     def set_property(self, property, setting):
         setattr(property, setting)
         
     def update_data_structure(self):
         #Salinity
-        pd0_salinity = self.sensors.salinity_ppt.user.__data_orig
-        pd0_salinity_src = self.sensors.salinity_ppt.user.__source
+        pd0_salinity = self.sensorsdata.salinity_ppt.user.data_orig
+        pd0_salinity_src = self.sensorsdata.salinity_ppt.user.source
         
         #Create slainity sensor
-        self.sensors.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
-        self.sensors.set_selected('salinity_ppt', 'internal')
-        
-    
-def sos_user(self, kargs = None):
-    '''Compute new speed of sound from temperature and salinity
-    
-    Output:
-    new_sos: newly computed speed of sound
-    old_sos: previously used speed of sound
-    '''
-    
-    #Assign selected temperature data to local variable
-    temp = getattr(self.sensors.temperature_deg_c, self.sensors.temperature_deg_c.selected)
-    temperature = temp.data
-    #Assign selected salinity to local variable
-    sal = getattr(self.sensors.salinity_ppt, self.sensors.salinity_ppt.selected)
-    salinity = sal.data
-    old = getattr(self.sensors.speed_of_sound_mps, self.sensors.speed_of_sound_mps.selected)
-    old_sos = old.data
-    
-    if self.sensors.temperature_deg_c.selected == 'internal':
-        new_sos = self.sensors.speed_of_sound_mps.user.data_orig
-        self.sensors.speed_of_sound_mps.user.change_data(new_sos)
-        self.sensors.speed_of_sound_mps.user.set_source('Internal (ADCP)')
-        self.sensors.set_selected('speed_of_sound_mps', 'user')
-    else:
-        #Compute new speed of sound
-        new_sos = Sensors().speed_of_sound(temperature, salinity)
-        
-        #Save new speed of sound to user sensor object with a source as computed
-        if self.sensors.speed_of_sound_mps.user is not None:
-            self.sensors.set_selected('speed_of_sound_mps', 'user')
-            self.sensors.speed_of_sound_mps.user.change_data(new_sos)
-            self.sensors.speed_of_sound_mps.user.set_source('Computed')
+        self.sensorsdata.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
+        self.sensorsdata.set_selected('salinity_ppt', 'internal')
+
+    def sos_user(self, kargs = None):
+        """Compute new speed of sound from temperature and salinity
+
+        Output:
+        new_sos: newly computed speed of sound
+        old_sos: previously used speed of sound
+        """
+
+        #Assign selected temperature data to local variable
+        temp = getattr(self.sensorsdata.temperature_deg_c, self.sensorsdata.temperature_deg_c.selected)
+        temperature = temp.data
+        #Assign selected salinity to local variable
+        sal = getattr(self.sensorsdata.salinity_ppt, self.sensorsdata.salinity_ppt.selected)
+        salinity = sal.data
+        old = getattr(self.sensorsdata.speed_of_sound_mps, self.sensorsdata.speed_of_sound_mps.selected)
+        old_sos = old.data
+
+        if self.sensorsdata.temperature_deg_c.selected == 'internal':
+            new_sos = self.sensorsdata.speed_of_sound_mps.user.data_orig
+            self.sensorsdata.speed_of_sound_mps.user.change_data(new_sos)
+            self.sensorsdata.speed_of_sound_mps.user.set_source('Internal (ADCP)')
+            self.sensorsdata.set_selected('speed_of_sound_mps', 'user')
         else:
-            self.sensors.add_sensor_data('speed_of_sound_mps', 'user'. new_sos, 'Computed')
-            self.sensors.set_selected('speed_of_sound_mps', 'user')
-            
-    return (old_sos, new_sos)
-    
-def allocate_transects(source, mmt, kargs): 
-    
+            #Compute new speed of sound
+            new_sos = Sensors().speed_of_sound(temperature, salinity)
+
+            #Save new speed of sound to user sensor object with a source as computed
+            if self.sensorsdata.speed_of_sound_mps.user is not None:
+                self.sensorsdata.set_selected('speed_of_sound_mps', 'user')
+                self.sensorsdata.speed_of_sound_mps.user.change_data(new_sos)
+                self.sensorsdata.speed_of_sound_mps.user.set_source('Computed')
+            else:
+                self.sensorsdata.add_sensor_data('speed_of_sound_mps', 'user'. new_sos, 'Computed')
+                self.sensorsdata.set_selected('speed_of_sound_mps', 'user')
+
+        return (old_sos, new_sos)
+
+# ========================================================================
+# Begin multithread function included in module but not TransectData class
+# Currently this is coded only for TRDI data
+# ========================================================================
+
+# DSM changed 1/23/2018 def allocate_transects(source, mmt, kargs):
+def allocate_transects(source, mmt, type='Q', checked=False):
     #DEBUG, set threaded to false to get manual serial commands
     multi_threaded = True
     
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------
-    if kargs[0] == 'Q':
+
+    # Setup processing for discharge or moving-bed transects
+    # DSM changed 1/23/2018 if kargs[0] == 'Q':
+    if type == 'Q':
+        # Identify discharge transect files to load
         transects = 'transects'
         active_config = 'active_config' 
-        
-        if kargs[1] == True:
-            files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
-            file_names = [x.Files for x in mmt.transects]
+        # DSM changed 1/23/2018 if kargs[1] == True:
+        if checked == True:
+            # DSM changed 1/23/2018 files_to_load = np.array([attribute.Checked for attribute in mmt.transects], dtype=bool)
+            file_names = [attribute.Files[0].File for attribute in mmt.transects]
         else:
-            files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
-            file_names = [x.Files for x in mmt.transects]
-                
-            
-    elif kargs[0] == 'MB':
+            # DSM changed 1/23/2018 files_to_load = np.array(np.ones(len(mmt.transects)), dtype=bool)
+            file_names = [attribute.Files[0].File for attribute in mmt.transects]
+    # DSM change 1/23/2018 elif kargs[0] == 'MB':
+    elif type == 'MB':
+        # Identify moving-bed transect files to load
         transects = 'mbt_transects'
         active_config = 'mbt_active_config'
-        files_to_load =np.array([x.Checked for x in mmt.mbt_transects], dtype=bool)
-        file_names = [x.Files for x in mmt.mbt_transects if x.Checked == 1]
-    
-    files_to_load_idx = np.where(files_to_load == True)[0]
-      
-    pathname = mmt.infile[:mmt.infile.rfind('/')]
+        # DSM changed 1/23/2018 files_to_load =np.array([attribute.Checked for attribute in mmt.mbt_transects], dtype=bool)
+        file_names = [attribute.Files[0].File for attribute in mmt.mbt_transects if attribute.Checked == 1]
+        # DSM changed 1/23/2018 files_to_load_idx = np.where(files_to_load == True)[0]
+    # DSM changed 1/23/2018 pathname = mmt.infile[:mmt.infile.rfind('/')]
+    pathname = os.path.split(mmt.infile)[0]
     
     # Determine if any files are missing
-    
     valid_files = []
-    for x in file_names:
-        x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
-        if os.path.exists(''.join([pathname,'/',x[0].Path])):
-            valid_files.append((x, 1))
-        else:
-            valid_files.append((None, 0))
-            
+    # DSM changed 1/23/2018
+    # for x in file_names:
+    #     x[0].Path = x[0].Path[x[0].Path.rfind('\\') + 1:]
+    #     if os.path.exists(''.join([pathname,'/',x[0].Path])):
+    #         valid_files.append((x, 1))
+    #     else:
+    #         valid_files.append((None, 0))
+    for name in file_names:
+        fullname=os.path.join(pathname, name)
+        if os.path.exists(fullname):
+            valid_files.append(fullname)
+
+    # Multithread for Pd0 files
+    # -------------------------
+    # Seems like this section belongs in Pd0TRDI.py
+    # Initialize thread variables
     pd0_data = []
     pd0_threads = []
     thread_id = 0
-    
+
+    # DSM 1/24/2018 could this be moved to Pd0TRDI.py as a method
     def add_pd0(file_name):
         pd0_data.append(Pd0TRDI(file_name))
         
     if multi_threaded == True:
-        for x in valid_files:
-            if x[1] == 1:
-                pd0_thread = MultiThread(thread_id=thread_id, function=add_pd0, args = {'file_name': ''.join([pathname,'/',x[0][0].Path])})
-                thread_id += 1
-                pd0_thread.start()
-                pd0_threads.append(pd0_thread)
+        # DSM changed 1/24/2018 for x in valid_files:
+        #     if x[1] == 1:
+        #         pd0_thread = MultiThread(thread_id=thread_id, function=add_pd0, args = {'file_name': ''.join([pathname,'/',x[0][0].Path])})
+        for file in valid_files:
+            pd0_thread = MultiThread(thread_id=thread_id, function=add_pd0, args={'file_name': file})
+            thread_id += 1
+            pd0_thread.start()
+            pd0_threads.append(pd0_thread)
     else:   
-        pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
-    
-    for x in pd0_threads:
-        x.join()
-            
+        # DSM changed 1/24/2018 pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
+        pd0_data = [Pd0TRDI(file for file in valid_files)]
+
+    # DSM changed 1/24/2018 for x in pd0_threads:
+    #     x.join()
+    for thrd in pd0_threads:
+        thrd.join()
+
+    # Multithread for transect data
+    # -----------------------------
+    # Initialize thread variables
     processed_transects = []
     transect_threads = []
     thread_id = 0
-    
+
+    # DSM 1/24/2018 couldn't this be added to the TransectData class
     def add_transect(transect, source, in_file, pd0_data, mmt, mbt):
-        
         transect.get_data(source, in_file,pd0_data, mmt, mbt)
         processed_transects.append(transect)
         
@@ -1064,6 +1255,11 @@ def allocate_transects(source, mmt, kargs):
         
         transect = TransectData()
         transect.active_config = active_config
+
+        # DSM 1/24/2018 Stopped here
+        # The next line doesn't seem correct
+        # the use of p_thread seems like that should have been used for PD0 and this should be t_thread
+        # transect above should be empty so how do you get transect.active_config?
         transect.transects = transects
        
         mbt_idx = 0
@@ -1112,7 +1308,7 @@ def adjusted_ensemble_duration(transect, kargs=None):
         
     if transect.adcp.manufacturer == 'TRDI':
         if kargs is None:
-            valid = np.isnan(transect.w_vel.__u_processed_mps) == False
+            valid = np.isnan(transect.w_vel.u_processed_mps) == False
             valid_sum = np.sum(valid)
         else:
             valid_sum = np.isnan(transect.boat_vel.bt_vel._BoatData__u_processed_mps) == False

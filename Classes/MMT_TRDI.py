@@ -5,9 +5,9 @@ class MMT_TRDI(object):
     """Class to read in an MMT file"""
 
     def __init__(self, infile):
-        '''Properties are initialized in constructor
+        """Properties are initialized in constructor
             Analogous to matlab class: clsMmtTRDI
-        '''
+        """
         self.infile = infile 
         self.project = {}
         self.site_info = {}
@@ -26,7 +26,7 @@ class MMT_TRDI(object):
         self.read_mmt();
 
     def read_mmt(self):
-        '''Method to read an MMT file and assign properties'''
+        """Method to read an MMT file and assign properties"""
         
         #open up the file and convert to an ordered dictionary tree
         with open(self.infile) as fd:
@@ -101,7 +101,7 @@ class MMT_TRDI(object):
 
             
     def qaqc_test(self, key, val):
-        '''Method to extract qaqc data from dictionary'''
+        """Method to extract qaqc data from dictionary"""
         self.qaqc[key] = {}
         self.qaqc[key]['Type'] = val['@Type']
         self.qaqc[key]['Status'] = val['@Status']
@@ -119,7 +119,7 @@ class MMT_TRDI(object):
 
     
     def moving_bed_test(self, transects, moving_bed):
-        '''Method to extract data from moving bed test dictionary'''
+        """Method to extract data from moving bed test dictionary"""
         
         #make iterable list if not already a list of dictionaries
         if isinstance(transects,dict):
@@ -159,7 +159,7 @@ class MMT_TRDI(object):
 
 
     def mmtqsum(self, data):
-        '''Method to get the MMT Q summary data'''
+        """Method to get the MMT Q summary data"""
         
         sum_dict = {
             'Use': [],

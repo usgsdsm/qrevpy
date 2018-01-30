@@ -1,20 +1,20 @@
-'''
+"""
 Created on Jun 16, 2017
 
 @author: gpetrochenkov
-'''
+"""
 import numpy as np
 from numpy.matlib import repmat
 class Gps2(object):
-    '''
+    """
     classdocs
-    '''
+    """
 
 
     def __init__(self, n_ensembles, wr2):
-        '''
+        """
         Constructor
-        '''
+        """
         self.gga_delta_time =  np.empty([n_ensembles, 20])
         self.gga_header = ['']*n_ensembles
         self.gga_sentence = ['']*n_ensembles
