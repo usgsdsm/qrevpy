@@ -35,4 +35,5 @@ class SelectFit(object):
         self.__pp_exponent = None #Power Power optimized exponent
         self.__top_r2 = None
         
-    
+    def populate_data(self):
+        pass

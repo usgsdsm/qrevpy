@@ -377,7 +377,7 @@ class TransectData(object):
             self.sensors.add_sensor_data('heading_deg', 'internal', heading, heading_src, kargs=[magvar, heading_offset])
             
             #External Heading
-            ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg))
+            ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg) == False)
             if len(ext_heading_check[0]) <= 0:
                 
                 self.sensors.set_selected('heading_deg', 'internal')
@@ -924,7 +924,7 @@ class TransectData(object):
         self.depths.set_valid_data_method(valid_method_setting)
         self.depths.bt_depths.set_avg_method(bt_avg_setting)
         self.depths.depth_filter(self, filter_setting)
-        self.depth_interpolation(self, interpolate_setting)
+        self.depths.depth_interpolation(self, interpolate_setting)
         self.depths.composite_depths(self, composite_setting)
         self.w_vel.adjust_side_lobe(self)
         
@@ -994,7 +994,7 @@ def sos_user(self, kargs = None):
 def allocate_transects(source, mmt, kargs): 
     
     #DEBUG, set threaded to false to get manual serial commands
-    multi_threaded = True
+    multi_threaded = False
     
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------
@@ -1084,7 +1084,8 @@ def allocate_transects(source, mmt, kargs):
                 
                 
             else:
-                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
+                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt, mbt_idx)
+                mbt_idx += 1
             
         else:
             if multi_threaded == True:
@@ -1100,7 +1101,7 @@ def allocate_transects(source, mmt, kargs):
                 
                 
             else:
-                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt)
+                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt, False)
     
     if multi_threaded:
         for x in transect_threads:

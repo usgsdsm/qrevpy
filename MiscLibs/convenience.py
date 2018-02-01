@@ -4,6 +4,7 @@ Created on Aug 1, 2017
 @author: gpetrochenkov
 '''
 import numpy as np
+from scipy.interpolate import griddata
 
 def cosd(angle):
     
@@ -36,7 +37,7 @@ def pol2cart(rho, phi):
     return(x, y)
 
 def iqr(data):
-    q75, q25 = np.percentile(data, [75 ,25])
+    q75, q25 = np.nanpercentile(data, [75 ,25])
     iqr = q75 - q25
     
     return iqr
@@ -83,6 +84,13 @@ def nandiff(values):
             final_values.append(values[i] - values[n])
         
     return np.array(final_values)
+
+def scattered_interpolant(points, values):
+    
+    gridx, gridy = np.mgrid[np.min(points[0]):np.max(points[0]):, np.min(points[1]):np.max(points[1])]
+    
+    return griddata(points, values, (gridx, gridy), method='linear')
+    
 
 
 

@@ -5,11 +5,10 @@ Created on Sep 26, 2017
 '''
 import numpy as np
 from scipy.stats import t
-from Classes.QAData import QAData
 
 class Uncertainty(object):
     
-    def __init__(self):
+    def __init__(self, qa_data):
         self.__cov = None #Coefficient of variation for all used transect discharges
         self.__cov_95 = None #COV inflated by the 95# coverage factor
         self.__invalid_95  = None   # Estimated 95# uncertainty for dicharge in invalid bins and ensembles
@@ -25,6 +24,7 @@ class Uncertainty(object):
         self.__moving_bed_95_user = None     # User provided estimate of uncertainty due to moving-bed conditions
         self.__systematic_user = None      # User provided estimate of systematic uncertainty
         self.__total_95_user = None         # Estimated 95# uncertainty in discharge using user provide values to override automated values
+        self.__qa_data = qa_data
         
         
     def populate_data(self, meas):
@@ -166,7 +166,7 @@ class Uncertainty(object):
         checked: logical vecotr of transects to be used to compute total
         '''
         
-        q_data = QAData()
+        q_data = self.__qa_data
         
         #Compute total mean discharge
         mean_q = q_data.mean_q(discharge[checked], 'total')
@@ -225,7 +225,7 @@ class Uncertainty(object):
         checked: logical vector of transects used to compute final discharge
         '''
         
-        q_data = QAData()
+        q_data = self.__qa_data
         #compute mean total discharge
         mean_q = q_data.mean_q(discharge[checked], 'total')
         

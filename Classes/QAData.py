@@ -3,11 +3,10 @@ Created on Sep 26, 2017
 
 @author: gpetrochenkov
 '''
-from Classes.Measurement import Measurement
 import numpy as np
 from Classes.Uncertainty import Uncertainty
 import re
-from MiscLibs.lowess import idx
+
 
 class QAData(object):
     '''QAData Class for storing QA data such as compass and system tests.  Also test_NA_drop_preserves_levels
@@ -80,7 +79,7 @@ class QAData(object):
                 checked = [ x.checked == 1 for x in meas.transects]
                 
                 #Assign automatically generated uncertainties to properties
-                unc = Uncertainty()
+                unc = Uncertainty(self)
                 unc.ran_uncert_q(meas.discharge[checked], 'total')
                 cov = unc._Uncertainty__cov
                 

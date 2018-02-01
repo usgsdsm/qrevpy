@@ -144,7 +144,10 @@ class DepthData(object):
         kargs filter type (None, Smooth, TRDI1, TRDI2)
         '''
         if kargs is not None:
-            setting = kargs[0]
+            if type(kargs) is str:
+                setting = kargs
+            else:
+                setting = kargs[0]
         else:
             setting = self.filter_type
             
@@ -181,16 +184,16 @@ class DepthData(object):
         
         #No filtering
         if setting == 'None':
-            self.interpolate_none()
+            self.__interpolate_none()
         #Hold last valid depth indefinitely
         elif setting == 'HoldLast':
-            self.interpolate_hold_last()
+            self.__interpolate_hold_last()
         #Use values form a Loess smooth
         elif setting == 'Smooth':
-            self.interpolate_smooth()
+            self.__interpolate_smooth()
         #Linear interpolation
         else:
-            self.interpolate_linear(transect)
+            self.__interpolate_linear(transect)
             
         #Identify ensembles with interpolated depths
         idx = np.where(self.valid_data[:] == False)
@@ -457,17 +460,17 @@ class DepthData(object):
         #Set interpolation type
         self.interp_type='Linear'
         
+        select = getattr(transect.boat_vel, transect.boat_vel.selected)
         #Create position array
-        if transect.boat_vel[transect.boat_vel.selected] is None:
-            boat_vel_x = transect.boat_vel[transect.boat_vel.selected].u_processed_mps
-            boat_vel_y = transect.boat_vel[transect.boat_vel.selected].v_processed_mps         
+        if select is not None:
+            boat_vel_x = select._BoatData__u_processed_mps
+            boat_vel_y = select._BoatData__v_processed_mps         
             track_x = boat_vel_x * transect.datetime.ens_duration_sec
             track_y = boat_vel_y * transect.datetime.ens_duration_sec
         else:
-            sizeu = transect.boat_vel[transect.boat_vel.selected].u_processed_mps.shape
-            sizev = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
-            track_x = repmat([np.nan], sizeu[0], sizeu[1])
-            track_y = repmat([np.nan], sizev[0], sizev[1])
+           
+            track_x = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__u_processed_mps.shape)
+            track_y = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__v_processed_mps.shape)
               
         idx = np.where(np.isnan(track_x[1:]))
         

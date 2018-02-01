@@ -4,8 +4,9 @@ Created on Sep 26, 2017
 @author: gpetrochenkov
 '''
 import numpy as np
-from Classes import ExtrapQSensitivity, SelectFit
-from Classes import NormData
+from Classes.SelectFit import SelectFit
+from Classes.ExtrapQSensitivity import ExtrapQSensitivity
+from Classes.NormData import NormData
 
 class ComputeExtrap(object):
     '''Class to compute the optimized or manually specified extrapolation methods'''
@@ -14,7 +15,7 @@ class ComputeExtrap(object):
         self.threshold = None #threshold as a percent for determining if a median is valid 
         self.subsection = None #percent of discharge, does not account for transect direction
         self.fit_method = None #method used to determine fit.  Automatic or manual
-        self.norm_data = None #object of class norm data
+        self.norm_data = [] #object of class norm data
         self.sel_fit = None #Object of class SelectFit
         self.q_sensitivity = None #Object of class ExtrapQSensitivity
         self.messages = [] #Variable for messages to UserWarning
@@ -32,9 +33,16 @@ class ComputeExtrap(object):
     def process_profiles(self, trans_data, data_type):
         '''Function that serves and the main control for other classes and functions'''
         
-        
+        for n in trans_data:
         #Compute normalized data
-        self.norm_data = NormData(trans_data, data_type, self.threshold, self.subsection)
+            nd = NormData()
+            nd.populate_data(n, data_type, self.threshold, self.subsection)
+            self.norm_data.append(nd)
+            
+        #Get composite norm data
+        comp_nd = NormData()
+        comp_nd.get_composite_data(trans_data, self.norm_data)
+        self.norm_data.append(comp_nd)
         
         #Compute the fit for the selected  method
         if self.fit_method == 'Manual':

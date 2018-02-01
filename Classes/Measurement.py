@@ -68,8 +68,7 @@ class Measurement(object):
             for x in self.transects:
                 self.apply_settings(x, settings)
                 
-            self.composite_norm = NormData()
-            self.composite_norm.get_composite(self.transects)
+            self.apply_settings2(self.transects, settings)
         
         elif proc_type == 'None':
             #UpdateStatus "Proicessing with no filters and interpolation
@@ -144,7 +143,7 @@ class Measurement(object):
         threshold_settings['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
         
         #--------------------------------------------DONE REFACTOR
-        multi_threaded = True
+        multi_threaded = False
         
         if multi_threaded == True:
             transect_threads = []
@@ -532,13 +531,13 @@ class Measurement(object):
             transect.composite_tracks(0, s['CompTracks'])
             
         #Set difference velocity BT filter
-        if s.BTdFilter == 'Manual':
+        if s['BTdFilter'] == 'Manual':
             BTdFilter = [s['BTdFilter'], s['BTdFilterThreshold']]
         else:
             BTdFilter = [s['BTdFilter']]
             
         #Set vertical velocity BTfilter
-        if s.BTwFilter == 'Manual':
+        if s['BTwFilter'] == 'Manual':
             BTwFilter = [s['BTwFilter'], s['BTwFilterThreshold']]
         else:
             BTwFilter = [s['BTwFilter']]
@@ -768,5 +767,97 @@ class Measurement(object):
         settings['edgeRecEdgeMethod'] = transect.edges._Edges__rec_edge_method
         
         return settings
+    
+    def QRevDefaultSettings(self):
+        '''QRev default and filter settings for a measurement'''
+        
+        settings = {}
+        
+        #Naviagation reference (NEED LOGIC HERE)
+        settings['NavRef'] = self.transects[0].boat_vel.selected
+        
+        #Composite tracks
+        settings['CompTracks'] = 'Off'
+        
+        #Water track filter settings
+        settings['WTbeamFilter'] = -1
+        settings['WTdFilter'] = 'Auto'
+        settings['WTdFilterThreshold'] = np.nan
+        settings['WTwFilter'] = 'Auto'
+        settings['WTwFilterThreshold'] = np.nan
+        settings['WTsmoothFilter'] = 'Off'
+        if self.transects[0].adcp.manufacturer == 'TRDI':
+            settings['WTsnrFilter'] = 'Off'
+        else:
+            settings['WTsnrFilter'] = 'Auto'
+        temp = [x.w_vel for x in self.transects]
+        excluded_dist = np.nanmin([x.excluded_dist for x in temp])
+        if excluded_dist < 0.158 and self.transects[0].adcp.model == 'M9':
+            settings['WTExcludedDistance'] = 0.16
+        else:
+            settings['WTExcludedDistance'] = excluded_dist
+            
+        #Bottom track filter settings
+        settings['BTbeamFilter'] = -1
+        settings['BTdFilter'] = 'Auto'
+        settings['BTdFilterThreshold'] = np.nan
+        settings['BTwFilter'] = 'Auto'
+        settings['BTwFilterThreshold'] = np.nan
+        settings['BTsmoothFilter'] = 'Off'
+        
+        #GGA Filter settings
+        settings['ggaDiffQualFilter'] = 2
+        settings['ggaAltitudeFilter'] = 'Auto'
+        settings['ggaAltitudeFilterChange'] = np.nan
+        
+        #VTG filter settings
+        settings['vtgsmoothFilter'] = np.nan
+        
+        #GGA and VTG filter settings
+        settings['GPSHDOPFilter'] = 'Auto'
+        settings['GPSHDOPFilterMax'] = np.nan
+        settings['GPSHDOPFilterChange'] = np.nan
+        settings['GPSSmoothFilter'] = 'Off'
+        
+        #Depth Averaging
+        settings['depthAvgMethod'] = 'IDW'
+        settings['depthValidMethod'] = 'QRev'
+        
+        #Depth Reference
+        
+        #Default to 4 beam depth average
+        settings['depthReference'] = 'btDepths'
+        #Depth settings
+        settings['depthFilterType'] = 'smooth'            
+        settings['depthComposite'] = 'On'
+        
+        #Interpolation settings
+        settings = self.QRevDefaultInterp(settings)
+        
+        #Edge settings
+        settings['edgeVelMethod'] = 'MeasMag'
+        settings['edgeRecEdgeMethod'] = 'Fixed'
+        
+        return settings
+        
+    def QRevDefaultInterp(self, settings):
+        '''Adds QRev default interpolation settings to existing settings data structure
+        
+        INPUT:
+        settings: data structure of reference and filter settings
+        
+        OUTPUT:
+        settings: data structure with reference, filter, and interpolation settings
+        '''
+        
+        settings['BTInterpolation'] = 'Linear'
+        settings['WTEnsInterpolation'] = 'Linear'
+        settings['WTCellInterpolation'] = 'TRDI'
+        settings['GPSInterpolation'] = 'Linear'
+        settings['depthInterpolation'] = 'Linear'
+        settings['WTwDepthFilter'] = 'On'
+        
+        return settings
+        
         
     
