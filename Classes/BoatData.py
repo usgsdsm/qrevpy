@@ -1277,7 +1277,7 @@ class BoatData(object):
         # Handle first ensemble
         invalid_bool = np.concatenate((np.array([False]), invalid_bool),0)
         if np.nansum(vel_in[:, 0]) == 0:
-            invalid_bool[:, 0] = True
+            invalid_bool[0] = True
 
         # Set invalid ensembles to nan
         vel_out = np.copy(vel_in)

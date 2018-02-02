@@ -226,12 +226,20 @@ class GPSData(object):
         self.raw_gga_num_sats = raw_gga_num_sats
         self.raw_gga_num_sats[np.isnan(self.raw_gga_lat_deg)] = np.nan
         self.raw_gga_serial_time[np.isnan(self.raw_gga_lat_deg)] = np.nan
-        self.raw_gga_delta_time = raw_gga_delta_time
+        # Delta time is a TRDI only variable
+        if raw_gga_delta_time is None:
+            self.raw_gga_delta_time = np.tile(np.nan, raw_gga_lat.shape)
+        else:
+            self.raw_gga_delta_time = raw_gga_delta_time
         self.raw_vtg_course_deg = raw_vtg_course
         self.raw_vtg_speed_mps = raw_vtg_speed
         self.raw_vtg_course_deg[np.where((self.raw_vtg_course_deg == 0) & (self.raw_vtg_speed_mps == 0))] = np.nan
         self.raw_vtg_speed_mps[np.isnan(self.raw_vtg_course_deg)] = np.nan
-        self.raw_vtg_delta_time = raw_vtg_delta_time
+        # Delta time is a TRDI only variable
+        if raw_vtg_delta_time is None:
+            self.raw_vtg_delta_time = np.tile(np.nan, raw_gga_lat.shape)
+        else:
+            self.raw_vtg_delta_time = raw_vtg_delta_time
         self.raw_vtg_mode_indicator = raw_vtg_mode_indicator
         
         # Assign input data to ensemble values computed by other software
@@ -253,11 +261,11 @@ class GPSData(object):
         self.vtg_velocity_method = vtg_method
         
         # If gga data exist compute position and velocity
-        if np.sum(np.sum(np.isnan(raw_gga_lat) is False)) > 0:
+        if np.sum(np.sum(np.isnan(raw_gga_lat) == False)) > 0:
             self.process_gga()
         
         # If vtg data exist compute velocity
-        if np.sum(np.sum(np.isnan(raw_vtg_speed) is False)) > 0:
+        if np.sum(np.sum(np.isnan(raw_vtg_speed) == False)) > 0:
             self.process_vtg()
         
     def process_gga(self, p_setting=None, v_setting=None):
@@ -285,22 +293,23 @@ class GPSData(object):
         valid[np.isnan(valid)] = 0
         valid[valid > 0] = 1
         gga_lat_deg = np.copy(self.raw_gga_lat_deg)
-        gga_lat_deg[valid is False] = np.nan
+        gga_lat_deg[valid == False] = np.nan
         gga_lon_deg = np.copy(self.raw_gga_lon_deg)
-        gga_lon_deg[valid is False] = np.nan
+        gga_lon_deg[valid == False] = np.nan
         gga_serial_time = np.copy(self.raw_gga_serial_time)
-        gga_serial_time[valid is False] = np.nan
+        gga_serial_time[valid == False] = np.nan
         gga_delta_time = np.copy(self.raw_gga_delta_time)
-        gga_delta_time[valid is False] = np.nan
+        gga_delta_time[valid == False] = np.nan
         gga_hdop = np.copy(self.raw_gga_hdop)
-        gga_hdop[valid is False] = np.nan
+        gga_hdop[valid == False] = np.nan
         gga_num_sats = np.copy(self.raw_gga_num_sats)
-        gga_num_sats[valid is False] = np.nan
+        gga_num_sats[valid == False] = np.nan
         gga_altitude_m = np.copy(self.raw_gga_altitude_m)
-        gga_altitude_m[valid is False] = np.nan
+        gga_altitude_m[valid == False] = np.nan
         gga_differential = np.copy(self.raw_gga_differential)
-        gga_differential[valid is False] = np.nan
-        
+        gga_differential[valid == False] = np.nan
+        n_ensembles = gga_lat_deg.shape[0]
+
         # Apply method for computing position of ensemble
         # TODO could these if process refer to generic functions for External, End, Average, First, mindt.
         # Use ensemble data from other software
@@ -310,27 +319,31 @@ class GPSData(object):
 
         # Uses last valid data for each ensemble
         elif p_setting == 'End':
-            n_ensembles = gga_lat_deg.shape[0]
+            self.gga_lat_ens_deg = np.tile(np.nan, gga_lat_deg.shape[0])
+            self.gga_lon_ens_deg = np.tile(np.nan, gga_lon_deg.shape[0])
             for n in range(n_ensembles):
                 # DSM changed 1/30/2018    idx = np.where(np.isnan(gga_lat_deg[n,:]))[0][-1]
                 idx = np.argwhere(~np.isnan(gga_lat_deg[n, :]))
-                if len(idx) < 1:
+                if idx.size < 1:
                     idx = 0
                 else:
                     idx = idx[-1][0]
                 self.gga_lat_ens_deg[n] = gga_lat_deg[n, idx]
-                self.gga_lon_ens_deg[n] = gga_lat_deg[n, idx]
+                self.gga_lon_ens_deg[n] = gga_lon_deg[n, idx]
 
         # Use first valid data for each ensemble
         elif p_setting == 'First':
-            n_ensembles = gga_lat_deg.shape[0]
+            self.gga_lat_ens_deg = np.tile(np.nan, gga_lat_deg.shape[0])
+            self.gga_lon_ens_deg = np.tile(np.nan, gga_lon_deg.shape[0])
             for n in range(n_ensembles):
                 idx = 0
                 self.gga_lat_ens_deg[n] = gga_lat_deg[n, idx]
-                self.gga_lon_ens_deg[n] = gga_lat_deg[n, idx]
+                self.gga_lon_ens_deg[n] = gga_lon_deg[n, idx]
 
         # Use minimum delta time
         elif p_setting == 'Mindt':
+            self.gga_lat_ens_deg = np.tile(np.nan, gga_lat_deg.shape[0])
+            self.gga_lon_ens_deg = np.tile(np.nan, gga_lon_deg.shape[0])
             d_time = np.abs(gga_delta_time)
             # DSM 1/30/2018 Next line is not need done above
             # d_time[valid is False] = np.nan
@@ -354,7 +367,6 @@ class GPSData(object):
         self.utm_ens_m = (x_utm, y_utm)
 
         # Prepare variables for velocity computations
-        n_ensembles = self.raw_gga_lat_deg.shape[0]
         lat = np.tile([np.nan], n_ensembles)
         lon = np.tile([np.nan], n_ensembles)
         self.gga_serial_time_ens = np.tile([np.nan], n_ensembles)
@@ -363,7 +375,7 @@ class GPSData(object):
         self.hdop_ens = np.tile([np.nan], n_ensembles)
         self.num_sats_ens = np.tile([np.nan], n_ensembles)
         
-        # Apply method for computing velocit of ensemble
+        # Apply method for computing velocity of ensemble
         if v_setting == 'External':
             lat = self.ext_gga_lat_deg
             lon = self.ext_gga_lon_deg
@@ -377,16 +389,17 @@ class GPSData(object):
         elif v_setting == 'Average':
             lat = np.nanmean(gga_lat_deg, 1)
             lon = np.nanmean(gga_lon_deg, 1)
-            self.gga_serial_time_ens = np.nanmean(gga_serial_time, 0)
-            self.hdop_ens = np.nanmean(gga_hdop, 0)
-            self.num_sats_ens = np.floor(np.nanmean(gga_num_sats, 0))
-            self.altitude_ens_m = np.nanmean(self.raw_gga_altitude_m, 0)
-            self.diff_qual_ens = np.floor(np.nanmean(self.raw_gga_differential, 0))
+            self.gga_serial_time_ens = np.nanmean(gga_serial_time, 1)
+            self.hdop_ens = np.nanmean(gga_hdop, 1)
+            self.num_sats_ens = np.floor(np.nanmean(gga_num_sats, 1))
+            self.altitude_ens_m = np.nanmean(self.raw_gga_altitude_m, 1)
+            self.diff_qual_ens = np.floor(np.nanmean(self.raw_gga_differential, 1))
             
         # Use the last valid data in an ensemble
         elif v_setting == 'End':
+
             for n in range(n_ensembles):
-                idx = np.where(np.isnan(gga_lat_deg) == False)[0]
+                idx = np.where(np.isnan(gga_lat_deg[n, :]) == False)[0]
                 if len(idx) > 0:
                     idx = idx[-1]
                     lat[n] = gga_lat_deg[n, idx]
@@ -421,7 +434,7 @@ class GPSData(object):
         # Use the minimum delta time to assign data to an ensemble
         elif v_setting == 'Mindt':
             d_time = np.abs(gga_delta_time)
-            d_time_min = np.nanmin(d_time.T, 0).T
+            d_time_min = np.nanmin(d_time, 1)
             use = []
             for n in range(len(d_time_min)):
                 use.append(np.abs(d_time[n, :]) == d_time_min[n])
@@ -470,7 +483,8 @@ class GPSData(object):
         vtg_speed_mps = self.raw_vtg_speed_mps
         vtg_course_deg = self.raw_vtg_course_deg
         vtg_delta_time = self.raw_vtg_delta_time
-        idx = np.where(self.raw_vtg_mode_indicator == 'N')[0]
+        # VTG mode indicator is a letter but is coming in as the ASCII value. 78 is the value for N.
+        idx = np.where(self.raw_vtg_mode_indicator == 78)[0]
         vtg_speed_mps[idx] = np.nan
         vtg_course_deg[idx] = np.nan
         vtg_delta_time[idx] = np.nan
@@ -480,7 +494,7 @@ class GPSData(object):
             # Compute vtg velocity in x y coordinates from speed and course
             direction = azdeg2rad(vtg_course_deg)
             vx, vy = pol2cart(direction, vtg_speed_mps)
-            vx[vx == 0 and vy == 0] = np.nan
+            vx[np.logical_and(vx == 0, vy == 0)] = np.nan
             vy[np.isnan(vx)] = np.nan
             vx_mean = np.nanmean(vx, 1)
             vy_mean = np.nanmean(vy, 1)
@@ -493,7 +507,7 @@ class GPSData(object):
             vtg_dir = np.empty(n_ensembles)
             
             for n in range(n_ensembles):
-                idx = np.where(~np.isnan(vtg_speed_mps))[0]
+                idx = np.where(~np.isnan(vtg_speed_mps[n, :]))[0]
                 if len(idx) > 0:
                     idx = idx[-1]
                 else:
@@ -503,7 +517,7 @@ class GPSData(object):
                 
             direction = azdeg2rad(vtg_dir)
             vx, vy = pol2cart(direction, vtg_vel)
-            vx[vx == 0 and vy == 0] = np.nan
+            vx[np.logical_and(vx == 0, vy == 0)] = np.nan
             vy[np.isnan(vx)] = np.nan
             self.vtg_velocity_ens_mps = np.vstack([vx, vy])
 
@@ -519,7 +533,7 @@ class GPSData(object):
                 vtg_dir[n] = vtg_course_deg[n, idx]
             direction = azdeg2rad(vtg_dir)
             vx, vy = pol2cart(direction, vtg_vel)
-            vx[vx == 0 and vy == 0] = np.nan
+            vx[np.logical_and(vx == 0, vy == 0)] = np.nan
             vy[np.isnan(vx)] = np.nan
             self.vtg_velocity_ens_mps = np.vstack([vx, vy])
 

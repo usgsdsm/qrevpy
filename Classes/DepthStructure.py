@@ -108,8 +108,8 @@ class DepthStructure(object):
     def set_valid_data_method(self, setting):
         self.bt_depths.set_valid_data_method(setting)
         
-    def composite_depths(self, transect, kargs=None):
-        """Depth compsiting is based on the following assumptions
+    def composite_depths(self, transect, setting=None):
+        """Depth compositing is based on the following assumptions
         
         1. If a depth sounder is available the user must have assumed the ADCP beams
         (BT or vertical) might have problems and it will be the second alternative if 
@@ -117,25 +117,32 @@ class DepthStructure(object):
         
         2. For 4-beam BT depths, if 3 beams are valid the average is considered valid.
         It may be based on interpolation of the invalid beam.  However, if only 2 beams
-        are valid even though they may be interpolated and included in the average the 
+        are valid even though the other two beams may be interpolated and included in the average the
         average will be replaced by an alternative if available.  If no alternative is 
         available the multi-beam average based on available beams and interpolation will
-        be used """
+        be used.
+
+        Parameters
+        ----------
+        transect: object
+            Transect object containing all data.
+        setting: bool
+            Setting to use (True) or not use (False) composite depths.
+        """
         
-        if kargs is None:
+        if setting is None:
             setting = self.composite
         else:
-            setting = kargs[0]
             self.composite = setting
             
         #The primary depth reference is the selected reference
         ref = self.selected
         
-        if setting == 'On':
+        if setting:
             #Prepare vector of valid BT averages, which are defined as
             #having at least 2 valid beams
             
-            bt_valid = self.bt_depths.valid_data;
+            bt_valid = self.bt_depths.valid_data
             n_ensembles = bt_valid.shape[-1]
             bt_filtered = self.bt_depths.depth_processed_m
             bt_filtered[bt_filtered == 0] = np.nan
@@ -148,7 +155,7 @@ class DepthStructure(object):
                 vb_filtered = repmat([np.nan],n_ensembles,1)
 
                   
-            #Prepare depth sounder data, using only data prior interpolation
+            #Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:
                 ds_filtered = self.ds_depths.depth_processed_m
                 ds_filtered[np.squeeze(self.ds_depths.valid_data) == False] = np.nan

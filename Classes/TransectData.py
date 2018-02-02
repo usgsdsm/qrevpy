@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.matlib import repmat
-from PyQt5 import QtWidgets
+import time
 import os
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.DepthStructure import DepthStructure
@@ -11,10 +11,11 @@ from Classes.GPSData import GPSData
 from Classes.Edges import Edges
 from Classes.ExtrapData import ExtrapData
 from Classes.Sensors import Sensors
+from Classes.SensorData import SensorData
+from Classes.HeadingData import HeadingData
 from Classes.DateTime import DateTime
 from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
-from Classes.MatSonTek import MatSonTek
 import matplotlib.dates as mdates
 from datetime import datetime
 from MiscLibs.convenience import nandiff
@@ -39,13 +40,13 @@ class TransectData(object):
                                     # (left and right object of clsEdgeData)
         self.extrap = None          # object of clsExtrapData
         self.start_edge = None      # starting edge of transect looking downstream (Left or Right)
-        self.datetime = None
+        self.date_time = None
         self.checked = None         #transect was checked for use in mmt file assumed checked for SonTek
         self.in_transect_idx = None # index of ensemble data associated with the moving-boat portion of the transect
-        self.active_config = None
-        self.transects = None
-        self.cells_above_sl = None
-        self.mbt = False
+        # self.active_config = None
+        # self.transects = None
+        # self.cells_above_sl = None
+        # self.mbt = False
 
     def get_data(self, source, in_file, pd0_data, mmt, mbt_idx):
         
@@ -83,7 +84,7 @@ class TransectData(object):
                                    cell_depth_m, cell_size_all_m)
             
             #compute cells above side lobe
-            cells_above_sl =self.side_lobe_cutoff(self.depths.bt_depths.depth_orig_m,
+            cells_above_sl = TransectData.side_lobe_cutoff(self.depths.bt_depths.depth_orig_m,
                                                      self.depths.bt_depths.draft_orig_m, 
                                                      self.depths.bt_depths.depth_cell_depth_m,
                                                      sl_lag_effect_m,
@@ -504,8 +505,8 @@ class TransectData(object):
             end_date = datetime.strftime(start_dt, '%m/%d/%Y')
             
             #Create date/time object
-            self.datetime = DateTime()
-            self.datetime.populate_data(start_date, start_serial_time, end_serial_time, ens_delta_time)
+            self.date_time = DateTime()
+            self.date_time.populate_data(start_date, start_serial_time, end_serial_time, ens_delta_time)
             
             #Transect checked for use in discharge computation
             self.checked = mmt_transect.Checked
@@ -517,157 +518,383 @@ class TransectData(object):
                 self.adcp = InstrumentData()
                 self.adcp.populate_data('TRDI', kargs= np.hstack([[mmt_transect, pd0, mmt], kargs]))
             
-    def SonTek(self, fullnames):
-        for file in fullnames:
-            rsdata = MatSonTek(file)
-            pathname, self.file_name = os.path.split(file)
+    def SonTek(self, rsdata, file_name):
+        """Reads Matlab file produced by RiverSurveyor Live and populates the transect instance variables.
 
-            # ADCP instrument information
-            # ---------------------------
-            self.adcp = InstrumentData()
-            self.adcp.populate_data('SonTek', rsdata)
+        Parameters
+        ----------
+        rsdata: object
+            Object of Matlab data from SonTek Matlab files
+        file_name: str
+            Name of SonTek Matlab file not including path.
+        """
 
-            # Depth
-            # -----
+        self.file_name = file_name
 
-            # Initialize depth data structure
-            self.depths = DepthStructure()
+        # ADCP instrument information
+        # ---------------------------
+        self.adcp = InstrumentData()
+        self.adcp.populate_data('SonTek', rsdata)
 
-            # Determine array rows and cols
-            max_cells = rsdata.WaterTrack.Velocity.shape[0]
-            numEns = rsdata.WaterTrack.Velocity.shape[2]
+        # Depth
+        # -----
 
-            # Compute cell sizes and depths
-            cell_size = rsdata.System.Cell_Size.reshape(1, numEns)
-            cell_size_all = np.tile(cell_size, (max_cells, 1))
-            top_of_cells = rsdata.System.Cell_Start.reshape(1, numEns)
-            cell_depth = (np.tile(np.arange(1, max_cells+1, 1).reshape(max_cells, 1), (1, numEns)) * 0.5 * cell_size_all) + np.tile(top_of_cells, (max_cells,1))
+        # Initialize depth data structure
+        self.depths = DepthStructure()
 
-            # Prepare bottom track depth variable
-            depth = rsdata.BottomTrack.BT_Beam_Depth.reshape(4, numEns)
-            depth[depth == 0] = np.nan
+        # Determine array rows and cols
+        max_cells = rsdata.WaterTrack.Velocity.shape[0]
+        num_ens = rsdata.WaterTrack.Velocity.shape[2]
 
-            # Create depth object for bottom track beams
-            self.depths.add_depth_object(depth_in=depth,
-                                         source_in='BT',
-                                         freq_in=rsdata.BottomTrack.BT_Frequency.reshape(1, numEns),
-                                         draft_in=rsdata.Setup.sensorDepth,
-                                         cell_depth_in=cell_depth,
-                                         cell_size_in=cell_size_all)
-            # Prepare vertical beam depth variable
-            depth = rsdata.BottomTrack.VB_Depth.reshape(1, numEns)
-            depth[depth == 0] = np.nan
+        # Compute cell sizes and depths
+        cell_size = rsdata.System.Cell_Size.reshape(1, num_ens)
+        cell_size_all = np.tile(cell_size, (max_cells, 1))
+        top_of_cells = rsdata.System.Cell_Start.reshape(1, num_ens)
+        cell_depth = (np.tile(np.arange(1, max_cells+1, 1).reshape(max_cells, 1), (1, num_ens)) * 0.5 * cell_size_all) + np.tile(top_of_cells, (max_cells,1))
 
-            # Create depth object for vertical beam
-            self.depths.add_depth_object(depth_in=depth,
-                                         source_in='VB',
-                                         freq_in=np.array([rsdata.Transformation_Matrices.Frequency[1]] * depth.shape[-1]),
-                                         draft_in=rsdata.Setup.sensorDepth,
-                                         cell_depth_in=cell_depth,
-                                         cell_size_in=cell_size_all)
+        # Prepare bottom track depth variable
+        depth = rsdata.BottomTrack.BT_Beam_Depth.reshape(4, num_ens)
+        depth[depth == 0] = np.nan
 
-            # Set depth reference
-            if rsdata.Setup.depthReference < 0.5:
-                self.depths.set_depth_reference('VB')
-            else:
-                self.depths.set_depth_reference('BT')
+        # Create depth object for bottom track beams
+        self.depths.add_depth_object(depth_in=depth,
+                                     source_in='BT',
+                                     freq_in=rsdata.BottomTrack.BT_Frequency.reshape(1, num_ens),
+                                     draft_in=rsdata.Setup.sensorDepth,
+                                     cell_depth_in=cell_depth,
+                                     cell_size_in=cell_size_all)
+        # Prepare vertical beam depth variable
+        depth = rsdata.BottomTrack.VB_Depth.reshape(1, num_ens)
+        depth[depth == 0] = np.nan
 
-            # Water Velocity
-            # --------------
+        # Create depth object for vertical beam
+        self.depths.add_depth_object(depth_in=depth,
+                                     source_in='VB',
+                                     freq_in=np.array([rsdata.Transformation_Matrices.Frequency[1]] * depth.shape[-1]),
+                                     draft_in=rsdata.Setup.sensorDepth,
+                                     cell_depth_in=cell_depth,
+                                     cell_size_in=cell_size_all)
 
-            # Rearrange arrays for consistency with WaterData class
-            vel = np.swapaxes(rsdata.WaterTrack.Velocity, 1, 0)
-            snr = np.swapaxes(rsdata.System.SNR, 1, 0)
-            corr = np.swapaxes(rsdata.WaterTrack.Correlation, 1, 0)
+        # Set depth reference
+        if rsdata.Setup.depthReference < 0.5:
+            self.depths.set_depth_reference('VB')
+        else:
+            self.depths.set_depth_reference('BT')
+
+        # Water Velocity
+        # --------------
+
+        # Rearrange arrays for consistency with WaterData class
+        vel = np.swapaxes(rsdata.WaterTrack.Velocity, 1, 0)
+        snr = np.swapaxes(rsdata.System.SNR, 1, 0)
+        corr = np.swapaxes(rsdata.WaterTrack.Correlation, 1, 0)
 
 
-            # Correct SonTek difference velocity for error in earlier transformation matrices.
-            if abs(rsdata.Transformation_Matrices.Matrix[3, 0, 0]) < 0.5:
-                vel[3, :, :] = vel[3, :, :] * 2
+        # Correct SonTek difference velocity for error in earlier transformation matrices.
+        if abs(rsdata.Transformation_Matrices.Matrix[3, 0, 0]) < 0.5:
+            vel[3, :, :] = vel[3, :, :] * 2
 
-            # Apply TRDI scaling to SonTek difference velocity to convert to a TRDI compatible error velocity
-            vel[3, :, :] = vel[3, :, :] / ((2**0.5) * np.tan(np.deg2rad(25)))
+        # Apply TRDI scaling to SonTek difference velocity to convert to a TRDI compatible error velocity
+        vel[3, :, :] = vel[3, :, :] / ((2**0.5) * np.tan(np.deg2rad(25)))
 
-            # Convert velocity reference from what was used in RiverSurveyor Live to None by adding the boat velocity
-            # to the reported water velocity
-            boat_vel = np.swapaxes(rsdata.Summary.Boat_Vel, 1, 0)
-            vel[0, :, :] = vel[0, :, :] + boat_vel[0, :]
-            # Because Matlab pads arrays with zeros and RR data has variable
-            # number of bins, the raw data may be padded with zeros.  The next
-            # four statements changes those to nan.
-            vel[vel==0] = np.nan
-            ref_water = 'None'
+        # Convert velocity reference from what was used in RiverSurveyor Live to None by adding the boat velocity
+        # to the reported water velocity
+        boat_vel = np.swapaxes(rsdata.Summary.Boat_Vel, 1, 0)
+        vel[0, :, :] = vel[0, :, :] + boat_vel[0, :]
+        # Because Matlab pads arrays with zeros and RR data has variable
+        # number of bins, the raw data may be padded with zeros.  The next
+        # four statements changes those to nan.
+        vel[vel==0] = np.nan
+        ref_water = 'None'
 
-            # The initial coordinate system must be set to earth for early versions of RiverSurveyor firmware.
-            # This implementation forces all versions to use the earth coordinate system.
-            if rsdata.Setup.coordinateSystem == 0:
-                ref_coord = 'Beam'
-                raise ValueError('Beam Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
-            elif rsdata.Setup.coordinateSystem == 1:
-                ref_coord = 'Inst'
-                raise ValueError('Instrument Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
-            elif rsdata.Setup.coordinateSystem == 2:
-                ref_coord = 'Earth'
+        # The initial coordinate system must be set to earth for early versions of RiverSurveyor firmware.
+        # This implementation forces all versions to use the earth coordinate system.
+        if rsdata.Setup.coordinateSystem == 0:
+            ref_coord = 'Beam'
+            raise ValueError('Beam Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
+        elif rsdata.Setup.coordinateSystem == 1:
+            ref_coord = 'Inst'
+            raise ValueError('Instrument Coordinates are not supported for all RiverSuveyor firmware releases, use Earth coordinates.')
+        elif rsdata.Setup.coordinateSystem == 2:
+            ref_coord = 'Earth'
 
-            # Compute side lobe cutoff using Transmit Length information if availalbe, if not it is assumed to be equal
-            # to 1/2 depth_cell_size_m. The percent method is use for the side lobe cutoff computation.
-            sl_cutoff_percent = rsdata.Setup.extrapolation_dDiscardPercent
-            sl_cutoff_number = rsdata.Setup.extrapolation_nDiscardCells
-            if 'Transmit_Length' in set(rsdata.Summary._fieldnames):
-                sl_lag_effect_m = (rsdata.Summary.Transmit_Length
-                                   + self.depths.bt_depths.depth_cell_size_m[0, :]) / 2.0
-            else:
-                sl_lag_effect_m = self.depths.bt_depths.depth_cell_depth_m[0, :]
-            sl_cutoff_type = 'Percent'
-            cells_above_sl = self.side_lobe_cutoff(depths=self.depths.bt_depths.depth_orig_m,
-                                  draft=self.depths.bt_depths.draft_orig_m,
-                                  cell_depth=self.depths.bt_depths.depth_cell_depth_m,
-                                  sl_lag_effect=sl_lag_effect_m,
-                                  type=sl_cutoff_type,
-                                  value=1 - sl_cutoff_percent / 100)
-            # Determine water mode
-            corr_nan = np.isnan(corr)
-            number_of_nan = np.count_nonzero(corr_nan)
-            if number_of_nan == 0:
-                wm = 'HD'
-            elif corr_nan.size == number_of_nan:
-                wm = 'IC'
-            else:
-                wm = 'Variable'
+        # Compute side lobe cutoff using Transmit Length information if availalbe, if not it is assumed to be equal
+        # to 1/2 depth_cell_size_m. The percent method is use for the side lobe cutoff computation.
+        sl_cutoff_percent = rsdata.Setup.extrapolation_dDiscardPercent
+        sl_cutoff_number = rsdata.Setup.extrapolation_nDiscardCells
+        if 'Transmit_Length' in set(rsdata.Summary._fieldnames):
+            sl_lag_effect_m = (rsdata.Summary.Transmit_Length
+                               + self.depths.bt_depths.depth_cell_size_m[0, :]) / 2.0
+        else:
+            sl_lag_effect_m = np.copy(self.depths.bt_depths.depth_cell_depth_m[0, :])
+        sl_cutoff_type = 'Percent'
+        cells_above_sl = TransectData.side_lobe_cutoff(depths=self.depths.bt_depths.depth_orig_m,
+                              draft=self.depths.bt_depths.draft_orig_m,
+                              cell_depth=self.depths.bt_depths.depth_cell_depth_m,
+                              sl_lag_effect=sl_lag_effect_m,
+                              type=sl_cutoff_type,
+                              value=1 - sl_cutoff_percent / 100)
+        # Determine water mode
+        corr_nan = np.isnan(corr)
+        number_of_nan = np.count_nonzero(corr_nan)
+        if number_of_nan == 0:
+            wm = 'HD'
+        elif corr_nan.size == number_of_nan:
+            wm = 'IC'
+        else:
+            wm = 'Variable'
 
-            # Determine excluded distance (Similar to SonTek's screening distance)
-            excluded_distance = rsdata.Setup.screeningDistance - rsdata.Setup.sensorDepth
-            if excluded_distance < 0:
-                excluded_distance = 0
+        # Determine excluded distance (Similar to SonTek's screening distance)
+        excluded_distance = rsdata.Setup.screeningDistance - rsdata.Setup.sensorDepth
+        if excluded_distance < 0:
+            excluded_distance = 0
 
-            # Create water velocity object
-            self.wVel = WaterData()
-            self.wVel.populate_data(vel_in=vel,
-                                    freq_in=rsdata.WaterTrack.WT_Frequency,
-                                    coord_sys_in=ref_coord,
-                                    nav_ref_in=ref_water,
-                                    rssi_in=snr,
-                                    rssi_units_in=rsdata.System.Units.SNR,
-                                    excluded_dist_in=excluded_distance,
-                                    cells_above_sl_in=cells_above_sl,
-                                    sl_cutoff_per_in=sl_cutoff_percent,
-                                    sl_cutoff_num_in=sl_cutoff_number,
-                                    sl_cutoff_type_in=sl_cutoff_type,
-                                    sl_lag_effect_in=sl_lag_effect_m,
-                                    wm_in=wm,
-                                    blank_in=excluded_distance,
-                                    corr_in=corr)
+        # Create water velocity object
+        self.w_vel = WaterData()
+        self.w_vel.populate_data(vel_in=vel,
+                                freq_in=rsdata.WaterTrack.WT_Frequency,
+                                coord_sys_in=ref_coord,
+                                nav_ref_in=ref_water,
+                                rssi_in=snr,
+                                rssi_units_in=rsdata.System.Units.SNR,
+                                excluded_dist_in=excluded_distance,
+                                cells_above_sl_in=cells_above_sl,
+                                sl_cutoff_per_in=sl_cutoff_percent,
+                                sl_cutoff_num_in=sl_cutoff_number,
+                                sl_cutoff_type_in=sl_cutoff_type,
+                                sl_lag_effect_in=sl_lag_effect_m,
+                                wm_in=wm,
+                                blank_in=excluded_distance,
+                                corr_in=corr)
 
-            # Bottom Track
-            # ------------
-            self.boat_vel = BoatStructure()
+        # Bottom Track
+        # ------------
+        self.boat_vel = BoatStructure()
+        self.boat_vel.add_boat_object(source='SonTek',
+                                      vel_in=np.swapaxes(rsdata.BottomTrack.BT_Vel, 1, 0),
+                                      freq_in=rsdata.BottomTrack.BT_Frequency,
+                                      coord_sys_in=ref_coord,
+                                      nav_ref_in='BT')
+
+        # GPS Data
+        # --------
+        self.gps = GPSData()
+        if np.nansum(rsdata.GPS.GPS_Quality) > 0:
+            self.gps.populate_data(raw_gga_utc=rsdata.RawGPSData.GgaUTC,
+                                   raw_gga_lat=rsdata.RawGPSData.GgaLatitude,
+                                   raw_gga_lon=rsdata.RawGPSData.GgaLongitude,
+                                   raw_gga_alt=rsdata.RawGPSData.GgaAltitude,
+                                   raw_gga_diff=rsdata.RawGPSData.GgaQuality,
+                                   raw_gga_hdop=np.swapaxes(np.tile(rsdata.GPS.HDOP,(rsdata.RawGPSData.GgaLatitude.shape[1], 1)), 1, 0),
+                                   raw_gga_num_sats=np.swapaxes(np.tile(rsdata.GPS.Satellites,(rsdata.RawGPSData.GgaLatitude.shape[1], 1)), 1, 0),
+                                   raw_gga_delta_time=None,
+                                   raw_vtg_course=rsdata.RawGPSData.VtgTmgTrue,
+                                   raw_vtg_speed=rsdata.RawGPSData.VtgSogMPS,
+                                   raw_vtg_delta_time=None,
+                                   raw_vtg_mode_indicator=rsdata.RawGPSData.VtgMode,
+                                   ext_gga_utc=rsdata.GPS.Utc,
+                                   ext_gga_lat=rsdata.GPS.Latitude,
+                                   ext_gga_lon=rsdata.GPS.Longitude,
+                                   ext_gga_alt=rsdata.GPS.Altitude,
+                                   ext_gga_diff=rsdata.GPS.GPS_Quality,
+                                   ext_gga_hdop=rsdata.GPS.HDOP,
+                                   ext_gga_num_sats=rsdata.GPS.Satellites,
+                                   ext_vtg_course=np.tile(np.nan, rsdata.GPS.Latitude.shape),
+                                   ext_vtg_speed=np.tile(np.nan, rsdata.GPS.Latitude.shape),
+                                   gga_p_method='End',
+                                   gga_v_method='End',
+                                   vtg_method='Average')
+
             self.boat_vel.add_boat_object(source='SonTek',
-                                          vel_in=np.swapaxes(rsdata.BottomTrack.BT_Vel, 1, 0),
-                                          freq_in=rsdata.BottomTrack.BT_Frequency,
-                                          coord_sys_in=ref_coord,
-                                          nav_ref_in='BT')
+                                          vel_in=self.gps.gga_velocity_ens_mps,
+                                          freq_in=None,
+                                          coord_sys_in='Earth',
+                                          nav_ref_in='GGA')
 
-            print(file)
+            self.boat_vel.add_boat_object(source='SonTek',
+                                          vel_in=self.gps.vtg_velocity_ens_mps,
+                                          freq_in=None,
+                                          coord_sys_in='Earth',
+                                          nav_ref_in='VTG')
+        ref = None
+        if rsdata.Setup.trackReference == 1:
+            ref = 'BT'
+        elif rsdata.Setup.trackReference == 2:
+            ref = 'GGA'
+        elif rsdata.Setup.trackReference == 3:
+            ref = 'VTG'
+        self.boat_vel.set_nav_reference(ref)
+
+        # Edges
+        # -----
+        # Create edge object
+        self.edges = Edges()
+        self.edges.populate_data(rec_edge_method='Variable',
+                                 vel_method='VectorProf')
+
+        # Determine number of ensembles for each edge
+        if rsdata.Setup.startEdge > 0.1:
+            ensembles_right = np.nansum(rsdata.System.Step == 2)
+            ensembles_left = np.nansum(rsdata.System.Step == 4)
+            self.in_transect_idx = np.arange(ensembles_right + 1, num_ens - ensembles_left, 1)
+            self.start_edge = 'Right'
+        else:
+            ensembles_right = np.nansum(rsdata.System.Step == 4)
+            ensembles_left = np.nansum(rsdata.System.Step == 1)
+            self.in_transect_idx = np.arange(ensembles_left + 1, num_ens - ensembles_right, 1)
+            self.start_edge = 'Left'
+
+        # Create left edge object
+        edge_type = None
+        if rsdata.Setup.Edges_0__Method == 2:
+            edge_type = 'Triangular'
+        elif rsdata.Setup.Edges_0__Method == 1:
+            edge_type = 'Rectangular'
+        elif rsdata.Setup.Edges_0__Method == 0:
+            edge_type = 'UserQ'
+        self.edges.left.populate_data(edge_type=edge_type,
+                                      distance=rsdata.Setup.Edges_0__DistanceToBank,
+                                      number_ensembles=ensembles_left,
+                                      coefficient=None,
+                                      user_discharge=rsdata.Setup.Edges_0__EstimatedQ)
+        # Create right edge object
+        if rsdata.Setup.Edges_1__Method == 2:
+            edge_type = 'Triangular'
+        elif rsdata.Setup.Edges_1__Method == 1:
+            edge_type = 'Rectangular'
+        elif rsdata.Setup.Edges_1__Method == 0:
+            edge_type = 'UserQ'
+        self.edges.right.populate_data(edge_type=edge_type,
+                                      distance=rsdata.Setup.Edges_1__DistanceToBank,
+                                      number_ensembles=ensembles_left,
+                                      coefficient=None,
+                                      user_discharge=rsdata.Setup.Edges_1__EstimatedQ)
+
+        # Extrapolation
+        # -------------
+
+        # Top extrapolation
+        if rsdata.Setup.extrapolation_Top_nFitType == 0:
+            top = 'Constant'
+        elif rsdata.Setup.extrapolation_Top_nFitType == 1:
+            top = 'Power'
+        elif rsdata.Setup.extrapolation_Top_nFitType == 2:
+            top = '3-Point'
+        # Bottom extrapolation
+        if rsdata.Setup.extrapolation_Bottom_nFitType == 0:
+            bottom = 'Constant'
+        elif rsdata.Setup.extrapolation_Bottom_nFitType == 1:
+            if rsdata.Setup.extrapolation_Bottom_nEntirePro > 1.1:
+                bottom = 'No Slip'
+            else:
+                bottom = 'Power'
+
+        # Create extrapolation object
+        self.extrap = ExtrapData()
+        self.extrap.populate_data(top=top,
+                                  bot=bottom,
+                                  exp=rsdata.Setup.extrapolation_Bottom_dExponent)
+
+        # Sensor data
+        # -----------
+        self.sensors = Sensors()
+
+        # Internal heading
+        self.sensors.heading_deg.internal = HeadingData()
+        # Check for firmware supporting G3 compass and associated data
+        if hasattr(rsdata,'Compass'):
+            # TODO need to find older file that had 3 columns in Magnetic error to test and modify code
+            mag_error = rsdata.Compass.Magnetic_error
+            pitch_limit = (rsdata.Compass.Maximum_Pitch, rsdata.Compass.Minimum_Pitch)
+            roll_limit = (rsdata.Compass.Maximum_Roll, rsdata.Compass.Minimum_Roll)
+        else:
+            mag_error = None
+            pitch_limit = None
+            roll_limit = None
+        self.sensors.heading_deg.internal.populate_data(data_in=rsdata.System.Heading,
+                                                        source_in='Internal',
+                                                        magvar=rsdata.Setup.magneticDeclination,
+                                                        mag_error=mag_error,
+                                                        pitch_limit=pitch_limit,
+                                                        roll_limit=roll_limit)
+
+        # External heading
+        ext_heading = rsdata.System.GPS_Compass_Heading
+        if np.nansum(np.abs(np.diff(ext_heading))) > 0:
+            self.sensors.heading_deg.external.populate_data(data_in=ext_heading,
+                                                            source_in='GPS',
+                                                            magvar=rsdata.Setup.magneticDeclination,
+                                                            align=rsdata.Setup.hdtHeadingCorrection)
+
+        # Set selected reference
+        if rsdata.Setup.headingSource > 1.1:
+            self.sensors.heading_deg.selected = 'external'
+        else:
+            self.sensors.heading_deg.selected = 'internal'
+
+        # Pitch and roll
+        if hasattr(rsdata, 'Compass'):
+            pitch = rsdata.Compass.Pitch
+            roll = rsdata.Compass.Roll
+        elif hasattr(rsdata.System, 'Pitch'):
+            pitch = rsdata.System.Pitch
+            roll = rsdata.system.Roll
+        self.sensors.pitch_deg.internal = SensorData()
+        self.sensors.pitch_deg.internal.populate_data(data_in=pitch, source_in='internal')
+        self.sensors.pitch_deg.selected = 'internal'
+        self.sensors.roll_deg.internal = SensorData()
+        self.sensors.roll_deg.internal.populate_data(data_in=roll, source_in='internal')
+        self.sensors.roll_deg.selected = 'internal'
+
+        # Temperature
+        if rsdata.System.Units.Temperature == 'degC':
+            temperature = rsdata.System.Temperature
+        else:
+            temperature = (5. / 9.) * (rsdata.Temperature - 32)
+        self.sensors.temperature_deg_c.internal = SensorData()
+        self.sensors.temperature_deg_c.internal.populate_data(data_in=temperature, source_in='internal')
+        self.sensors.temperature_deg_c.selected = 'internal'
+
+        # Salinity
+        self.sensors.salinity_ppt.user = SensorData()
+        self.sensors.salinity_ppt.user.populate_data(data_in=rsdata.Setup.userSalinity, source_in='Manual')
+        self.sensors.salinity_ppt.selected = 'user'
+        # Matlab notes indicated that an internal sensor needed to be created for compatibility with
+        # future computations
+        self.sensors.salinity_ppt.internal = SensorData()
+        self.sensors.salinity_ppt.internal.populate_data(data_in=rsdata.Setup.userSalinity, source_in='Manual')
+
+        # Speed of sound
+        # Not provided in SonTek data but is computed from equation used in TRDI BBSS.
+        speed_of_sound = Sensors.speed_of_sound(temperature=temperature, salinity=rsdata.Setup.userSalinity)
+        self.sensors.speed_of_sound_mps.internal = SensorData()
+        self.sensors.speed_of_sound_mps.internal.populate_data(data_in=speed_of_sound, source_in='QRev')
+
+        # Ensemble times
+        ensemble_delta_time = np.append([0], np.diff(rsdata.System.Time))
+        idx_missing = np.where(ensemble_delta_time > 1.5)
+        if idx_missing[0]:
+            number_missing = np.sum(ensemble_delta_time[idx_missing]) - len(idx_missing)
+            error_str = self.file_name + ' is missing ' + str(number_missing) + ' samples'
+            raise ValueError(error_str)
+
+        # Date, start, end, and duration
+        start_serial_time = DateTime.time_2_serial_time(time_in=rsdata.System.Time[0], source='SonTek')
+        end_serial_time = DateTime.time_2_serial_time(time_in=rsdata.System.Time[-1], source='SonTek')
+        meas_date = time.strftime('%m/%d/%Y', time.gmtime(start_serial_time))
+        self.date_time = DateTime()
+        self.date_time.populate_data(date_in=meas_date,
+                                     start_in=start_serial_time,
+                                     end_in=end_serial_time,
+                                     ens_dur_in=ensemble_delta_time)
+
+        # Transect checked for use in discharge computations
+        self.checked = True
+        # TODO refactor composite depths and set to on for SonTek data
+        # Set composite depths as this is the only option in RiverSurveyor Live
+        # self.depths.composite_depths('On')
+
+
     def compute_instrument_cell_data(self, pd0):
         
         #Number of ensembles
@@ -902,7 +1129,8 @@ class TransectData(object):
         self.w_vel.apply_interpolation(self, kargs)
                 
     # DSM changed 1/25/2018 def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, kargs):
-    def side_lobe_cutoff(self, depths, draft, cell_depth, sl_lag_effect, type='Percent', value=None):
+    @staticmethod
+    def side_lobe_cutoff(depths, draft, cell_depth, sl_lag_effect, type='Percent', value=None):
         """Computes side lobe cutoff.
 
         The side lobe cutoff is based on the beam angle and is computed to

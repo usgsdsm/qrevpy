@@ -46,45 +46,55 @@ class PreMeasurement(object):
         self.time_stamp = None
         self.data = None
         self.result = None
-        self.compass = None
-        self.sys_test = None
-        self.pt3 = None
-        self.error = None
-        self.n_tests = None
-        self.n_failed = None
+        # self.compass = None
+        # self.sys_test = None
+        # self.pt3 = None
+        # self.error = None
+        # self.n_tests = None
+        # self.n_failed = None
         
         
     def populate_data(self, time_stamp, data_in, data_type):
         
         self.time_stamp = time_stamp
         self.data = data_in
-        self.result = self.read_result(data_type)
-        
-        
-    def read_result(self, data_type):
-        """Function to aprse the data from the tests"""
-        
         if data_type == 'TCC':
-            self.compass_read(self.data)
+            self.result = compass_read(data_in)
         elif data_type == 'TCE':
-            self.compass_read(self.data)
+            self.result = compass_read(data_in)
         elif data_type == 'TST':
             self.sys_test_read(self.data)
             self.pt3_data(self.data)
         elif data_type == 'SCC':
-            self.compass_read(self.data)
+            self.result = compass_read(data_in)
         elif data_type == 'SST':
-            self.sys_test_read(self.data)  
+            self.sys_test_read(self.data)
+
+    #     self.result = self.read_result(data_type)
+    #
+    #
+    # def read_result(self, data_type):
+    #     """Function to aprse the data from the tests"""
+        
+        # if data_type == 'TCC':
+        #     self.compass_read(self.data)
+        # elif data_type == 'TCE':
+        #     self.compass_read(self.data)
+        # elif data_type == 'TST':
+        #     self.sys_test_read(self.data)
+        #     self.pt3_data(self.data)
+        # elif data_type == 'SCC':
+        #     self.compass_read(self.data)
+        # elif data_type == 'SST':
+        #     self.sys_test_read(self.data)
             
     def compass_read(self, data):
         """Method for getting compass evaluation data"""
-        
+        # TODO modified to work for Sontek. Need to check for TRDI
         #match regex for compass evaluation error:
         splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', data)
-        if len(splits) > 0:
-            error = re.search('\d+\.*\d*')
-            
-            self.error = error
+        if len(splits) > 1:
+            self.error = re.search('\d+\.*\d*',splits[2])[0]
         else:
             self.error = 'N/A'
             

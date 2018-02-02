@@ -7,6 +7,8 @@ from Classes.PreMeasurement import PreMeasurement
 from Classes.MovingBedTests import MovingBedTests
 from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
+from Classes.MatSonTek import MatSonTek
+from Classes.CompassCal import CompassCal
 # from Classes.NormData import NormData
 # from Classes.ComputeExtrap import ComputeExtrap
 
@@ -293,7 +295,7 @@ class Measurement(object):
                                 
                     self.mb_tests.append(mb_test)
                                 
-    def load_SonTek(self, fullNames):
+    def load_SonTek(self, fullnames):
         """Coordinates reading of all SonTek data files.
 
         Parameters
@@ -301,9 +303,53 @@ class Measurement(object):
         fullNames: list
             File names including path for all discharge transects converted to Matlab files.
         """
-        self.transects = TransectData()
-        self.transects.SonTek(fullNames)
-            
+
+        for file in fullnames:
+            # Read data file
+            rsdata = MatSonTek(file)
+            pathname, file_name = os.path.split(file)
+
+            # Create transect objects for each discharge transect
+            self.transects.append(TransectData())
+            self.transects[-1].SonTek(rsdata ,file_name)
+
+        # Site information pulled from last file
+        if hasattr(rsdata, 'SiteInfo'):
+            if hasattr(rsdata.SiteInfo, 'Site_Name'):
+                self.station_name = rsdata.SiteInfo.Site_Name
+            if hasattr(rsdata.SiteInfo, 'Station_Number'):
+                self.station_number = rsdata.SiteInfo.Station_Number
+
+        self.qaqc_sontek(pathname)
+        print (n)
+    def qaqc_sontek(self, pathname):
+        """Reads and stores system tests, compass calibrations, and moving-bed tests.
+
+        Parameters
+        ----------
+        pathname: str
+            Path to discharge transect files.
+        """
+        compass_cal_folder = os.path.join(pathname,'CompassCal')
+        if os.path.isdir(compass_cal_folder):
+            compass_cal_files=[]
+            for file in os.listdir(compass_cal_folder):
+                # G3 compasses
+                if file.endswith('.ccal'):
+                    compass_cal_files.append(file)
+                # G2 compasses
+                elif file.endswith('.txt'):
+                    compass_cal_files.append(file)
+            for file in compass_cal_files:
+                time_stamp = file.split('_')[1].split('.')
+                time_stamp = time_stamp[0] + ':' + time_stamp[1] + ':' + time_stamp[2]
+                with open(os.path.join(compass_cal_folder, file)) as f:
+                    cal_data = f.read()
+                    cal = CompassCal()
+                    cal.populate_data(time_stamp, cal_data)
+                    self.compass_cal.append(cal)
+                pass
+
     def thresholds_TRDI(self, transect, settings):
         """Retrieve and pply manual filter settings from mmt file
         
