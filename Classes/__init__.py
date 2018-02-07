@@ -102,4 +102,16 @@
 # plt.plot(px, nom - 2 * std, c='c')
 # plt.plot(px, nom + 2 * std, c='c')
 # band, upper, lower = confidence_band(x, dfdp, 0.05, func)
+# 
+# from scipy.stats import linregress
+#  
+# import statsmodels.api as sm
+#  
+# a = [1,2,5,6,7,8,3,4,5]
+# a = sm.add_constant(a)
+# b = [2,1,4,5,6,7,3,4,3]
+#  
+# args = sm.OLS(b,a)
+# results = args.fit()
+# print('test')
 

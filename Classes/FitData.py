@@ -5,10 +5,9 @@ Created on Sep 26, 2017
 '''
 import numpy as np
 from numpy import poly1d
-from MiscLibs.lowess import idx
 from scipy.optimize.minpack import curve_fit
 from scipy.stats import t
-from sympy.printing.pretty.pretty_symbology import BOT
+
 
 class FitData(object):
     '''  Class adapted from the extrap program.
@@ -51,14 +50,14 @@ class FitData(object):
         self.__p0 = None #Initial guess in curve fit (None if not necessary)
         self.__r_squared = None #R squared of model
         
-    def get_data(self, norm_data, top, bot, method, kargs = None):
+    def populate_data(self, norm_data, top, bot, method, kargs = None):
         
         #If no arguments just create object
         if kargs is None:
-            unit_norm_no = norm_data.__unit_normalized_no
-            avg_z = norm_data.__unit_normalized_z
-            y = norm_data.__unit_normalized_med
-            idxz = norm_data.__valid_data
+            unit_norm_no = norm_data._NormData__unit_normalized_no
+            avg_z = norm_data._NormData__unit_normalized_z
+            y = norm_data._NormData__unit_normalized_med
+            idxz = norm_data._NormData__valid_data
             zc = np.nan
             
             lower_bound = [-np.inf, 0.01]

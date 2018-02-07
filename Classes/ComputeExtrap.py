@@ -16,7 +16,7 @@ class ComputeExtrap(object):
         self.subsection = None #percent of discharge, does not account for transect direction
         self.fit_method = None #method used to determine fit.  Automatic or manual
         self.norm_data = [] #object of class norm data
-        self.sel_fit = None #Object of class SelectFit
+        self.sel_fit = [] #Object of class SelectFit
         self.q_sensitivity = None #Object of class ExtrapQSensitivity
         self.messages = [] #Variable for messages to UserWarning
         
@@ -44,18 +44,21 @@ class ComputeExtrap(object):
         comp_nd.get_composite_data(trans_data, self.norm_data)
         self.norm_data.append(comp_nd)
         
+        for n in range(len(trans_data)):
         #Compute the fit for the selected  method
-        if self.fit_method == 'Manual':
-            self.sel_fit = SelectFit()
-            self.sel_fit.populate_data(self.norm_data, self.fit_method, trans_data)
-        else:
-            self.sel_fit = SelectFit()
-            self.sel_fit.populate_data(self.norm_data, self.fit_method)
-            
-        if self.sel_fit.__top_fit_r2 is not None:
-            #Evaluate if there is a potential that a 3-point top method may be appropriate
-            if self.sel_fit.__top_fit_r2 > 0.9 or self.sel_fit.__top_r2 > 0.9 and np.abs(self.sel_fit.__top_max_diff) > 0.2:
-                self.messages.append('The measurement profile may warrant a 3-point fit at the top')
+            if self.fit_method == 'Manual':
+                sf = SelectFit()
+                sf.populate_data(self.norm_data[n], self.fit_method, trans_data[n])
+                self.sel_fit.append(sf)
+            else:
+                sf = SelectFit()
+                sf.populate_data(self.norm_data[n], self.fit_method)
+                self.sel_fit.append(sf)
+                
+            if sf.__top_fit_r2 is not None:
+                #Evaluate if there is a potential that a 3-point top method may be appropriate
+                if sf.__top_fit_r2 > 0.9 or sf.__top_r2 > 0.9 and np.abs(sf.__top_max_diff) > 0.2:
+                    self.messages.append('The measurement profile may warrant a 3-point fit at the top')
                 
     def update_q_sensitivity(self, trans_data):
         self.q_sensitivity = ExtrapQSensitivity()

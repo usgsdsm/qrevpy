@@ -24,11 +24,11 @@ from math import ceil
 import numpy as np
 from scipy import linalg
 from scipy.signal import butter, filtfilt
-import numpy.matlib as m
 
 
 
-def lowess(x, y, f=2. / 3., iter=3):
+
+def lowess(x, y, f=2. / 3., _iter=3):
     """lowess(x, y, f=2./3., iter=3) -> yest
     Lowess smoother: Robust locally weighted regression.
     The lowess function fits a nonparametric regression curve to a scatterplot.
