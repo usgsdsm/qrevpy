@@ -994,7 +994,7 @@ def sos_user(self, kargs = None):
 def allocate_transects(source, mmt, kargs): 
     
     #DEBUG, set threaded to false to get manual serial commands
-    multi_threaded = False
+    multi_threaded = True
     
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------

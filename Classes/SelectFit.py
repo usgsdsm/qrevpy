@@ -52,7 +52,7 @@ class SelectFit(object):
         
     def populate_data(self, normalized, fit_method, kargs = None):
         
-        valid_data = normalized._NormData__valid_data
+        valid_data = np.squeeze(normalized._NormData__valid_data)
         
         #Store data in properties to object
         self.__fit_method = fit_method
@@ -65,8 +65,8 @@ class SelectFit(object):
         #Store results in obhect
         self.__pp_exponent = ppobj._FitData__exponent
         self.__residuals = ppobj._FitData__residuals
-        self.__rsqr = ppobj.__rsqr
-        self.__exponent_95_ci = ppobj.__exponent_95_ci
+        self.__rsqr = ppobj._FitData__rsqr
+        self.__exponent_95_ci = ppobj._FitData__exponent_95_ci
         
         #Begin automatic fit
         
@@ -75,20 +75,20 @@ class SelectFit(object):
         #data for a good analysis
         if len(self.__residuals) > 6:
             #Compute the difference between the top two cells of data and the optimized power fit
-            top2 = np.sum(normalized._NormData__unit_normalized_med[valid_data[-2:]] \
+            top2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[-2:]] \
                           - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[-2:]]) \
                           ** ppobj._FitData__exponent
                           
             #Compute the difference between the bottom two cells of data and the optimized power fit
-            bot2 = np.sum(normalized._NormData__unit_normalized_med[valid_data[:2]] \
+            bot2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[:2]] \
                           - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[:2]]) \
                           ** ppobj._FitData__exponent
                           
             #Compute the difference between the middle two cells of data and the optimized power fit
-            mid1 = np.floor(len(np.isnan(valid_data) == False) / 2)
-            mid2 = np.sum(normalized._NormData__unit_normalized_med[valid_data[mid1:mid1+2]] \
-                          - ppobj.coef * normalized._NormData__unit_normalized_z[valid_data[mid1:mid1+2]]) \
-                          ** ppobj._FitData__coef
+            mid1 = int(np.floor(len(np.isnan(valid_data) == False) / 2))
+            mid2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[mid1:mid1+2]] \
+                          - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[mid1:mid1+2]]) \
+                          ** ppobj._FitData__exponent
                           
             self.__top_method_auto = 'Power'
             self.__bot_method_auto = 'Power'
@@ -96,7 +96,7 @@ class SelectFit(object):
             #Evaluate difference in data and power fit at water surface using a linear fit throught the top 4
             #median cells and save results
             x = normalized._NormData__unit_normalized_med[valid_data[:4]]
-            x = sm.add_constant(x)
+#             x = sm.add_constant(x)
             y = normalized._NormData__unit_normalized_z[valid_data[:4]]
             lin_fit = sm.OLS(x,y)
             result = lin_fit.fit()
@@ -108,7 +108,7 @@ class SelectFit(object):
             #If the optimized power fit does not have an r^2 better than 0.8 or if the optimized
             #exponent if 0.1667 falls within the 95% confidence interval of the optimized fit,
             #there is insufficient justification to change the exponent from 0.1667
-            if ppobj.__rsqr < 0.8 or (0.1667 > self.__exponent_95_ci[0] and 0.1667 < self.__exponent_95_ci):
+            if ppobj._FitData__rsqr < 0.8 or (0.1667 > self.__exponent_95_ci[0] and 0.1667 < self.__exponent_95_ci):
                 #If an optimized exponent cannot be justified the linear fit is used to determine if a constant
                 #fit at the top is a better alternative than a power fit.  If the power fit is the better
                 #alternative the exponent is set to the default 0.1667 and the data is refit
@@ -130,7 +130,7 @@ class SelectFit(object):
             ns_fd = FitData()
             ns_fd.populate_data(normalized, 'Constant', 'No Slip', 'Optimize')
             self.__ns_exponent = ns_fd._FitData__exponent
-            self.__bot_r2 = ns_fd._FitData__rsquared
+            self.__bot_r2 = ns_fd._FitData__r_squared
             self.__bot_diff = ppobj._FitData__u[np.round(ppobj._FitData__z,2) == 0.1] \
             - ns_fd._FitData__u[np.round(ns_fd._FitData__z, 2) == 0.1]
             
@@ -218,20 +218,20 @@ class SelectFit(object):
                 update_fd = FitData()
                 update_fd.populate_data(normalized, trans_data.extrap._ExtrapData__top_method, trans_data.extrap._ExtrapData__bot_method, 'Manual', trans_data.extrap._ExtrapData__exponent)
             else:
-                update = FitData()
+                update_fd = FitData()
                 update_fd.populate_data(normalized, kargs[1], kargs[2], 'Manual', kargs[3])
                 
         #Store fit data in object
-        self.__top_method = update._FitData__top_method
-        self.__bot_method = update._FitData__bot_method
-        self.__exponent = update._FitData__exponent
-        self.__coef = update._FitData__coef
-        self.__u = update._FitData__u
+        self.__top_method = update_fd._FitData__top_method
+        self.__bot_method = update_fd._FitData__bot_method
+        self.__exponent = update_fd._FitData__exponent
+        self.__coef = update_fd._FitData__coef
+        self.__u = update_fd._FitData__u
         self.__u_auto = update_auto._FitData__u_auto
         self.__z_auto = update_auto._FitData__z_auto
-        self.__z = update._FitData__z
-        self.__exp_method = update._FitData__exp_method
-        self.__residuals = update._FitData__residuals
+        self.__z = update_fd._FitData__z
+        self.__exp_method = update_fd._FitData__exp_method
+        self.__residuals = update_fd._FitData__residuals
                 
               
             

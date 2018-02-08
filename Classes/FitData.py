@@ -57,7 +57,7 @@ class FitData(object):
             unit_norm_no = norm_data._NormData__unit_normalized_no
             avg_z = norm_data._NormData__unit_normalized_z
             y = norm_data._NormData__unit_normalized_med
-            idxz = norm_data._NormData__valid_data
+            idxz = np.squeeze(norm_data._NormData__valid_data)
             zc = np.nan
             
             lower_bound = [-np.inf, 0.01]
@@ -116,12 +116,12 @@ class FitData(object):
                         if len(idx) < 1:
                             idx = idxz[-1]
                         else:
-                            idx = idxz[idx]
+                            idx = idxz[idx[0]]
                             
                     #Configures u and z arrays
                     idxns = idx
                     self.__z = np.arange(0, avg_z[idxns[0]] + 0.01, 0.01)
-                    self.__z = np.vstack([self.__z, np.nan])
+                    self.__z = np.hstack([self.__z, [np.nan]])
                     idx_power = idx
                     
                     #If less than 6 bins use constatnt at the top
@@ -130,7 +130,8 @@ class FitData(object):
                         zc = zc.T
                         uc = np.tile(y[idxz[0]], zc.shape)
                     else:
-                        p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
+                        p = np.polyfit(avg_z[idxz[0:3]], y[idxz[0:3]], deg=1)
+                        
                         zc = np.arange(np.max(avg_z[idxz]), 1.01, .01)
                         zc = zc.T
                         uc = zc * p[0] + p[1]
@@ -141,7 +142,9 @@ class FitData(object):
                 yfit = y[idx_power]
                 
                 #Check data validity
-                ok_ = np.isfinite(zfit) and np.isfinite(yfit)
+                ok1 = [np.isfinite(z) for z in zfit]
+                ok2 = [np.isfinite(y) for y in yfit]
+                ok_ =  np.array([z == 1 and y == 1 for z,y in zip(ok1,ok2)])
                 if np.all(ok_) == False:
                     pass
                     #Add warning
@@ -159,7 +162,7 @@ class FitData(object):
                     self.__p0 = None
                     
                 elif lower_method == 'default':
-                    self.__fit_cunc = 'linear'
+                    self.__fit_func = 'linear'
                     self.__exponent = 1./6.
                     self.__bounds = None
                     self.__p0 = None
@@ -208,23 +211,23 @@ class FitData(object):
                                 
                             #Get the rsquared for the model
                             ss_tot = np.sum((y - np.mean(yfit))**2)
-                            ss_res = np.sum((y - fit_funcs[self.__fit_func](zfit, *popt))**2)
+                            ss_res = np.sum((y[idx_power] - fit_funcs[self.__fit_func](zfit, *popt))**2)
                             self.__r_squared = 1 - (ss_res/ss_tot) 
                         else:     
-                            self.exponent95confint = np.nan
-                            self.r_squared = np.nan
+                            self.__exponent_95_ci = np.nan
+                            self.__r_squared = np.nan
                 
                 #Fit power curve to appropriate data
-                self.coef = ((self.exponent + 1) * .05 * np.nansum(y[idx_power])) / np.nansum(((avg_z[idx_power] + .5 * .05)**(self.exponent - 1) - ((avg_z[idx_power] - .5 * .05)**(self.exponent+1))))
+                self.__coef = ((self.__exponent + 1) * .05 * np.nansum(y[idx_power])) / np.nansum(((avg_z[idx_power] + .5 * .05)**(self.__exponent - 1) - ((avg_z[idx_power] - .5 * .05)**(self.__exponent+1))))
                    
                 #Compute residuals
-                self.__residuals = y[idx_power] - self.coef * avg_z[idx_power]**self.exponent
+                self.__residuals = y[idx_power] - self.__coef * avg_z[idx_power]**self.__exponent
                 
                 #Compute values (velocity or discharge) based on exponent and compute coefficient
                 self.__u = self.__coef * self.__z**self.__exponent
-                if np.isnan(zc) == False:
-                    self.__u = [[self.__u], uc]
-                    self.__z = [[self.__z], zc]
+                if type(zc) is float and zc == np.nan:
+                    self.__u = np.hstack([self.__u, [uc]])
+                    self.__z = np.hstack([self.__z, [zc]])
                     
                 #Assign variables to object properties
                 self.__file_name = norm_data._NormData__file_name

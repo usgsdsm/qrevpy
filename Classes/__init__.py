@@ -114,4 +114,9 @@
 # args = sm.OLS(b,a)
 # results = args.fit()
 # print('test')
+# import numpy as np
+# a = np.array([1,2,1,2])
+# b = np.array([1,2,2,1])
+# c = (a == 1) & (b == 1)
+# print(c)
 

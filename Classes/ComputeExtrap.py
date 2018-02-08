@@ -55,7 +55,7 @@ class ComputeExtrap(object):
                 sf.populate_data(self.norm_data[n], self.fit_method)
                 self.sel_fit.append(sf)
                 
-            if sf.__top_fit_r2 is not None:
+            if sf._SelectFit__top_fit_r2 is not None:
                 #Evaluate if there is a potential that a 3-point top method may be appropriate
                 if sf.__top_fit_r2 > 0.9 or sf.__top_r2 > 0.9 and np.abs(sf.__top_max_diff) > 0.2:
                     self.messages.append('The measurement profile may warrant a 3-point fit at the top')

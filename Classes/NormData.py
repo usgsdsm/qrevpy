@@ -212,6 +212,7 @@ class NormData(object):
             norm_data[n].__unit_normalized_no = unit_norm_med_no
             norm_data[n].__unit_normalized_25 = unit_25
             norm_data[n].__unit_normalized_75 = unit_75
+            norm_data[n].__unit_normalized_z = avgz
             
             
             if norm_data[n].__data_type is None:

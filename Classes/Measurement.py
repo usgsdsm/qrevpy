@@ -143,7 +143,7 @@ class Measurement(object):
         threshold_settings['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
         
         #--------------------------------------------DONE REFACTOR
-        multi_threaded = False
+        multi_threaded = True
         
         if multi_threaded == True:
             transect_threads = []
@@ -620,27 +620,29 @@ class Measurement(object):
         # interpolations because the TRDI approach for power/power
         # using the power curve and exponent to estimate invalid cells.
         if self.extrap_fit is None or self.extrap_fit.__fit_method == 'Automatic':
-            self.extrapfit = ComputeExtrap()
-            self.extrapfit.populate_data(trans_data, 0)
-            top = self.extrap_fit.sel_fit.__top_method
-            bot = self.extrap_fit.sel_fit.__bot_method
-            exp = self.extrap_fit.sel_fit.__exponent
+            self.extrap_fit = ComputeExtrap()
+            self.extrap_fit.populate_data(trans_data, 0)
+            top = self.extrap_fit.sel_fit[0]._SelectFit__top_method
+            bot = self.extrap_fit.sel_fit[0]._SelectFit__bot_method
+            exp = self.extrap_fit.sel_fit[0]._SelectFit__exponent
             
-            self.set_extrapolation(trans_data, top, bot, exp)
+            for n in trans_data:
+                n.set_extrapolation(top, bot, exp)
         
         else:
-            if 'extrapTop' in s:
-                s['extrapTop'] = self.extrap_fit.sel_fit.__top_method
-                s['extrapBot'] = self.extrap_fit.sel_fit.__bot_method
-                s['extrapExp'] = self.extrap_fit.sel_fit.__exponent
+            if 'extrapTop' not in s:
+                s['extrapTop'] = self.extrap_fit.sel_fit[0]._SelectFit__top_method
+                s['extrapBot'] = self.extrap_fit.sel_fit[0]._SelectFit__bot_method
+                s['extrapExp'] = self.extrap_fit.sel_fit[0]._SelectFit__exponent
                 
-            self.set_extrapolation(trans_data, s['extrapTop'], s['extrapBot'], s['extrapExp'])
-        
+            for n in trans_data:
+                n.set_extrapolation(s['extrapTop'], s['extrapBot'], s['extrapExp'])
+           
             self.extrap_fit.change_fit_method(trans_data, 'Manual', 'All', s['extrapTop'], s['extrapBot'], s['extrapExp'])
             
         for n in trans_data:
-            n.wt_interpolations('Ensembles', s['WTEnsInterpolation'])
-            n.wt_interpolations('Cells', s['WTCellInterpolation'])
+            n.wt_interpolations(['Ensembles', s['WTEnsInterpolation']])
+            n.wt_interpolations(['Cells', s['WTCellInterpolation']])
             
         #Edge methods
         for n in trans_data:
