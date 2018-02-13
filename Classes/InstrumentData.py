@@ -27,7 +27,7 @@ class InstrumentData(object):
         Model name of ADCP.
     firmware: str
         Firmware version in the ADCP.
-    frequency_hz:
+    frequency_kHz:
         Frequency or frequencies used by ADCP.
     beam_angle_deg:
         Angle of the beams from vertical in degrees.

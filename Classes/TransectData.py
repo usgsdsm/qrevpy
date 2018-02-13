@@ -894,7 +894,6 @@ class TransectData(object):
         # Set composite depths as this is the only option in RiverSurveyor Live
         # self.depths.composite_depths('On')
 
-
     def compute_instrument_cell_data(self, pd0):
         
         #Number of ensembles
@@ -1011,12 +1010,15 @@ class TransectData(object):
         self.edges.change_property(property, setting, edge)    
         
     def change_coord_sys(self, new_coord_sys):
-        """Coordinates changing the coordinate system of the water and boat data
-        current implementation only allows changes for original to higher order coordinate
-        systems: Beam - Inst - Ship - Earth
+        """Changes the coordinate system of the water and boat data.
+
+        Current implementation only allows changes for original to higher order coordinate
+        systems: Beam - Inst - Ship - Earth.
         
-        Input:
-        new_coord_sys: name of new coordinate system (Beam, Int, Ship, Earth)
+        Parameters
+        ----------
+        new_coord_sys: str
+            Name of new coordinate system (Beam, Int, Ship, Earth)
         """
         self.w_vel.change_coord_sys(new_coord_sys, self.sensors, self.adcp)
         self.boat_vel.change_coord_sys(new_coord_sys, self.sensors, self.adcp)
@@ -1091,25 +1093,37 @@ class TransectData(object):
     def update_water(self):
         """Method called from set_nav_reference, boat_interpolation and boat filters
         to ensure that changes in boatvel are reflected in the water data"""
+
         self.w_vel.set_nav_reference(self.boat_vel)
         
-        #Reapply water filters and interpolations
-        #Note wt_filters calls apply_filter which automatically calls
-        #apply_interpolation so both filters and interpolations
-        #are applied with this one call
+        # Reapply water filters and interpolations
+        # Note wt_filters calls apply_filter which automatically calls
+        # apply_interpolation so both filters and interpolations
+        # are applied with this one call
         
         self.wt_filters()
          
-    def wt_filters(self, kargs = None):
-        """Coordinate water velocity filters
+    # def wt_filters(self, type=None, setting=None, threshold=None):
+    def wt_filters(self, **kwargs):
+
+        """Coordinate application of water velocity filters.
         
-        Input:
-        kargs[0]: Filter Type (Beam, Difference, Vertical, Other, Excluded, SNR, WT_Depth)
-        kargs[1]: Filter setting (Auto, Manual, Off)
-        kargs[2]: Threshold if Manual
+        Parameters
+        ----------
+        kwargs
+            beam:
+                Setting for beam filter (Auto, Off, threshold value)
+            difference:
+                Setting for difference filter (Auto, Off, threshold value)
+            vertical:
+                Setting for vertical filter (Auto, Off, threshold value)
+            other:
+                Setting for other filters (Off, On)
+            excluded:
+                Excluded distance below the transducer, in m
         """
         
-        self.w_vel.apply_filter(self, kargs)
+        self.w_vel.apply_filter(self, **kwargs)
 
     def wt_interpolations(self, kargs = None):
         """Coordinate water velocity interpolation
@@ -1385,12 +1399,63 @@ class TransectData(object):
 
         return (old_sos, new_sos)
 
+    @staticmethod
+    def raw_valid_data(transect):
+        """Determines ensembles and cells with no interpolated water or boat data.
+
+        For valid water track cells both non-interpolated valid water data and
+        boat velocity data must be available. Interpolated depths are allowed.
+
+        For valid ensembles water, boat, and depth data must all be non-interpolated.
+
+        Parameters
+        ----------
+        transect: object
+            Object of TransectData
+
+        Returns
+        -------
+        raw_valid_ens: np.array(bool)
+            Boolean array identifying raw valid ensembles.
+        raw_valid_depth_cells: np.array(bool)
+            Boolean array identifying raw valid depth cells.
+        """
+
+        in_transect_idx = transect.in_transect_idx
+
+        # Determine valid water track ensembles based on water track and navigation data.
+        boat_vel_select = getattr(transect.boat_vel, transect.boat_vel.selected)
+        if np.nansum(boat_vel_select.u_processed_mps) > 0
+            valid_nav = boat_vel_select.valid_data[0,in_transect_idx]
+        else:
+            valid_nav = np.tile(False, in_transect_idx)
+
+        valid_wt = transect.w_vel.valid_data[0, :, in_transect_idx]
+        valid_wt_ens = np.any(valid_wt, 1)
+
+        # Determine valid depths
+        depths_select = getattr(transect.depths, transect.depths.selected)
+        if transect.depths.composite:
+            idx_na = np.where(depths_select.depth_source_ens[in_transect_idx] == 'NA')[0]
+            valid_depth = not np.where(depths_select.depth_source_ens[in_transect_idx] == 'IN')[0]
+            valid_depth[idx_na] = False
+        else:
+            valid_depth = depths_select.valid_data[in_transect_idx]
+            idx = np.where(np.isnan(depths_select.depth_processed_m[in_transect_idx]))[0]
+            valid_depth[idx] = False
+
+        # Determine valid ensembles based on all data
+        valid_ens = np.any(np.vstack((valid_nav, valid_wt_ens, valid_depth)))
+
+        return valid_ens, valid_wt
+
+
 # ========================================================================
 # Begin multithread function included in module but not TransectData class
 # Currently this is coded only for TRDI data
 # ========================================================================
 
-# DSM changed 1/23/2018 def allocate_transects(source, mmt, kargs):
+# DSM changed 1/23/2018 def allocate_transects(source, mmt, kargs)
 def allocate_transects(source, mmt, type='Q', checked=False):
     #DEBUG, set threaded to false to get manual serial commands
     multi_threaded = True
@@ -1539,20 +1604,20 @@ def adjusted_ensemble_duration(transect, kargs=None):
             valid = np.isnan(transect.w_vel.u_processed_mps) == False
             valid_sum = np.sum(valid)
         else:
-            valid_sum = np.isnan(transect.boat_vel.bt_vel._BoatData__u_processed_mps) == False
+            valid_sum = np.isnan(transect.boat_vel.bt_vel.u_processed_mps) == False
             
         valid_ens = valid_sum > 0
         n_ens = len(valid_ens)
-        ens_dur = transect.datetime.ens_duration_sec
+        ens_dur = transect.date_time.ens_duration_sec
         delta_t = np.tile([np.nan], n_ens)
         cum_dur = 0
         for j in range(n_ens):
             cum_dur = np.nansum(np.hstack([cum_dur, ens_dur[j]]))
-            if valid_ens[j] == True:
+            if valid_ens[j]:
                 delta_t[j] = cum_dur
                 cum_dur = 0
     else:
-        delta_t = transect.datetime.ens_duration_sec
+        delta_t = transect.date_time.ens_duration_sec
         
     return delta_t
     

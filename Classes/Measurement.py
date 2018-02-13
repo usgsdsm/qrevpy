@@ -9,6 +9,7 @@ from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
 from Classes.MatSonTek import MatSonTek
 from Classes.CompassCal import CompassCal
+from Classes.SystemTest import SystemTest
 # from Classes.NormData import NormData
 # from Classes.ComputeExtrap import ComputeExtrap
 
@@ -23,8 +24,8 @@ class Measurement(object):
         self.station_name = None
         self.station_number = None
         self.transects = []
-        self.mb_tests = None
-        self.sys_test = []
+        self.mb_tests = []
+        self.system_test = []
         self.compass_cal = []
         self.compass_eval = []
         self.ext_temp_chk = None
@@ -33,7 +34,7 @@ class Measurement(object):
         self.comments = None
         self.discharge = None
         self.uncertainty = None
-        self.intitial_settings = None
+        self.initial_settings = None
         self.qa = None
         self.userRating = None
         self.comments = []
@@ -250,9 +251,9 @@ class Measurement(object):
             for n in range(len(mmt.qaqc['RG_Test'])):
                 p_m = PreMeasurement()
                 p_m.populate_data(mmt.qaqc['RG_Test_TimeStamp'][n], mmt.qaqc['RG_Test'][n],'TST')
-                self.sys_test.append(p_m)
+                self.system_test.append(p_m)
         else:
-            self.sys_test.append(PreMeasurement())
+            self.system_test.append(PreMeasurement())
             
         #Compass calibration
         if 'Compass_Cal_Timestamp' in mmt.qaqc:
@@ -283,7 +284,8 @@ class Measurement(object):
                 
                 for n in range(len(transects)):
                     mb_test = MovingBedTests()
-                    mb_test.populate_data('TRDI', kargs=[transects[n], mmt.mbt_transects[n]])
+                    # TODO need to check type for compatibility with international data
+                    mb_test.populate_data('TRDI', transects[n], mmt.mbt_transects[n].moving_bed_type)
                     
                     #Save notes from mmt files in comments
                     if 'NoteDate' in mmt.mbt_transects:
@@ -321,7 +323,7 @@ class Measurement(object):
                 self.station_number = rsdata.SiteInfo.Station_Number
 
         self.qaqc_sontek(pathname)
-        print (n)
+
     def qaqc_sontek(self, pathname):
         """Reads and stores system tests, compass calibrations, and moving-bed tests.
 
@@ -330,7 +332,9 @@ class Measurement(object):
         pathname: str
             Path to discharge transect files.
         """
-        compass_cal_folder = os.path.join(pathname,'CompassCal')
+
+        # Compass Calibration
+        compass_cal_folder = os.path.join(pathname, 'CompassCal')
         if os.path.isdir(compass_cal_folder):
             compass_cal_files=[]
             for file in os.listdir(compass_cal_folder):
@@ -348,7 +352,52 @@ class Measurement(object):
                     cal = CompassCal()
                     cal.populate_data(time_stamp, cal_data)
                     self.compass_cal.append(cal)
-                pass
+
+        # System Test
+        system_test_folder = os.path.join(pathname, 'SystemTest')
+        if os.path.isdir(system_test_folder):
+            for file in os.listdir(system_test_folder):
+                # Find system test files.
+                if file.startswith('SystemTest'):
+                    with open(os.path.join(system_test_folder, file)) as f:
+                        test_data = f.read()
+                        test_data = test_data.replace('\x00','')
+                    time_stamp = file[18:20] + ':' + file[20:22] + ':' + file[22:24]
+                    sys_test = SystemTest()
+                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data)
+                    self.system_test.append(sys_test)
+
+        # Moving-bed tests
+        self.sontek_moving_bed_tests(pathname)
+        pass
+
+    def sontek_moving_bed_tests(self, pathname):
+        """Locates and processes SonTek moving-bed tests.
+
+        Searches the pathname for Matlab files that start with Loop or SMBA.
+        Processes these files as moving bed tests.
+
+        Parameters
+        ----------
+        pathname: str
+            Path to discharge transect files.
+        """
+        for file in os.listdir(pathname):
+            # Find moving-bed test files.
+            if file.endswith('.mat'):
+                # Process Loop test
+                if file.lower().startswith('loop'):
+                    self.mb_tests.append(MovingBedTests())
+                    self.mb_tests[-1].populate_data(source='SonTek',
+                                                    file=os.path.join(pathname, file),
+                                                    type='Loop')
+                # Process Stationary test
+                elif file.lower().startswith('smba'):
+                    self.mb_tests.append(MovingBedTests())
+                    self.mb_tests[-1].populate_data(source='SonTek',
+                                                    file=os.path.join(pathname, file),
+                                                    type='Stationary')
+
 
     def thresholds_TRDI(self, transect, settings):
         """Retrieve and pply manual filter settings from mmt file
@@ -375,8 +424,7 @@ class Measurement(object):
         transect.depths.depth_filter(transect, settings['depth_screening'])
         transect.depths.bt_depths.compute_avg_BT_depth(settings['depth_weighting'])
         transect.depths.composite_depths(transect)
-            
-            
+
     def set_3_beam_WT_threshold_TRDI(self, mmt_transect):
         """Get 3-beam processing for WT from mmt file
         
@@ -417,9 +465,7 @@ class Measurement(object):
             return vert_vel_threshold_WT 
         else:
             return vert_vel_threshold_WT[0]
-        
-    
-    
+
     def set_3_beam_BT_threshold_TRDI(self, mmt_transect):
         """Get 3-beam processing for WT from mmt file
         

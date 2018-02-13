@@ -394,8 +394,8 @@ class DepthData(object):
             if transect.boat_vel[transect.boatvel.selected] is not None:
                 boat_vel_x = transect.boat_vel[transect.boat_vel.selected]['u_processed_mps']
                 boat_vel_y = transect.boat_vel[transect.boat_vel.selected]['v_processed_mps']
-                track_x = boat_vel_x * transect.datetime['ens_duraction_sec']
-                track_y = boat_vel_y * transect.datetime['ens_duraction_sec']
+                track_x = boat_vel_x * transect.date_time['ens_duraction_sec']
+                track_y = boat_vel_y * transect.date_time['ens_duraction_sec']
             else:
                 track_x = np.nan
                 track_y = np.nan
@@ -405,7 +405,7 @@ class DepthData(object):
             if len(idx[0]) < 1:
                 x = np.nancumsum(np.sqrt(track_x**2+track_y**2))
             else:
-                x = np.nancumsum(transect.datetime['ens_duration_sec'])
+                x = np.nancumsum(transect.date_time['ens_duration_sec'])
                 
             #Loop for each beam, smooth is applied to each beam
             for j in range(n_beams):
@@ -533,8 +533,8 @@ class DepthData(object):
         if transect.boat_vel[transect.boat_vel.selected] is None:
             boat_vel_x = transect.boat_vel[transect.boat_vel.selected].u_processed_mps
             boat_vel_y = transect.boat_vel[transect.boat_vel.selected].v_processed_mps         
-            track_x = boat_vel_x * transect.datetime.ens_duration_sec
-            track_y = boat_vel_y * transect.datetime.ens_duration_sec
+            track_x = boat_vel_x * transect.date_time.ens_duration_sec
+            track_y = boat_vel_y * transect.date_time.ens_duration_sec
         else:
             sizeu = transect.boat_vel[transect.boat_vel.selected].u_processed_mps.shape
             sizev = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
@@ -548,7 +548,7 @@ class DepthData(object):
             x = np.nancumsum(np.sqrt(track_x**2 + track_y**2))
         else:
             #Compute accumulated time
-            x = np.nancumsum(transect.datetime.ens_duration_sec)
+            x = np.nancumsum(transect.date_time.ens_duration_sec)
             
         #Determine number of beams
         n_beams = self.depth_beams_m.shape[0]

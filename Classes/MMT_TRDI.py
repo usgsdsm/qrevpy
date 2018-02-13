@@ -138,6 +138,7 @@ class MMT_TRDI(object):
                     typeAvailable = True
 
             #set moving bed test type for each transect object created previously
+            # TODO types 1 and 2 don't look correct as Matlab has 0 and 1
             if typeAvailable:
                 mv_type = moving_bed['Moving_Bed_Test_Summary']['MB_Tests']['Index_%d'%tr_idx]['Type']
                 if mv_type == '1':

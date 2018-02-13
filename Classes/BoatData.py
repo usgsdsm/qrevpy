@@ -248,36 +248,45 @@ class BoatData(object):
         self.processed_source[np.where(self.valid_data[0,:] == False)] = "INT"
         
     def change_coord_sys(self, new_coord_sys, sensors, adcp):
-        """This function allows the coordinate system to be changed.  Current implementation
-        is only to allow change to a higher order coordinate system Beam - Inst - Ship - Earth
+        """This function allows the coordinate system to be changed.
+
+        Current implementation is only to allow change to a higher order coordinate system Beam - Inst - Ship - Earth
         
-        Input:
-        new_coord_sys: new coordinate_sys (Beam, Inst, Ship, Earth)
-        sensors: object of Sensors
-        adcp: object of InstrumentData
+        Parameters
+        ----------
+        new_coord_sys: str
+            New coordinate_sys (Beam, Inst, Ship, Earth)
+        sensors: object
+            Object of Sensors
+        adcp: object
+            Object of InstrumentData
         """
         
-        #Remove any trailing spaces
+        # Remove any trailing spaces
         if isinstance(self.orig_coord_sys, str):
             o_coord_sys = self.orig_coord_sys.strip()
         else:
-            o_coord_sys = self.orig_coord_sys[0].strip()
+            o_coord_sys = self.orig_coord_sys.strip()
         
         if self.orig_coord_sys[0].strip() != new_coord_sys.strip():
-            #Assign the transformation matrix and retrieve the sensor data
+            # Assign the transformation matrix and retrieve the sensor data
             t_matrix = adcp.t_matrix.matrix
-            t_matrix_freq = adcp.frequency_hz
-            
-            pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
-            p =  getattr(pitch_select, '_SensorData__data')
-            roll_select = getattr(sensors.roll_deg, sensors.roll_deg.selected)
-            r = getattr(roll_select, '_SensorData__data')
-            heading_select = getattr(sensors.heading_deg, sensors.heading_deg.selected)
-            h = getattr(heading_select, 'data')
-            
-            #Modify the transformation matrix and heading, pitch, and roll values base on
-            #the original coordinate system so that only the needed values are used in
-            #computing the new coordinate system
+            t_matrix_freq = adcp.frequency_kHz
+
+            # DSM changed 2/6/2018
+            # pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
+            # p =  getattr(pitch_select, '_SensorData__data')
+            # roll_select = getattr(sensors.roll_deg, sensors.roll_deg.selected)
+            # r = getattr(roll_select, '_SensorData__data')
+            # heading_select = getattr(sensors.heading_deg, sensors.heading_deg.selected)
+            # h = getattr(heading_select, 'data')
+            p = getattr(sensors.pitch_deg, sensors.pitch_deg.selected).data
+            r = getattr(sensors.roll_deg, sensors.roll_deg.selected).data
+            h = getattr(sensors.heading_deg, sensors.heading_deg.selected).data
+
+            # Modify the transformation matrix and heading, pitch, and roll values base on
+            # the original coordinate system so that only the needed values are used in
+            # computing the new coordinate system
             if o_coord_sys == 'Beam':
                 orig_sys = 1
             elif o_coord_sys == 'Inst':
@@ -291,7 +300,7 @@ class BoatData(object):
             elif o_coord_sys == 'Earth':
                 orig_sys = 4
                 
-            #Assign a value to the new coordinate system
+            # Assign a value to the new coordinate system
             if new_coord_sys == 'Beam':
                 new_sys = 1
             elif new_coord_sys == 'Inst':
@@ -301,195 +310,195 @@ class BoatData(object):
             elif new_coord_sys == 'Earth':
                 new_sys = 4
                 
-            #Check to ensure the new coordinate system is a higher order than the original system
+            # Check to ensure the new coordinate system is a higher order than the original system
             if new_sys - orig_sys > 0:
                 
-                #Compute trig function for heaing, pitch and roll
-                CH = cosd(h)
-                SH = sind(h)
-                CP = cosd(p)
-                SP = sind(p)
-                CR = cosd(r)
-                SR = sind(r)
+                # Compute trig function for heaing, pitch and roll
+                ch = np.cos(np.deg2rad(h))
+                sh = np.sin(np.deg2rad(h))
+                cp = np.cos(np.deg2rad(p))
+                sp = np.sin(np.deg2rad(p))
+                cr = np.cos(np.deg2rad(r))
+                sr = np.sin(np.deg2rad(r))
                 
                 vel_changed = np.tile([np.nan], self.raw_vel_mps.shape)
                 n_ens = self.raw_vel_mps.shape[1]
                 
                 for ii in range(n_ens):
                     
-                    #Compute matrix for heading, pitch, and roll
-                    hpr_matrix = [[((CH[ii] * CR[ii]) + (SH[ii]*SP[ii]*SR[ii])),
-                                (SH[ii] * CP[ii]),
-                                ((CH[ii] * SR[ii]) - SH[ii]*SP[ii]*CR[ii])],
-                                [(-1 * SH[ii] * CR[ii])+(CH[ii] * SP[ii] * SR[ii]),
-                                CH[ii] * CP[ii], 
-                                (-1 * SH[ii] * SR[ii])-(CH[ii] * SP[ii] * CR[ii])],
-                                [(-1.*CP[ii] * SR[ii]),
-                                SP[ii],
-                                CP[ii] * CR[ii]]]
+                    # Compute matrix for heading, pitch, and roll
+                    hpr_matrix = [[((ch[ii] * cr[ii]) + (sh[ii]*sp[ii]*sr[ii])),
+                                   (sh[ii] * cp[ii]),
+                                   ((ch[ii] * sr[ii]) - sh[ii]*sp[ii]*cr[ii])],
+                                  [(-1 * sh[ii] * cr[ii])+(ch[ii] * sp[ii] * sr[ii]),
+                                   ch[ii] * cp[ii],
+                                   (-1 * sh[ii] * sr[ii])-(ch[ii] * sp[ii] * cr[ii])],
+                                  [(-1.*cp[ii] * sr[ii]),
+                                   sp[ii],
+                                   cp[ii] * cr[ii]]]
                     
-                    #Transofm beam coordinates
+                    # Transofm beam coordinates
                     if o_coord_sys == 'Beam':
                         
-                        #Determine frequency index for transformation matrix
+                        # Determine frequency index for transformation matrix
                         if len(t_matrix.shape) > 2:
-                            idx_freq = np.where(t_matrix_freq==self.frequency_hz[ii])
+                            idx_freq = np.where(t_matrix_freq == self.frequency_kHz[ii])
                             t_mult = np.copy(t_matrix[idx_freq])
                         else:
                             t_mult = np.copy(t_matrix)
                             
-                        #Get velocity data
-                        vel = np.squeeze(self.raw_vel_mps[:,ii])
+                        # Get velocity data
+                        vel = np.squeeze(self.raw_vel_mps[:, ii])
                         
-                        #Check for invalid beams
+                        # Check for invalid beams
                         idx_3_beam = np.where(np.isnan(vel))
                         
-                        #3-beam solution
+                        # 3-beam solution
                         if len(idx_3_beam[0]) == 1:        
                             
-                            #Special processing for RiverRay
+                            # Special processing for RiverRay
                             if adcp.model == 'RiverRay':
                                 
-                                #Set beam pairing
+                                # Set beam pairing
                                 beam_pair_1a = 0
                                 beam_pair_1b = 1
                                 beam_pair_2a = 2
                                 beam_pair_2b = 3
                                 
-                                #Set speed of sound correction variables Note: Currently (2013-09-06) 
-                                #WinRiver II does not use a variable correction and assumes the speed 
-                                #of sound and the reference speed of sound are the same.
-                                #sos = sensors.speed_ofs_sound_mps.selected.data[ii]
-                                #sos_reference = 1536
-                                #sos_correction = np.sqrt(((2 * sos_reference) / sos) **2 -1)
+                                # Set speed of sound correction variables Note: Currently (2013-09-06)
+                                # WinRiver II does not use a variable correction and assumes the speed
+                                # of sound and the reference speed of sound are the same.
+                                # sos = sensors.speed_ofs_sound_mps.selected.data[ii]
+                                # sos_reference = 1536
+                                # sos_correction = np.sqrt(((2 * sos_reference) / sos) **2 -1)
                                 
                                 sos_correction = np.sqrt(3)
                                 
-                                #Reconfigure transformation matrix based on which beam is invalid
+                                # Reconfigure transformation matrix based on which beam is invalid
                                 
-                                #Beam 1 invalid
+                                # Beam 1 invalid
                                 if idx_3_beam[0][0] == beam_pair_1a:
                                     
-                                    #Double valid beam in invalid pair
+                                    # Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_1b] *= 2
                                     
-                                    #Eliminate invalid pair from vertical velocity computations
+                                    # Eliminate invalid pair from vertical velocity computations
                                     t_mult[2,:] = [0, 0, 1/sos_correction, 1/sos_correction]
                                     
-                                    #Reconstruct beam velocity matrix to use only valid beams
-                                    t_mult = t_mult[0:3, [beam_pair_1b,beam_pair_2a,beam_pair_2b]]
+                                    # Reconstruct beam velocity matrix to use only valid beams
+                                    t_mult = t_mult[0:3, [beam_pair_1b, beam_pair_2a, beam_pair_2b]]
                                     
-                                    #Reconstruct beam velocity matrix to use only valid beams
+                                    # Reconstruct beam velocity matrix to use only valid beams
                                     vel = vel[[beam_pair_1b, beam_pair_2a, beam_pair_2b]]
                                     
-                                    #Apply transformation matrix
+                                    # Apply transformation matrix
                                     temp_t = t_mult.dot(vel)
                                     
-                                    #Correct horizontal velocity for invalid pair with the vertical velocity
-                                    #and speed of sound correction
+                                    # Correct horizontal velocity for invalid pair with the vertical velocity
+                                    # and speed of sound correction
                                     temp_t[0] = temp_t[0] + temp_t[2] * sos_correction
                                 
-                                #Beam 2 invalid
+                                # Beam 2 invalid
                                 if idx_3_beam[0][0] == beam_pair_1b:
                                     
-                                    #Double valid beam in invalid pair
+                                    # Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_1a] = t_mult[0:2, beam_pair_1a] * 2
                                     
-                                    #Eliminate invalid pair from vertical velocity computations
+                                    # Eliminate invalid pair from vertical velocity computations
                                     t_mult[2,:] = [0, 0, 1/sos_correction, 1/sos_correction]
                                     
-                                    #Reconstruct transformation matrix as a 3x3 matrix
+                                    # Reconstruct transformation matrix as a 3x3 matrix
                                     t_mult = t_mult[0:3, [beam_pair_1a, beam_pair_2a, beam_pair_2b]]
                                     
-                                    #Reconstruct beam velocity matrix to use only valid beams
+                                    # Reconstruct beam velocity matrix to use only valid beams
                                     vel = vel[[beam_pair_1a, beam_pair_2a, beam_pair_2b]]
                                     
-                                    #Apply transformation matrix
+                                    # Apply transformation matrix
                                     temp_t = t_mult.dot(vel)
                                     
-                                    #Correct horizontal velocity for invalid pair with the vertical
-                                    #velocity and speed of sound correction
+                                    # Correct horizontal velocity for invalid pair with the vertical
+                                    # velocity and speed of sound correction
                                     temp_t[0] = temp_t[0] - temp_t[2] * sos_correction
                                     
-                                #Beam 3 invalid
+                                # Beam 3 invalid
                                 if idx_3_beam[0][0] == beam_pair_2a:
                                     
-                                    #Double valid beam in invalid pair
+                                    # Double valid beam in invalid pair
                                     t_mult[0:2, beam_pair_2b] = t_mult[:2, beam_pair_2b] * 2
                                     
-                                    #Eliminate invalid pair from vertical velocity computations
+                                    # Eliminate invalid pair from vertical velocity computations
                                     t_mult[2,:] = [1/sos_correction, 1/sos_correction, 0, 0]
                                     
-                                    #Reconstruct transformation matrix as a 3x3 matrid
+                                    # Reconstruct transformation matrix as a 3x3 matrid
                                     t_mult = t_mult[:3, [beam_pair_1a, beam_pair_1b, beam_pair_2b]]
                                     
-                                    #Reconstruct beam velocity matrix to use only valid beams
+                                    # Reconstruct beam velocity matrix to use only valid beams
                                     vel = vel[[beam_pair_1a, beam_pair_1b, beam_pair_2b]]
                                     
-                                    #Apply transformation matrix
+                                    # Apply transformation matrix
                                     temp_t = t_mult.dot(vel)
                                     
-                                    #Correct horizontal velocity for invalid pair with the vertical
-                                    #velocity and speed of sound correction
+                                    # Correct horizontal velocity for invalid pair with the vertical
+                                    # velocity and speed of sound correction
                                     temp_t[1] = temp_t[1] - temp_t[2] * sos_correction
                                     
-                                #Beam 4 invalid
+                                # Beam 4 invalid
                                 if idx_3_beam[0][0] == beam_pair_2b:
                                     
-                                    #Double valid beam in invalid pair
+                                    # Double valid beam in invalid pair
                                     t_mult[:2, beam_pair_2a] *= 2
                                     
-                                    #Eliminate invalid pair from vertical velocity computations
+                                    # Eliminate invalid pair from vertical velocity computations
                                     t_mult[2,:] = [1/sos_correction, 1/sos_correction, 0, 0]
                                     
-                                    #Reconstruct transformations matrix as a 3x3 matrix
+                                    # Reconstruct transformations matrix as a 3x3 matrix
                                     t_mult = t_mult[:3, [beam_pair_1a, beam_pair_1b, beam_pair_2a]]
                                     
-                                    #Reconstruct beam velocity matrix to use only valid beams
+                                    # Reconstruct beam velocity matrix to use only valid beams
                                     vel = vel[[beam_pair_1a, beam_pair_1b, beam_pair_2a]]
                                     
-                                    #Apply transformation matrix
+                                    # Apply transformation matrix
                                     temp_t = t_mult.dot(vel)
                                     
-                                    #Correct horiaontal velocity for invalid pair with the vertical
-                                    #velocity and speed of sound correction
+                                    # Correct horiaontal velocity for invalid pair with the vertical
+                                    # velocity and speed of sound correction
                                     temp_t[1] = temp_t[1] + temp_t[2] * sos_correction
                                     
                             else:
                                 
-                                #3 Beam solution for non-RiverRay
+                                # 3 Beam solution for non-RiverRay
                                 vel_3_beam_zero = vel
                                 vel_3_beam_zero[np.isnan(vel)] = 0
                                 vel_error = t_mult[3,:] * vel_3_beam_zero
                                 vel[idx_3_beam] = -1 * vel_error / t_mult[3,idx_3_beam]
                                 temp_t = t_mult.dot(vel)
                                 
-                            #apply transformation matrix for 3 beam solutions
-                            temp_THPR = np.array(hpr_matrix).dot(temp_t[:3])
-                            temp_THPR = np.hstack([temp_THPR, np.nan])
+                            # Apply transformation matrix for 3 beam solutions
+                            temp_thpr = np.array(hpr_matrix).dot(temp_t[:3])
+                            temp_thpr = np.hstack([temp_thpr, np.nan])
                             
                         else:
                             
-                            #Apply transormation matrix for 4 beam solutions
+                            # Apply transormation matrix for 4 beam solutions
                             temp_t = t_mult.dot(np.squeeze(self.raw_vel_mps[:,ii]))
                             
-                            #Apply hpr_matrix
-                            temp_THPR = np.array(hpr_matrix).dot(temp_t[:3])
-                            temp_THPR = np.hstack([temp_THPR, temp_t[3]])
+                            # Apply hpr_matrix
+                            temp_thpr = np.array(hpr_matrix).dot(temp_t[:3])
+                            temp_thpr = np.hstack([temp_thpr, temp_t[3]])
                             
                     else:
                         
-                        #Getvelocity data
+                        # Getvelocity data
                         vel = np.squeeze(self.raw_vel_mps[:,ii])
                         
-                        #Apply heading pitch roll for inst and ship coordinate data
-                        temp_THPR = np.array(hpr_matrix).dot(vel[:3])
-                        temp_THPR = np.hstack([temp_THPR, vel[3]])
+                        # Apply heading pitch roll for inst and ship coordinate data
+                        temp_thpr = np.array(hpr_matrix).dot(vel[:3])
+                        temp_thpr = np.hstack([temp_thpr, vel[3]])
                             
                     
-                    vel_changed[:,ii] = temp_THPR.T
+                    vel_changed[:,ii] = temp_thpr.T
                 
-                #Assign results to object
+                # Assign results to object
                 self.u_mps = -1 * vel_changed[0,:]
                 self.v_mps = -1 * vel_changed[1,:]
                 self.w_mps = -1 * vel_changed[2,:]
@@ -634,7 +643,7 @@ class BoatData(object):
         v[self.valid_data[0,:] == False] = np.nan
         
         #Compute ens_time
-        ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
+        ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
         
         #Apply smooth to each component
         u_smooth = lowess(ens_time, u, 10/len(u))
@@ -662,7 +671,7 @@ class BoatData(object):
         if sum(valid) > 1 and sum(self.valid_data[0,:]) > 1:
             
             #Compute ens_time
-            ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
+            ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
             
             #Apply linear interpolation
             self.u_processed_mps = np.interp(ens_time,
@@ -688,7 +697,7 @@ class BoatData(object):
         if np.sum(valid) > 1:
             
             #Compute ensTime
-            ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
+            ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
 
     # TODO apply_composite ??
     def apply_filter(self, transect, kargs):

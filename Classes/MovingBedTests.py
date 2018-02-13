@@ -5,46 +5,106 @@ Created on Sep 26, 2017
 """
 import numpy as np
 from Classes.TransectData import adjusted_ensemble_duration
+from Classes.TransectData import TransectData
 from Classes.QComp import QComp
 from MiscLibs.convenience import cart2pol, sind, pol2cart, rad2azdeg
-
+from Classes.MatSonTek import MatSonTek
 class MovingBedTests(object):
+    """Stores and processes moving-bed tests.
+
+    Attributes
+    ----------
+        type: str
+            Loop or Stationary
+        transect: object
+            Object of TransectData
+        duration_sec: float
+            Duration of test, in secs
+        percent_invalid_BT: float
+            Percent of invalid bottom track
+        compass_diff_deg: float
+            Difference in heading for out and back of loop
+        flow_dir: float
+            Mean flow direction from loop test
+        mb_dir: float
+            Moving bed or closure error direction
+        dist_us_m: float
+            Distance moved upstream, in m
+        flow_spd_mps: float
+            Magnitude of water velocity, in mps
+        mb_spd_mps: float
+            Magnitude of moving=bed velocity, in mps
+        percent_mb: float
+            Potential error due to moving bed, in percent
+        moving_bed: bool
+            Moving-bed determined (True or False)
+        user_valid: bool
+            Boolean to allow user to determine if test should be considered a valid test (True or False)
+        test_quality: str
+            Quality of test, 'Valid' 'Warnings' 'Errors'
+        use_2_correct: bool
+            Use this test to correct discharge (True or False)
+        selected: bool
+            Selected as valid moving-bed test to use for correction or determine moving-bed condition
+        messages: list
+            List of strings for warning and error messages based on data processing
+        near_bed_speed_mps: float
+            Mean near-bed water speed for test, in mps
+        stationary_us_track: np.array(float)
+            Upstream component of the bottom track referenced ship track
+        stationary_cs_track: np.array(float)
+            Cross=stream component of the bottom track referenced ship track
+        stationary_mb_vel: np.array(float)
+            Moving-bed velocity by ensemble, m/s
+    """
     
     def __init__(self):
+        """Initialize class and instance variables."""
+
+        self.type = None  # Loop or Stationary
+        self.transect = None  # Object of TransectData
+        self.duration_sec = None  # Duration of test in secs
+        self.percent_invalid_BT = None  # Percent of invalid bottom track
+        self.compass_diff_deg = None  # Difference in heading for out and back of loop
+        self.flow_dir = None  # Mean flow direction from loop test
+        self.mb_dir = None  # Moving bed or closure error direction
+        self.dist_us_m = None  # Distance moved upstream in m
+        self.flow_spd_mps = None  # Magnitude of water velocity in mps
+        self.mb_spd_mps = None  # Magnitude of moving=bed velocity in mps
+        self.percent_mb = None  # Potential error due to moving bed in percent
+        self.moving_bed = None  # Moving-bed determined 'Yes' 'No'
+        self.user_valid = None  # Logical to allow user to determine if test should be considered a valid test
+        self.test_quality = None  # Quality of test 'Valid' 'Warnings' 'Errors'
+        self.use_2_correct = None  # Use this test to correct discharge
+        self.selected = None  # Selected ad valid moving-bed test to user for correction or determine moving-bed condition
+        self.messages = None  # Cell array of warning and error messages based on data processing
+        self.near_bed_speed_mps = None  # Mean near-bed water speed for test in mps
+        self.stationary_us_track = None  # Upstream component of the bottom track referenced ship track
+        self.stationary_cs_track = None  # Cross=stream component of the bottom track referenced ship track
+        self.stationary_mb_vel = None  # Moving-bed velocity by ensemble
         
-        self.type = None #Loop or Stationary
-        self.transect = None #Object of TransectData
-        self.duration_sec = None #Duration of test in secs
-        self.percent_invlaid_BT = None #percent of invalid bottom track
-        self.compass_diff_deg = None #Difference in heading for out and back of loop
-        self.flow_dir = None #Mean flow direction from loop test
-        self.mb_dir = None #Moving bed or closure error direction 
-        self.dist_us_m = None #Distance moved upstream in m
-        self.flow_spd_mps = None # Magnitude of water velocity in mps
-        self.mb_spd_mps = None #Magnitude of moving=bed velocity in mps
-        self.percent_mb = None #Potential error due to moving bed in percent
-        self.moving_bed = None #Moving-bed determined 'Yes' 'No'
-        self.user_valid = None #Logical to allow user to determine if test should be considered a valid test
-        self.test_quality = None # Quality of test 'Valid' 'Warnings' 'Errors'
-        self.use_2_correct = None #Use this test to correct discharge
-        self.selected = None #Selected ad valid moving-bed test to user for correction or determine moving-bed condition
-        self.messages = None #Cell array of warning and error messages based on data processing
-        self.near_bed_speed_mps = None # Mean near-bed water speed for test in mps
-        self.stationary_us_track = None #Upstream component of the bottom track referenced ship track
-        self.stationary_cs_track = None #Cross=stream component of the bottom track referenced ship track
-        self.stationary_mb_vel = None #Moving-bed velocity by ensemble
-        
-    def populate_data(self, source, kargs = None):
-        
+    def populate_data(self, source, file=None, type=None):
+        """Process and store moving-bed test data.
+
+        Parameters
+        ----------
+        source: str
+            Manufacturer of ADCP, SonTek or TRDI
+        file: object or str
+            Object of TransectData for TRDI and str of filename for SonTek
+        type: str
+            Type of moving-bed test (Loop or Stationary)
+        """
+
         if source == 'TRDI':
-            self.mb_TRDI(kargs[0], kargs[1])
+            self.mb_TRDI(file, type)
         else:
-            self.mb_SonTek(kargs)
+            self.mb_sontek(file, type)
         
         #Convert to earth coordinates and set the navigation reference to BT
         #for both boat and water data    
-        self.transect.change_coord_sys('Earth')
-        self.transect.change_nav_reference(1,'BT')
+        self.transect.change_coord_sys(new_coord_sys='Earth')
+        self.transect.change_nav_reference(update=True, new_nav_ref='BT')
             
         #Adjust data for default manufacturer specific handling of invalid data
         delta_t = adjusted_ensemble_duration(self.transect, 'mbt')
@@ -57,50 +117,76 @@ class MovingBedTests(object):
         elif self.type == 'Stationary':
             self.stationary_test()
         else:
-            pass
+            raise ValueError('Invalid moving-bed test identifier specified.')
         
-        
-            
-    def mb_TRDI(self, transect, mmt_transect):
-        """Function to create object properties for TRDI moving-bed tests"""
+        self.auto_use_2_correct()
+
+    def mb_TRDI(self, transect, type):
+        """Function to create object properties for TRDI moving-bed tests
+
+        Parameters
+        ----------
+        transect: object
+            Object of TransectData
+        type: str
+            Type of moving-bed test."""
         
         self.transect = transect
         self.user_valid = True
-        self.type = mmt_transect.moving_bed_type
+        self.type = type
+
+    def mb_sontek(self, file_name, type):
+        self.type = type
+
+        # Read Matlab file for moving-bed test
+        rsdata = MatSonTek(file_name)
+
+        # Create transect objects for each discharge transect
+        self.transect = TransectData()
+        self.transect.SonTek(rsdata, file_name)
         
-    def loop_test(self, kargs = None):
-        """Process loop moving bed test"""
-        #Assign data from transect to local variables
+    def loop_test(self, ens_duration=None):
+        """Process loop moving bed test.
+
+        Parameters
+        ----------
+        ens_duration: np.array(float)
+            Duration of each ensemble, in sec
+        """
+        # Assign data from transect to local variables
+        # TODO edit BoatData to remove use of kargs
         self.transect.boat_interpolations(False, 'BT', kargs=['Linear'])
         self.transect.boat_interpolations(False, 'GPS', kargs=['Linear'])
         trans_data = self.transect
         in_transect_idx = trans_data.in_transect_idx
         n_ensembles = len(in_transect_idx)
-        bt_valid = trans_data.boat_vel.bt_vel._BoatData__valid_data[0,in_transect_idx]
-        #Check that there is some valid BT data
-        
+        bt_valid = trans_data.boat_vel.bt_vel.valid_data[0, in_transect_idx]
+
+        # Set variables to defaults
         self.messages = []
         vel_criteria = 0.012
+
+        # Check that there is some valid BT data
         if np.nansum(bt_valid) > 0:
-            wt_U = trans_data.w_vel._WaterData__u_processed_mps[:,in_transect_idx]
-            wt_V = trans_data.w_vel._WaterData__v_processed_mps[:,in_transect_idx]
-            if kargs is None:
+            wt_u = trans_data.w_vel.u_processed_mps[:, in_transect_idx]
+            wt_v = trans_data.w_vel.v_processed_mps[:, in_transect_idx]
+            if ens_duration is None:
                 ens_duration = trans_data.date_time.ens_duration_sec[in_transect_idx]
-            else:
-                ens_duration = kargs[:]
-            bt_U = trans_data.boat_vel.bt_vel._BoatData__u_processed_mps[in_transect_idx]
-            bt_V = trans_data.boat_vel.bt_vel._BoatData__v_processed_mps[in_transect_idx]
-            bin_size = trans_data.depths.bt_depths.depth_cell_size_m[:,in_transect_idx]
+            # else:
+            #     ens_duration = kargs[:]
+            bt_u = trans_data.boat_vel.bt_vel.u_processed_mps[in_transect_idx]
+            bt_v = trans_data.boat_vel.bt_vel.v_processed_mps[in_transect_idx]
+            bin_size = trans_data.depths.bt_depths.depth_cell_size_m[:, in_transect_idx]
             
-            #Compute flow speed and direction
-            #Compute discharge weighted mean velocity components for the
-            #purposed of computing the mean flow direction
-            qcomp = QComp()
-            xprod = qcomp.cross_product(kargs=[trans_data])
-            q = qcomp.discharge_middle_cells(xprod, trans_data, ens_duration)
+            # Compute flow speed and direction
+            # Compute discharge weighted mean velocity components for the
+            # purposed of computing the mean flow direction
+            # qcomp = QComp()
+            xprod = QComp.cross_product(kargs=[trans_data])
+            q = QComp.discharge_middle_cells(xprod, trans_data, ens_duration)
             wght = np.abs(q)
-            se = np.nansum(np.nansum(wt_U * wght)) / np.nansum(np.nansum(wght))
-            sn = np.nansum(np.nansum(wt_V * wght)) / np.nansum(np.nansum(wght))
+            se = np.nansum(np.nansum(wt_u * wght)) / np.nansum(np.nansum(wght))
+            sn = np.nansum(np.nansum(wt_v * wght)) / np.nansum(np.nansum(wght))
             direct, flow_speed_q = cart2pol(se,sn)
             self.flow_dir = rad2azdeg(direct)
             
@@ -108,17 +194,17 @@ class MovingBedTests(object):
             #purposed of computing the mean flow speed
             #SEEMS LIKE THE FLOW SPEED AND DIRECTION SHOULD BE HANDLED BY
             #THE SAME NOT DIFFERENTLY
-            wght_area = np.multiply(np.multiply(np.sqrt(bt_U**2 + bt_V**2),  bin_size), ens_duration)
-            idx = np.where(np.isnan(wt_U) == False)
-            se = np.nansum(np.nansum(wt_U[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
-            sn = np.nansum(np.nansum(wt_V[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
+            wght_area = np.multiply(np.multiply(np.sqrt(bt_u ** 2 + bt_v ** 2), bin_size), ens_duration)
+            idx = np.where(np.isnan(wt_u) == False)
+            se = np.nansum(np.nansum(wt_u[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
+            sn = np.nansum(np.nansum(wt_v[idx] * wght_area[idx])) / np.nansum(np.nansum(wght_area[idx]))
             dir_a, self.flow_spd_mps = cart2pol(se,sn)
             flow_dir_a = rad2azdeg(dir_a)
             
             #Compute moving bed velocity and potential error in discharge
             #compute closure distance and direction
-            bt_X = np.nancumsum(bt_U * ens_duration)
-            bt_Y = np.nancumsum(bt_V * ens_duration)
+            bt_X = np.nancumsum(bt_u * ens_duration)
+            bt_Y = np.nancumsum(bt_v * ens_duration)
             direct, self.dist_us_m = cart2pol(bt_X[-1], bt_Y[-1])
             self.mb_dir = rad2azdeg(direct)
             
@@ -126,7 +212,7 @@ class MovingBedTests(object):
             self.duration_sec = np.nansum(ens_duration)
             
             #Compute the moving-bed velocity
-            self.mb_spd_mps = self.dist_us_m /  self.duration_sec
+            self.mb_spd_mps = self.dist_us_m / self.duration_sec
             
             #Compute potential error in BT referenced discharge
             self.percent_mb = (self.mb_spd_mps / (self.flow_spd_mps + self.mb_spd_mps)) * 100
@@ -161,8 +247,8 @@ class MovingBedTests(object):
             dmg_idx = np.where(distance == np.nanmax(distance))[0][0]
             
             #Compute flow direction on outgoing part of loop
-            u_out = wt_U[:,:dmg_idx+1]    
-            v_out = wt_V[:,:dmg_idx+1]
+            u_out = wt_u[:, :dmg_idx + 1]
+            v_out = wt_v[:, :dmg_idx + 1]
             wght = np.abs(q[:,:dmg_idx+1])
             se = np.nansum(u_out * wght) / np.nansum(wght)
             sn = np.nansum(v_out * wght) / np.nansum(wght)  
@@ -188,8 +274,8 @@ class MovingBedTests(object):
             uncert1 = 2. * np.sqrt(np.nansum(np.nansum(wght * v_dir_corr**2)) / (((nwght - 1) * np.nansum(np.nansum(wght))) / nwght)) /  np.sqrt(nwght)
             
             #Compute flow direction on returning part of loop
-            u_ret = wt_U[:, dmg_idx+1:]
-            v_ret = wt_V[:, dmg_idx+1:]
+            u_ret = wt_u[:, dmg_idx + 1:]
+            v_ret = wt_v[:, dmg_idx + 1:]
             wght = np.abs(q[:, dmg_idx+1:])
             se = np.nansum(u_ret * wght) /  np.nansum(wght)
             sn = np.nansum(v_ret * wght) / np.nansum(wght)
@@ -298,7 +384,7 @@ class MovingBedTests(object):
         if np.nansum(bt_valid) > 0:
             wt_U = trans_data.w_vel.u_processed_mps[:, in_transect_idx]
             wt_V = trans_data.w_vel.v_processed_mps[:, in_transect_idx]
-            ens_duration = trans_data.datetime.ens_duration_sec[in_transect_idx]
+            ens_duration = trans_data.date_time.ens_duration_sec[in_transect_idx]
             bt_U = trans_data.boat_vel.bt_vel.u_processed_mps[in_transect_idx]
             bt_V = trans_data.boat_vel.bt_vel.v_processed_mps[in_transect_idx]
             
@@ -409,8 +495,8 @@ class MovingBedTests(object):
             self.test_quality = 'Errors'
             self.moving_bed = 'Unknown'
             
-        
-    def near_bed_velocity(self, u, v, depth, bin_depth):
+    @staticmethod
+    def near_bed_velocity(u, v, depth, bin_depth):
         """Compute near bed velocities"""
         #Compute z near bed as 10% of depth
         z_near_bed = depth * 0.1
@@ -440,7 +526,7 @@ class MovingBedTests(object):
                 unit_NBU[n] = nb_U[n] / speed_near_bed[n]
                 unit_NBV[n] = nb_V[n] / speed_near_bed[n]
 
-        return (nb_U, nb_V, unit_NBU, unit_NBV)  
+        return nb_U, nb_V, unit_NBU, unit_NBV
     
     
     def auto_use_2_correct(self, kargs = None):  
