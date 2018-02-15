@@ -9,7 +9,7 @@ from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
 from Classes.NormData import NormData
 from Classes.ComputeExtrap import ComputeExtrap
-from Classes import QAData
+from Classes.QAData import QAData
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -28,7 +28,7 @@ class Measurement(object):
         self.extrap_fit = None
         self.processing = None
         self.comments = None
-        self.discharge = None
+        self.discharge = []
         self.uncertainty = None
         self.intitial_settings = None
         self.qa = None
@@ -79,7 +79,7 @@ class Measurement(object):
                 self.apply_settings(x, settings)
                 
         else:
-            self.discharge = QComp()
+            self.discharge.append(QComp())
         
         
 
@@ -143,7 +143,7 @@ class Measurement(object):
         threshold_settings['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
         
         #--------------------------------------------DONE REFACTOR
-        multi_threaded = True
+        multi_threaded = False
         
         if multi_threaded == True:
             transect_threads = []
@@ -653,12 +653,15 @@ class Measurement(object):
         self.extrap_fit.update_q_sensitivity(trans_data)
         
         #Compute discharge
-        self.discharge = QComp()
-        self.discharge.populate_data(self)
+        
+        for n in trans_data:
+            discharge = QComp()
+            discharge.populate_data(self, n)
+            self.discharge.append(discharge)
         
         #Assess measurement quality
         self.qa = QAData()
-        self.qa.populate_data()
+        self.qa.populate_data(self)
         
     
             
@@ -765,8 +768,8 @@ class Measurement(object):
         settings['extrapExp'] = transect.extrap._ExtrapData__exponent
         
         #Edge Settings
-        settings['edgeVelMethod'] = transect.edges._Edges__vel_method
-        settings['edgeRecEdgeMethod'] = transect.edges._Edges__rec_edge_method
+        settings['edgeVelMethod'] = transect.edges.vel_method
+        settings['edgeRecEdgeMethod'] = transect.edges.rec_edge_method
         
         return settings
     

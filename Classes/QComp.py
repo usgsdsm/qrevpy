@@ -3,7 +3,7 @@ Created on Sep 26, 2017
 
 @author: gpetrochenkov
 '''
-from Classes.TransectData import TransectData
+from Classes.TransectData import TransectData, valid_cells_ensembles
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
 
@@ -28,7 +28,7 @@ class QComp(object):
         self.int_cells = None #Total discharge computed for invalid depth cells excluding invalid ensembles
         self.int_ens = None #Total discharge computed for invalid ensembles
         
-    def populate_data(self, data_in, kargs = None):
+    def populate_data(self, data_in, transect = None, kargs = None):
         '''Discharge is computed using the data provided to the method.  Water data provided are assumed to
         becorrected for the navigation reference.  If a moving-bed correction is to be applied it is computed
         and applied.  The TRDI method using expanded delta time is applied if the processing method is WR2.
@@ -52,6 +52,8 @@ class QComp(object):
             else:
                 processing = 'RSL'
                 
+            transect = data_in
+                
         else:
             
             #If the data in is a Measurement assign variables
@@ -61,107 +63,106 @@ class QComp(object):
             
         correction_flag = False
         
-        for n in range(len(trans_data)):
-            #Compute cross product
-            x_prod = self.cross_product([trans_data[n]])
+        #Compute cross product
+        x_prod = self.cross_product([transect])
+        
+        #Get index of ensembles in moving-boat portion of transect
+        in_transect_idx = transect.in_transect_idx
+        
+        if processing == 'WR2':
+            #TRDI uses expanded delta time to handle invalid ensembles which can be caused by invalid BT
+            #WT, or depth.  QRev by default handles this invalid data through linear interpolation of the
+            #invalid data through linear interpolation of the invalid data type.  This if statement and
+            #associated code is required to maintain compatibility with WinRiver II discharge computations.
             
-            #Get index of ensembles in moving-boat portion of transect
-            in_transect_idx = trans_data[n].in_transect_idx
+            #Determine valid ensembles
+            valid_ens = np.any(np.isnan(x_prod) == False, axis=0) 
+            valid_ens = valid_ens[in_transect_idx]
             
-            if processing == 'WR2':
-                #TRDI uses expanded delta time to handle invalid ensembles which can be caused by invalid BT
-                #WT, or depth.  QRev by default handles this invalid data through linear interpolation of the
-                #invalid data through linear interpolation of the invalid data type.  This if statement and
-                #associated code is required to maintain compatibility with WinRiver II discharge computations.
-                
-                #Determine valid ensembles
-                valid_ens = np.any(np.isnan(x_prod) == False, axis=0) 
-                valid_ens = valid_ens[in_transect_idx]
-                
-                #Compute the ensemble duration using TRDI approach of expanding delta time to compensate
-                #for invalid ensembles
-                n_ens = len(valid_ens)
-                ens_dur = trans_data[n].datetime.ens_duration_sec[in_transect_idx]
-                delta_t = np.tile([np.nan], n_ens)
-                cum_dur = 0
-                idx = 1
-                for j in range(idx,n_ens):
-                    cum_dur = np.nansum(np.hstack([cum_dur, ens_dur[j]]))
-                    if valid_ens[j] == True:
-                        delta_t[j] = cum_dur
-                        cum_dur = 0
-                        
-            else:
-                #For non-WR2 processing use actual ensemble duration
-                delta_t = trans_data[n].datetime.ens_duration_sec[in_transect_idx]
-                
-            #Compute measured or middle discharge
-            q_mid_cells = self.discharge_middle_cells(x_prod, trans_data[n], delta_t)
-            self.middle_cells = q_mid_cells
-            self.middle_ens = np.nansum(q_mid_cells, 0)
-            self.middle = np.nansum(self.middle_ens, 0)
-            
-            #Compute the top discharge
-            self.top_ens = self.discharge_top(x_prod, trans_data[n], delta_t, kargs)
-            
-            self.top = np.nansum(self.top_ens)
-            
-            #Compute the bottom discharge
-            self.bottom_ens = self.discharge_bot(x_prod, trans_data[n], delta_t, kargs)
-            self.bottom = np.nansum(self.bottom_ens)
-            
-            #Compute interpolated cell and ensemble discharge from computed
-            #measured discharge
-            self.int_cells, self.int_ens = self.discharge_interpolated(self.top_ens, q_mid_cells, self.bottom_ens, trans_data[n])
-            
-            #Compute left edge discharge
-            if trans_data[n].edges.left.type == 'User Q':
-                self.right = self.discharge_edge('right', trans_data[n], kargs)
-            else:
-                self.right = trans_data[n].edges.right.__user_Q_cms
-                
-            #Compute left edge discharge
-            if trans_data[n].edges.left.type == 'User Q':
-                self.left = self.discharge_edge('left', trans_data[n], kargs)
-            else:
-                self.left = trans_data[n].edges.left.__user_Q_cms
-                
-            #Compute moving-bed correction, if applicable.  Two checks are used to account for the
-            #way the meas object is created.
-            
-            #Check to see if the mb_tests property of Measurement exists
-            try:
-                getattr(data_in, 'mb_tests')
-                mb_data = meas.mb_tests
-                
-                if mb_data is not None:
+            #Compute the ensemble duration using TRDI approach of expanding delta time to compensate
+            #for invalid ensembles
+            n_ens = len(valid_ens)
+            ens_dur = transect.datetime.ens_duration_sec[in_transect_idx]
+            delta_t = np.tile([np.nan], n_ens)
+            cum_dur = 0
+            idx = 1
+            for j in range(idx,n_ens):
+                cum_dur = np.nansum(np.hstack([cum_dur, ens_dur[j]]))
+                if valid_ens[j] == True:
+                    delta_t[j] = cum_dur
+                    cum_dur = 0
                     
-                    #Determine if any of the moving-bed tests indicated a moving bed
-                    mb_valid = mb_data.selected
-                    if mb_data[mb_valid].__moving_bed == 'Yes':
+        else:
+            #For non-WR2 processing use actual ensemble duration
+            delta_t = transect.datetime.ens_duration_sec[in_transect_idx]
+            
+        #Compute measured or middle discharge
+        q_mid_cells = self.discharge_middle_cells(x_prod, transect, delta_t)
+        self.middle_cells = q_mid_cells
+        self.middle_ens = np.nansum(q_mid_cells, 0)
+        self.middle = np.nansum(self.middle_ens, 0)
+        
+        #Compute the top discharge
+        self.top_ens = self.discharge_top(x_prod, transect, delta_t, kargs)
+        
+        self.top = np.nansum(self.top_ens)
+        
+        #Compute the bottom discharge
+        self.bottom_ens = self.discharge_bot(x_prod, transect, delta_t, kargs)
+        self.bottom = np.nansum(self.bottom_ens)
+        
+        #Compute interpolated cell and ensemble discharge from computed
+        #measured discharge
+        self.int_cells, self.int_ens = self.discharge_interpolated(self.top_ens, q_mid_cells, self.bottom_ens, transect)
+        
+        #Compute left edge discharge
+        if transect.edges.left.type == 'User Q':
+            self.right = self.discharge_edge('right', transect, kargs)
+        else:
+            self.right = transect.edges.right.user_Q_cms
+            
+        #Compute left edge discharge
+        if transect.edges.left.type == 'User Q':
+            self.left = self.discharge_edge('left', transect, kargs)
+        else:
+            self.left = transect.edges.left.user_Q_cms
+            
+        #Compute moving-bed correction, if applicable.  Two checks are used to account for the
+        #way the meas object is created.
+        
+        #Check to see if the mb_tests property of Measurement exists
+        try:
+            getattr(data_in, 'mb_tests')
+            mb_data = meas.mb_tests
+            
+            if mb_data is not None:
+                
+                #Determine if any of the moving-bed tests indicated a moving bed
+                mb_valid = mb_data.selected
+                if mb_data[mb_valid].__moving_bed == 'Yes':
+                    
+                    use_2_correct = mb_data[:].__use_2_correct
+                    
+                    #Determine if a moving-bed test is to be used for correction
+                    if np.sum(use_2_correct) > 0:
                         
-                        use_2_correct = mb_data[:].__use_2_correct
+                        #Make sure bottom track is the navigation reference and composite
+                        #tracks are turned off
                         
-                        #Determine if a moving-bed test is to be used for correction
-                        if np.sum(use_2_correct) > 0:
+                        if transect.boat_vel.selected == 'bt_vel' and transect.boat_vel.composite == 'Off':
                             
-                            #Make sure bottom track is the navigation reference and composite
-                            #tracks are turned off
-                            
-                            if trans_data[n].boat_vel.selected == 'bt_vel' and trans_data[n].boat_vel.composite == 'Off':
-                                
-                                #Apply appropriate moving-bed test correction method
-                                if np.sum(mb_data[use_2_correct].type == 'Stationary') > 0:
-                                    self.correction_factor = self.stationary_correction(self.top, self.middle, self.bottom, trans_data[n], mb_data, delta_t)
-                                else:
-                                    self.correction_factor = self.loop_correction(self.top, self.middle, self.bottom, trans_data[n], mb_data[use_2_correct], delta_t)
-                        #
-                        else:
-                            
-                            #Set a flag to generate a warning
-                            correction_flag = True
-            except:
-                pass
+                            #Apply appropriate moving-bed test correction method
+                            if np.sum(mb_data[use_2_correct].type == 'Stationary') > 0:
+                                self.correction_factor = self.stationary_correction(self.top, self.middle, self.bottom, transect, mb_data, delta_t)
+                            else:
+                                self.correction_factor = self.loop_correction(self.top, self.middle, self.bottom, transect, mb_data[use_2_correct], delta_t)
+                    #
+                    else:
+                        
+                        #Set a flag to generate a warning
+                        correction_flag = True
+        except:
+            pass
         
         self.total_uncorrected = np.nansum(np.hstack([self.top,self.middle,self.bottom,self.left, self.right]))
         
@@ -347,10 +348,10 @@ class QComp(object):
         #Top constant extrapolation
         if top_method == 'Constant':
             n_ensembles = len(delta_t)
-            top_value = np.tile([np.nan], (1, n_ensembles))
+            top_value = np.tile([np.nan], (n_ensembles))
             for j in range(n_ensembles):
                 if idx_top[j] != 0:
-                    top_value[j] = delta_t[j] * component(idx_top[j],j) * top_rng[j]
+                    top_value[j] = delta_t[j] * component[idx_top[j],j] * top_rng[j]
                     
         #Top 3-point extrapolation
         if top_method == '3-Point':
@@ -448,8 +449,8 @@ class QComp(object):
             bot_method = kargs[1]
             exponent = kargs[3]
         else:
-            bot_method = transect.extrap.__bot_method
-            exponent = transect.extrap.exponent
+            bot_method = transect.extrap._ExtrapData__bot_method
+            exponent = transect.extrap._ExtrapData__exponent
             
         #Get index for ensembles in mocing-boat portion of transect
         in_transect_idx = transect.in_transect_idx
@@ -475,7 +476,9 @@ class QComp(object):
         q_bot = self.extrapolate_bottom(bot_method, exponent, idx_bot, bot_rng, xprod, 
                                         cell_size, cell_depth, depth_ens, delta_t, z)
         
-    def bot_value(self, bot_method, exponent, idx_bot, bot_rng, component, 
+        return q_bot
+        
+    def extrapolate_bottom(self, bot_method, exponent, idx_bot, bot_rng, component, 
                                         cell_size, cell_depth, depth_ens, delta_t, z):
         '''Computes the bottom extrapolated value of the provided component
         using the specified extrapolation method
@@ -545,7 +548,7 @@ class QComp(object):
         
         #Identify valid data
         in_transect_idx = transect.in_transect_idx
-        valid_data1 = transect.w_vel.valid_data[:, in_transect_idx]
+        valid_data1 = transect.w_vel.valid_data[0,:, in_transect_idx].T
         valid_data2 = np.isnan(x_prod) == False
         valid_data = valid_data1 * valid_data2
         
@@ -557,17 +560,17 @@ class QComp(object):
         
         #Preallocate variables
         n_ensembles = valid_data.shape[1]
-        idx_bot = np.zeros((1, valid_data.shape[1]))
-        bot_rng = np.tile([np.nan], (1, n_ensembles))
+        idx_bot = np.zeros(valid_data.shape[1]).astype(np.int)
+        bot_rng = np.tile([np.nan], n_ensembles)
         
         for n in range(n_ensembles):
             #Identifying bottom most valid cell
             idx_temp = np.where(valid_data[:,n] == True)[0]
             if len(idx_temp) > 0:
-                idx_temp = idx_temp[-1]
+                idx_temp = idx_temp[-1].astype(np.int)
                 idx_bot[n] = idx_temp
                 #Compute bottom range
-                bot_rng[n] = depth_ens[n] - cell_depth[idx_bot[n],n] - 0.5 * cell_size[idx_bot]
+                bot_rng[n] = depth_ens[n] - cell_depth[idx_bot[n],n] - 0.5 * cell_size[idx_bot[n], n]
             else:
                 bot_rng[n] = 0
                 
@@ -749,6 +752,81 @@ class QComp(object):
         edge_vel_sign = np.sign(unit_x_prod)
         
         return (edge_vel_mag, edge_vel_sign)
+    
+    
+    def discharge_interpolated(self, q_top_ens, q_mid_cells, q_bottom_ens, transect):
+        '''
+         INPUT:
+         
+        q_top_ens: top extrapolated discharge in each ensemble
+        
+        q_mid_cells: middle of measured discharge in each ensemble
+        
+        q_bottom_ens: bottom extrapolated discharge in each ensemble
+        
+        transect: object of TransectData
+        '''
+        
+        valid_ens, valid_wt_cells = valid_cells_ensembles(transect)
+        
+        #Compute interpolated cell discharge
+        q_int_cells = np.nansum(np.nansum(q_mid_cells[valid_wt_cells.T == False]))
+        
+        #Method to compute invalid ensemble discharge depends on if navigation data are
+        #interpolated (QRev) or if expanded delta time is to compute discharge for invalid
+        #ensembles (TRDI)
+        
+        if transect.boat_vel.bt_vel.interpolate == 'None':
+            
+            #Compute discharge depends in invalid ensembles for expanded delta time situation
+            
+            #Find index of invalid ensembles followed by a valid ensemble
+            invalid = valid_ens == False
+            idx = [x == 1 and y == 0 for x,y in zip(invalid[:-2], invalid[1:])]
+            
+            if len(idx == 1) < 1:
+                q_int_ens = 0
+            else:
+                
+                index = idx[0] + 1
+                
+                #Sum discharge in valid ensembles following invalid ensemble
+                q_int_ens = np.nansum(q_mid_cells[:,index]) + q_top_ens[index] + q_bottom_ens[index]
+                
+                run_length_0, = self.compute_run_length(valid_ens)
+                
+                #Adjust run_length_0 array for situation where the transect ends with invalid ensembles
+                if len(run_length_0) > len(q_int_ens):
+                    run_length_0 = run_length_0[:-2]
+                    
+                #Adjust discharge to remove the discharge that would have been measured in valide ensemble
+                q_int_ens = np.nansum(q_int_ens * (run_length_0 / (run_length_0 + 1)))
+                                      
+        else:
+            #Compute invalid ensembles for situation where all data were interpolated
+            q_int_ens = np.nansum(np.nansum(q_mid_cells[:, valid_ens == False]) + np.nansum(q_top_ens[valid_ens == False]) + np.nansum(q_bottom_ens[valid_ens == False]))
+            
+        return q_int_cells, q_int_ens
+            
+    def compute_run_length(self, V):
+        '''Computes how many false or true consecutive values in every true or false in provide logical vector
+        
+        Input:
+        V: logical vector
+        '''
+        
+        #Compute the 8indeices of there the changes occur
+        valid_run = np.where(np.diff(np.hstack([[-1], V, [-1]])) != 0)
+        #Determine length of each tun
+        run_length = np.diff(valid_run)
+        #Determine lenfth of false (0) runs
+        run_length_0 = run_length[np.arange(V(0)==1,len(V),2)]
+        run_length_1 = run_length[np.arange(V(0)==0,len(V),2)]
+        
+        return (run_length_0, run_length_1)
+        
+        
+        
     
     def edge_coef(self, edge_loc, transect):
         '''Returns the edge coefficient based on the edge settings and transect object

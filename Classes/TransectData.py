@@ -30,7 +30,7 @@ class TransectData(object):
         self.boat_vel = None        # class for various boat velocity references
                                     # (btVel, ggaVel, vtgVel)
         self.gps = None             # object of clsGPSData
-        self.sensors = None         # object of clsSensorData
+        self.sensors = None         # object of clsSensors
         self.depths = None      # object of clsDepthStructure for depth data including cell depths & ref depths
                                     # (btDepths, vbDepths, dsDepths)
         self.edges = None           # object of clsEdges
@@ -954,47 +954,80 @@ class TransectData(object):
         self.sensors.set_selected('salinity_ppt', 'internal')
         
     
-def sos_user(self, kargs = None):
-    '''Compute new speed of sound from temperature and salinity
-    
-    Output:
-    new_sos: newly computed speed of sound
-    old_sos: previously used speed of sound
-    '''
-    
-    #Assign selected temperature data to local variable
-    temp = getattr(self.sensors.temperature_deg_c, self.sensors.temperature_deg_c.selected)
-    temperature = temp.data
-    #Assign selected salinity to local variable
-    sal = getattr(self.sensors.salinity_ppt, self.sensors.salinity_ppt.selected)
-    salinity = sal.data
-    old = getattr(self.sensors.speed_of_sound_mps, self.sensors.speed_of_sound_mps.selected)
-    old_sos = old.data
-    
-    if self.sensors.temperature_deg_c.selected == 'internal':
-        new_sos = self.sensors.speed_of_sound_mps.user.data_orig
-        self.sensors.speed_of_sound_mps.user.change_data(new_sos)
-        self.sensors.speed_of_sound_mps.user.set_source('Internal (ADCP)')
-        self.sensors.set_selected('speed_of_sound_mps', 'user')
-    else:
-        #Compute new speed of sound
-        new_sos = Sensors().speed_of_sound(temperature, salinity)
+    def sos_user(self, kargs = None):
+        '''Compute new speed of sound from temperature and salinity
         
-        #Save new speed of sound to user sensor object with a source as computed
-        if self.sensors.speed_of_sound_mps.user is not None:
-            self.sensors.set_selected('speed_of_sound_mps', 'user')
+        Output:
+        new_sos: newly computed speed of sound
+        old_sos: previously used speed of sound
+        '''
+        
+        #Assign selected temperature data to local variable
+        temp = getattr(self.sensors.temperature_deg_c, self.sensors.temperature_deg_c.selected)
+        temperature = temp.data
+        #Assign selected salinity to local variable
+        sal = getattr(self.sensors.salinity_ppt, self.sensors.salinity_ppt.selected)
+        salinity = sal.data
+        old = getattr(self.sensors.speed_of_sound_mps, self.sensors.speed_of_sound_mps.selected)
+        old_sos = old.data
+        
+        if self.sensors.temperature_deg_c.selected == 'internal':
+            new_sos = self.sensors.speed_of_sound_mps.user.data_orig
             self.sensors.speed_of_sound_mps.user.change_data(new_sos)
-            self.sensors.speed_of_sound_mps.user.set_source('Computed')
-        else:
-            self.sensors.add_sensor_data('speed_of_sound_mps', 'user'. new_sos, 'Computed')
+            self.sensors.speed_of_sound_mps.user.set_source('Internal (ADCP)')
             self.sensors.set_selected('speed_of_sound_mps', 'user')
+        else:
+            #Compute new speed of sound
+            new_sos = Sensors().speed_of_sound(temperature, salinity)
             
-    return (old_sos, new_sos)
+            #Save new speed of sound to user sensor object with a source as computed
+            if self.sensors.speed_of_sound_mps.user is not None:
+                self.sensors.set_selected('speed_of_sound_mps', 'user')
+                self.sensors.speed_of_sound_mps.user.change_data(new_sos)
+                self.sensors.speed_of_sound_mps.user.set_source('Computed')
+            else:
+                self.sensors.add_sensor_data('speed_of_sound_mps', 'user'. new_sos, 'Computed')
+                self.sensors.set_selected('speed_of_sound_mps', 'user')
+                
+        return (old_sos, new_sos)
+    
+
+def valid_cells_ensembles(transect):
+    '''Assign index of moving-boat portion of transect to local variable'''
+    in_transect_idx = transect.in_transect_idx
+    
+    #Determine valid WT ensembles base on WT and navigation data for WT to be valid
+    #both WT and navigation data must be present
+    
+    boat_select = getattr(transect.boat_vel, transect.boat_vel.selected)
+    if boat_select is not None:
+        valid_nav = boat_select._BoatData__valid_data[0, in_transect_idx]
+    else:
+        valid_nav = np.zeros(boat_select._BoatData.bt_vel.valid_data[0, in_transect_idx].shape[0])
+    
+    valid_wt = transect.w_vel.valid_data[0, :, in_transect_idx]
+    valid_wt_ens = np.any(valid_wt)
+    
+    depth_select = getattr(transect.depths, transect.depths.selected)
+    #Determine valid depths
+    if transect.depths.composite == 'On':
+        idx_na = depth_select.depth_source_ens[in_transect_idx] == 'NA'
+        valid_depth = depth_select.depth_source_ens[in_transect_idx] != 'IN'
+        valid_depth[idx_na] = 0
+    else:
+        valid_depth = depth_select.valid_data[in_transect_idx]
+        idx = np.isnan(depth_select.depth_processed_m)[in_transect_idx]
+        valid_depth[idx] = 0
+        
+    #Determine valid ensembles based on all data
+    valid_ens = np.all(np.hstack([valid_nav, valid_wt_ens, valid_depth]))
+    
+    return valid_ens, valid_wt
     
 def allocate_transects(source, mmt, kargs): 
     
     #DEBUG, set threaded to false to get manual serial commands
-    multi_threaded = True
+    multi_threaded = False
     
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------

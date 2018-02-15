@@ -153,8 +153,8 @@ class NormData(object):
         idx_neg1 = np.tile([np.nan], unit_norm.shape[1])
         idx_neg2 = np.tile([np.nan], unit_norm.shape[1])
         for c in range(unit_norm.shape[1]):
-            idx_neg1[c] = len(np.where(unit_norm[:, c] < 0))
-            idx_neg2[c] = len(np.where(np.isnan(unit_norm[:,c]) == False))
+            idx_neg1[c] = len(np.where(unit_norm[:, c] < 0)[0])
+            idx_neg2[c] = len(np.where(np.isnan(unit_norm[:,c]) == False)[0])
         idx_neg = idx_neg1 == idx_neg2
         unit_norm[:, idx_neg] = unit_norm[:,idx_neg] * -1
         self.__file_name = filename

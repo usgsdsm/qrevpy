@@ -9,15 +9,15 @@ class Edges(object):
     
     def __init__(self):
         
-        self.__rec_edge_method = None
-        self.__vel_method = None
-        self.__left = EdgeData()
-        self.__right = EdgeData()
+        self.rec_edge_method = None
+        self.vel_method = None
+        self.left = EdgeData()
+        self.right = EdgeData()
         
     def populate_data(self, rec_edge_method, vel_method):
         
-        self.__rec_edge_method = rec_edge_method
-        self.__vel_method = vel_method
+        self.rec_edge_method = rec_edge_method
+        self.vel_method = vel_method
         
         
     def change_property(self, prop, setting, kargs=None):
@@ -45,7 +45,7 @@ class Edges(object):
         kargs: value of cefficient for custom or discharge for User Q
         '''
         
-        temp = getattr(self, '_Edges__'+edge_loc)
+        temp = getattr(self, edge_loc)
         temp.populate_data(edge_type, dist, kargs)
     
         

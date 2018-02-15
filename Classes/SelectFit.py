@@ -65,7 +65,7 @@ class SelectFit(object):
         #Store results in obhect
         self.__pp_exponent = ppobj._FitData__exponent
         self.__residuals = ppobj._FitData__residuals
-        self.__rsqr = ppobj._FitData__rsqr
+        self.__rsqr = ppobj._FitData__r_squared
         self.__exponent_95_ci = ppobj._FitData__exponent_95_ci
         
         #Begin automatic fit
@@ -75,9 +75,7 @@ class SelectFit(object):
         #data for a good analysis
         if len(self.__residuals) > 6:
             #Compute the difference between the top two cells of data and the optimized power fit
-            top2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[-2:]] \
-                          - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[-2:]]) \
-                          ** ppobj._FitData__exponent
+            top2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[-2:]] - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[-2:]]) ** ppobj._FitData__exponent
                           
             #Compute the difference between the bottom two cells of data and the optimized power fit
             bot2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[:2]] \
@@ -175,7 +173,7 @@ class SelectFit(object):
                 #Set the bottom to no slip
                 self.__bot_method_auto = 'No Slip'
                 #If the no slip fit with an optimized exponent does not have r^2 better than 0.8 use the default 0.1667 for the no slip exponent
-                if ns_fd.__r_squared > 0.8:
+                if ns_fd._FitData__r_squared > 0.8:
                     self.__exponent_auto = ns_fd._FitData__exponent
                     self.__fit_r2 = ns_fd._FitData__rsquared
                 else:
@@ -183,7 +181,7 @@ class SelectFit(object):
                     self.__fit_r2 = np.nan
                     
                 #Use the no slip 95% confidence intervals if they are available
-                if ns_fd.__exponent_95_ci is not None and np.isnan(ns_fd.exponent95confint) == False:
+                if ns_fd._FitData__exponent_95_ci is not None and np.all(np.isnan(ns_fd._FitData__exponent_95_ci ) == False):
                     self.__exponent_95_ci[0] = ns_fd._FitData__exponent_95_ci[0]
                     self.__exponent_95_ci[1] = ns_fd._FitData__exponent_95_ci[1]
                 else:
@@ -208,7 +206,7 @@ class SelectFit(object):
             
         #Update the fit uysing the automatically selected methods
         update_fd = FitData()
-        update_fd.populate_data(normalized, self.__top_method_auto, self.__bot_method_auto, 'Manual', self.__exponent_auto)
+        update_fd.populate_data(normalized, self.__top_method_auto, self.__bot_method_auto, 'Manual', [self.__exponent_auto])
         update_auto = update_fd
         
         if fit_method == 'Manual':
@@ -216,7 +214,7 @@ class SelectFit(object):
             if len(kargs) == 1:
                 trans_data = kargs[0]
                 update_fd = FitData()
-                update_fd.populate_data(normalized, trans_data.extrap._ExtrapData__top_method, trans_data.extrap._ExtrapData__bot_method, 'Manual', trans_data.extrap._ExtrapData__exponent)
+                update_fd.populate_data(normalized, trans_data.extrap._ExtrapData__top_method, trans_data.extrap._ExtrapData__bot_method, 'Manual', [trans_data.extrap._ExtrapData__exponent])
             else:
                 update_fd = FitData()
                 update_fd.populate_data(normalized, kargs[1], kargs[2], 'Manual', kargs[3])
