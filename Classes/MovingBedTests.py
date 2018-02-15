@@ -497,26 +497,50 @@ class MovingBedTests(object):
             
     @staticmethod
     def near_bed_velocity(u, v, depth, bin_depth):
-        """Compute near bed velocities"""
-        #Compute z near bed as 10% of depth
+        """Compute near bed velocities.
+
+        Parameters
+        ----------
+        u: np.array(float)
+            Velocity in the x-direction, in m/s
+        v: np.array(float)
+            Velocity in the y-direction, in m/s
+        depth: np.array(float)
+            Depth for each ensemble, in m
+        bin_depth: np.array(float)
+            Depth cell depth for each depth cell, in m
+
+        Returns
+        -------
+        nb_U: np.array(float)
+            Near-bed velocity in the x-direction, in m/s.
+        nb_V: np.array(float)
+            Near-bed velocity in the y-direction, in m/s.
+        unit_NBU: np.array(float)
+            Unit vector component of near-bed velocity in x-direction.
+        unit_NBV: np.array(float)
+            Unit vector component of near-bed velocity in y-direction.
+        """
+
+        # Compute z near bed as 10% of depth
         z_near_bed = depth * 0.1
         
-        #Begin computing near-bed velocities
-        
+        # Begin computing near-bed velocities
         n_ensembles = u.shape[1]
-        nb_U = np.tile([np.nan], (1,n_ensembles))
-        nb_V = np.tile([np.nan], (1,n_ensembles))
-        unit_NBU = np.tile([np.nan], (1,n_ensembles))
-        unit_NBV = np.tile([np.nan], (1,n_ensembles))
-        z_depth = np.tile([np.nan], (1,n_ensembles)) 
-        u_mean = np.tile([np.nan], (1,n_ensembles))
-        v_mean = np.tile([np.nan], (1,n_ensembles))               
+        nb_U = np.tile([np.nan], (1, n_ensembles))
+        nb_V = np.tile([np.nan], (1, n_ensembles))
+        unit_NBU = np.tile([np.nan], (1, n_ensembles))
+        unit_NBV = np.tile([np.nan], (1, n_ensembles))
+        z_depth = np.tile([np.nan], (1, n_ensembles))
+        u_mean = np.tile([np.nan], (1, n_ensembles))
+        v_mean = np.tile([np.nan], (1, n_ensembles))
         speed_near_bed = np.tile([np.nan], (1, n_ensembles))
         for n in range(n_ensembles):
             idx = np.where(np.isnan(u[:,n])==False)
             if len(idx) > 0:
                 idx = idx[1][-1]
-                #compute near-bed velocity
+
+                # Compute near-bed velocity
                 z_depth[n] = depth[n] - np.nanmean(bin_depth[idx,n])
                 u_mean[n] = np.nanmean(u[idx,n])
                 v_mean[n] = np.nanmean(v[idx,n])
@@ -528,65 +552,92 @@ class MovingBedTests(object):
 
         return nb_U, nb_V, unit_NBU, unit_NBV
     
-    
-    def auto_use_2_correct(self, kargs = None):  
-        """Applie logic to determine which moving-bed tests should be used
-        for correcting bottom track referenced discharges with moving-bed conditions"""
+    @staticmethod
+    def auto_use_2_correct(moving_bed_tests, boat_ref=None):
+        """Apply logic to determine which moving-bed tests should be used
+        for correcting bottom track referenced discharges with moving-bed conditions.
+
+        Parameters
+        ----------
+        moving_bed_tests: list
+            List of MovingBedTests objects.
+        boat_ref: str
+            Boat velocity reference.
+
+        Notes
+        -----
+        Modifies moving_bed_tests
+        """
         
-        #Initialize variables
-        self.use_2_correct = False
-        self.selected = False
+        # Initialize variables
+        lidx_user = []
+        lidx_no_errors = []
+        test_type = []
+        lidx_stationary = []
+        lidx_loop = []
+        flow_speed = []
+        for test in moving_bed_tests:
+            test.use_2_correct = False
+            test.selected = False
+            # Valid test according to user
+            lidx_user.append(test.user_valid == True)
+            # Valid test according to quality assessment
+            lidx_no_errors.append(test.test_quality == 'Errors')
+            # Identify type of test
+            test_type.append(test.type)
+            lidx_stationary.append(test_type == 'Stationary')
+            lidx_loop.append(test_type == 'Loop')
+            flow_speed.append(test.flow_spd_mps)
+
+        # Combine
+        lidx_valid_loop = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_loop)))
+        lidx_valid_stationary = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_stationary)))
         
-        #Select moving-bed tests
+        # Check flow speed
+        lidx_flow_speed = np.array(flow_speed) > 0.25
         
-        #Valid test according to user
-        lidx_user = self.user_valid == 1
-        
-        #Valid test according to quality assessment
-        lidx_no_errors = self.test_quality == 'Errors'
-        
-        #Identify type of test
-        test_type = self.type
-        lidx_stationary = test_type == 'Stationary'
-        lidx_loop = test_type == 'Loop'
-        
-        #Combine
-        lidx_valid_loop = np.all([lidx_user, lidx_no_errors, lidx_loop])
-        lidx_valid_stationary =  np.all([lidx_user, lidx_no_errors, lidx_stationary])
-        
-        #Check flow speed
-        flow_speed = self.flow_spd_mps
-        lidx_flow_speed = flow_speed > 0.25
-        
-        #Determine if there are valid loop tests
-        if lidx_valid_loop and lidx_flow_speed:
-            self.selected = True
+        # Determine if there are valid loop tests
+        if np.any(lidx_valid_loop) and np.any(lidx_flow_speed):
+            lidx_loops_2_select = np.all(np.vstack((lidx_flow_speed, lidx_valid_loop)), 0)
+
+            # Select last loop
+            idx_select = np.where(lidx_loops_2_select == True)[0]
+            if len(idx_select) > 0:
+                idx = np.where(lidx_loop == True)[0]
+                idx_select = idx(idx_select[-1])
+            else:
+                idx_select = len(moving_bed_tests)
+            test_select = moving_bed_tests[idx_select]
+            test_select.selected = True
             
-            if self.moving_bed == 'Yes':
-                self.use_2_correct = True
+            if test_select.moving_bed == 'Yes':
+                test_select.use_2_correct = True
                 
-        #If there are no valid loop loof for valid stationary tests
-        elif lidx_valid_stationary:
-            self.selected = True
-            self.use_2_correct = True
-            
+        # If there are no valid loop loof for valid stationary tests
+        elif np.any(lidx_valid_stationary):
+            for lidx in lidx_valid_stationary:
+                if lidx:
+                    moving_bed_tests[lidx].selected = True
+                    # Determine if any stationary test resulted in a moving bed
+                    if moving_bed_tests[lidx].moving_bed == 'Yes':
+                        moving_bed_tests[lidx].use_2_correct = True
+
         elif lidx_valid_loop:
-            self.selected = True
-            
-            if self.moving_bed == 'Yes':
-                self.use_2_correct = True
+            # Select last loop
+            idx_select = np.where(lidx_valid_loop)[0][0]
+            moving_bed_tests[idx_select].selected = True
+            if moving_bed_tests[idx_select].moving_bed == 'Yes':
+                moving_bed_tests[idx_select].use_2_correct = True
         
         # If the navigation reference for discharge computations is set
         # GPS then none of test should be used for correction. The
         # selected test should be used to determine if there is a valid
         # moving-bed and a moving-bed condition. 
-        if kargs is None:
+        if boat_ref is None:
             ref = 'BT'
         else:
-            ref = kargs[0]
+            ref = boat_ref
 
         if ref != 'BT':
-            self.use_2_correct = False
-    
-        
-        
+            for test in moving_bed_tests:
+                test.use_2_correct = False

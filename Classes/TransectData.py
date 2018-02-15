@@ -1425,7 +1425,7 @@ class TransectData(object):
 
         # Determine valid water track ensembles based on water track and navigation data.
         boat_vel_select = getattr(transect.boat_vel, transect.boat_vel.selected)
-        if np.nansum(boat_vel_select.u_processed_mps) > 0
+        if np.nansum(boat_vel_select.u_processed_mps) > 0:
             valid_nav = boat_vel_select.valid_data[0,in_transect_idx]
         else:
             valid_nav = np.tile(False, in_transect_idx)
