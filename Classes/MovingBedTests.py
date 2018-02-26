@@ -9,6 +9,8 @@ from Classes.TransectData import TransectData
 from Classes.QComp import QComp
 from MiscLibs.convenience import cart2pol, sind, pol2cart, rad2azdeg
 from Classes.MatSonTek import MatSonTek
+
+
 class MovingBedTests(object):
     """Stores and processes moving-bed tests.
 
@@ -119,7 +121,7 @@ class MovingBedTests(object):
         else:
             raise ValueError('Invalid moving-bed test identifier specified.')
         
-        self.auto_use_2_correct()
+
 
     def mb_TRDI(self, transect, type):
         """Function to create object properties for TRDI moving-bed tests
@@ -182,7 +184,7 @@ class MovingBedTests(object):
             # Compute discharge weighted mean velocity components for the
             # purposed of computing the mean flow direction
             # qcomp = QComp()
-            xprod = QComp.cross_product(kargs=[trans_data])
+            xprod = QComp.cross_product(transect=trans_data)
             q = QComp.discharge_middle_cells(xprod, trans_data, ens_duration)
             wght = np.abs(q)
             se = np.nansum(np.nansum(wt_u * wght)) / np.nansum(np.nansum(wght))
@@ -370,8 +372,7 @@ class MovingBedTests(object):
         else:
             self.messages.append('ERROR: Due to ERRORS noted above this loop is NOT VALID. Please consider suggestions.')
             self.moving_bed = 'Uknown'
-            
-            
+
     def stationary_test(self):
         """Processed the stationary moving-bed tests"""
         #Assign data from treansect to local variables
@@ -494,64 +495,7 @@ class MovingBedTests(object):
             self.messages.append('ERROR - Stationary moving-bed test has no valid bottom track data.')
             self.test_quality = 'Errors'
             self.moving_bed = 'Unknown'
-            
-    @staticmethod
-    def near_bed_velocity(u, v, depth, bin_depth):
-        """Compute near bed velocities.
 
-        Parameters
-        ----------
-        u: np.array(float)
-            Velocity in the x-direction, in m/s
-        v: np.array(float)
-            Velocity in the y-direction, in m/s
-        depth: np.array(float)
-            Depth for each ensemble, in m
-        bin_depth: np.array(float)
-            Depth cell depth for each depth cell, in m
-
-        Returns
-        -------
-        nb_U: np.array(float)
-            Near-bed velocity in the x-direction, in m/s.
-        nb_V: np.array(float)
-            Near-bed velocity in the y-direction, in m/s.
-        unit_NBU: np.array(float)
-            Unit vector component of near-bed velocity in x-direction.
-        unit_NBV: np.array(float)
-            Unit vector component of near-bed velocity in y-direction.
-        """
-
-        # Compute z near bed as 10% of depth
-        z_near_bed = depth * 0.1
-        
-        # Begin computing near-bed velocities
-        n_ensembles = u.shape[1]
-        nb_U = np.tile([np.nan], (1, n_ensembles))
-        nb_V = np.tile([np.nan], (1, n_ensembles))
-        unit_NBU = np.tile([np.nan], (1, n_ensembles))
-        unit_NBV = np.tile([np.nan], (1, n_ensembles))
-        z_depth = np.tile([np.nan], (1, n_ensembles))
-        u_mean = np.tile([np.nan], (1, n_ensembles))
-        v_mean = np.tile([np.nan], (1, n_ensembles))
-        speed_near_bed = np.tile([np.nan], (1, n_ensembles))
-        for n in range(n_ensembles):
-            idx = np.where(np.isnan(u[:,n])==False)
-            if len(idx) > 0:
-                idx = idx[1][-1]
-
-                # Compute near-bed velocity
-                z_depth[n] = depth[n] - np.nanmean(bin_depth[idx,n])
-                u_mean[n] = np.nanmean(u[idx,n])
-                v_mean[n] = np.nanmean(v[idx,n])
-                nb_U[n] = (u_mean[n] / z_depth[n]**(1./6.)) * (z_near_bed[n]**(1./6.))
-                nb_V[n] = (v_mean[n] / z_depth[n]**(1./6.)) * (z_near_bed[n]**(1./6.))
-                speed_near_bed[n] = np.sqrt(nb_U**2 + nb_V[n]**2)
-                unit_NBU[n] = nb_U[n] / speed_near_bed[n]
-                unit_NBV[n] = nb_V[n] / speed_near_bed[n]
-
-        return nb_U, nb_V, unit_NBU, unit_NBV
-    
     @staticmethod
     def auto_use_2_correct(moving_bed_tests, boat_ref=None):
         """Apply logic to determine which moving-bed tests should be used
@@ -564,9 +508,10 @@ class MovingBedTests(object):
         boat_ref: str
             Boat velocity reference.
 
-        Notes
+        Returns
         -----
-        Modifies moving_bed_tests
+        moving_bed_tests: list
+            List of MovingBedTests objects.
         """
         
         # Initialize variables
@@ -641,3 +586,4 @@ class MovingBedTests(object):
         if ref != 'BT':
             for test in moving_bed_tests:
                 test.use_2_correct = False
+        return moving_bed_tests

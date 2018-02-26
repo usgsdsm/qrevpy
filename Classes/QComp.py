@@ -6,7 +6,7 @@ Created on Sep 26, 2017
 from Classes.TransectData import TransectData
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
-from Classes.MovingBedTests import MovingBedTests
+
 
 
 class QComp(object):
@@ -1374,7 +1374,7 @@ class QComp(object):
         q_orig = top_q + middle_q + bottom_q
 
         # Compute near-bed velocities
-        nb_u, nb_v, unit_nb_u, unit_nb_v = MovingBedTests.near_bed_velocity(u, v, depth, depth_cell_depth)
+        nb_u, nb_v, unit_nb_u, unit_nb_v = QComp.near_bed_velocity(u, v, depth, depth_cell_depth)
         nb_speed = np.sqrt(nb_u**2 + nb_v**2)
         nb_u_mean = np.nanmean(nb_u)
         nb_v_mean = np.nanmean(nb_v)
@@ -1463,7 +1463,7 @@ class QComp(object):
             bt_v = trans_data.boat_vel.bt_vel.v_processed_mps[in_transect_idx]
 
             # Compute near-bed velocities
-            nb_u, nb_v, unit_nb_u, unit_nb_v = MovingBedTests.near_bed_velocity(u, v, depth, depth_cell_depth)
+            nb_u, nb_v, unit_nb_u, unit_nb_v = QComp.near_bed_velocity(u, v, depth, depth_cell_depth)
 
             # Compute moving-bed vector for each ensemble
             mb_u = corr_coef * nb_u
@@ -1498,6 +1498,63 @@ class QComp(object):
             correction_factor = q_adj / q_orig
 
             return correction_factor
+
+    @staticmethod
+    def near_bed_velocity(u, v, depth, bin_depth):
+        """Compute near bed velocities.
+
+        Parameters
+        ----------
+        u: np.array(float)
+            Velocity in the x-direction, in m/s
+        v: np.array(float)
+            Velocity in the y-direction, in m/s
+        depth: np.array(float)
+            Depth for each ensemble, in m
+        bin_depth: np.array(float)
+            Depth cell depth for each depth cell, in m
+
+        Returns
+        -------
+        nb_U: np.array(float)
+            Near-bed velocity in the x-direction, in m/s.
+        nb_V: np.array(float)
+            Near-bed velocity in the y-direction, in m/s.
+        unit_NBU: np.array(float)
+            Unit vector component of near-bed velocity in x-direction.
+        unit_NBV: np.array(float)
+            Unit vector component of near-bed velocity in y-direction.
+        """
+
+        # Compute z near bed as 10% of depth
+        z_near_bed = depth * 0.1
+
+        # Begin computing near-bed velocities
+        n_ensembles = u.shape[1]
+        nb_U = np.tile([np.nan], (1, n_ensembles))
+        nb_V = np.tile([np.nan], (1, n_ensembles))
+        unit_NBU = np.tile([np.nan], (1, n_ensembles))
+        unit_NBV = np.tile([np.nan], (1, n_ensembles))
+        z_depth = np.tile([np.nan], (1, n_ensembles))
+        u_mean = np.tile([np.nan], (1, n_ensembles))
+        v_mean = np.tile([np.nan], (1, n_ensembles))
+        speed_near_bed = np.tile([np.nan], (1, n_ensembles))
+        for n in range(n_ensembles):
+            idx = np.where(np.isnan(u[:, n]) == False)
+            if len(idx) > 0:
+                idx = idx[1][-1]
+
+                # Compute near-bed velocity
+                z_depth[n] = depth[n] - np.nanmean(bin_depth[idx, n])
+                u_mean[n] = np.nanmean(u[idx, n])
+                v_mean[n] = np.nanmean(v[idx, n])
+                nb_U[n] = (u_mean[n] / z_depth[n] ** (1. / 6.)) * (z_near_bed[n] ** (1. / 6.))
+                nb_V[n] = (v_mean[n] / z_depth[n] ** (1. / 6.)) * (z_near_bed[n] ** (1. / 6.))
+                speed_near_bed[n] = np.sqrt(nb_U ** 2 + nb_V[n] ** 2)
+                unit_NBU[n] = nb_U[n] / speed_near_bed[n]
+                unit_NBV[n] = nb_V[n] / speed_near_bed[n]
+
+        return nb_U, nb_V, unit_NBU, unit_NBV
 
     @staticmethod
     def valid_edge_ens(trans_data):

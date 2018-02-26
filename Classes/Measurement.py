@@ -55,8 +55,9 @@ class Measurement(object):
             ref = 'VTG'
             
         if self.mb_tests is not None:
-            for x in self.mb_tests:
-                x.auto_use_2_correct()
+            # for x in self.mb_tests:
+            #     x.auto_use_2_correct()
+            self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
                 
         #update status "Save initial settings"
         self.intitial_settings = self.current_settings()
@@ -398,7 +399,6 @@ class Measurement(object):
                                                     file=os.path.join(pathname, file),
                                                     type='Stationary')
 
-
     def thresholds_TRDI(self, transect, settings):
         """Retrieve and pply manual filter settings from mmt file
         
@@ -630,13 +630,13 @@ class Measurement(object):
             transect.composite_tracks(0, s['CompTracks'])
             
         #Set difference velocity BT filter
-        if s.BTdFilter == 'Manual':
+        if s['BTdFilter'] == 'Manual':
             BTdFilter = [s['BTdFilter'], s['BTdFilterThreshold']]
         else:
             BTdFilter = [s['BTdFilter']]
             
         #Set vertical velocity BTfilter
-        if s.BTwFilter == 'Manual':
+        if s['BTwFilter'] == 'Manual':
             BTwFilter = [s['BTwFilter'], s['BTwFilterThreshold']]
         else:
             BTwFilter = [s['BTwFilter']]
@@ -707,8 +707,7 @@ class Measurement(object):
                       'Excluded', s['WTExcludedDistance']]
         
         transect.wt_filters(wtSettings) 
-        
-        
+
     def apply_settings2(self, trans_data, s, kargs=None):
         """Refactored so that the previous calculations can be multithreaded
         #Extrap Q Sensitivity the way it is now will not allow this so in this
@@ -748,11 +747,7 @@ class Measurement(object):
             
         #Update sensitivities for water track interpolations
         self.extrap_fit.update_q_sensitivity(trans_data)
-        
-    
-            
-            
-        
+
     def current_settings(self):
         """Saves the current settings for a measurement. Since all settings
         in QRev are consistent among all transects in a measurement onlyt the
@@ -780,29 +775,29 @@ class Measurement(object):
         settings['WTwtDepthFilter'] = transect.w_vel.wt_depth_filter
         settings['WTensInterpolation'] = transect.w_vel.interpolate_ens
         settings['WTCellInterpolation'] = transect.w_vel.interpolate_cells
-        settings['WTExcludedDistance'] = transect.w_vel.excluded_dist
+        settings['WTExcludedDistance'] = transect.w_vel.excluded_dist_m
         
         #Bottom track settings
-        settings['BTbeamFilter'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__beam_filter;
-        settings['BTdFilter'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__d_filter;
-        settings['BTdFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__d_filter_threshold;
-        settings['BTwFilter'] =self.transects[first_idx].boat_vel.bt_vel._BoatData__w_filter;
-        settings['BTwFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__w_filter_threshold;
-        settings['BTsmoothFilter'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__smooth_filter;
-        settings['BTInterpolation'] = self.transects[first_idx].boat_vel.bt_vel._BoatData__interpolate
+        settings['BTbeamFilter'] = self.transects[first_idx].boat_vel.bt_vel.beam_filter;
+        settings['BTdFilter'] = self.transects[first_idx].boat_vel.bt_vel.d_filter;
+        settings['BTdFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel.d_filter_threshold;
+        settings['BTwFilter'] =self.transects[first_idx].boat_vel.bt_vel.w_filter;
+        settings['BTwFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel.w_filter_threshold;
+        settings['BTsmoothFilter'] = self.transects[first_idx].boat_vel.bt_vel.smooth_filter;
+        settings['BTInterpolation'] = self.transects[first_idx].boat_vel.bt_vel.interpolate
         
         #Gps Settings
         if transect.gps is not None:
             #GGA settings
             if transect.boat_vel.gga_vel is not None:
-                settings['ggaDiffQualFilter'] = transect.boat_vel.gga_vel._BoatData__gps_diff_qual_filter
-                settings['ggaAltitudeFilter'] = transect.boat_vel.gga_vel._BoatData__gps_altitude_filter
-                settings['ggaAltitudeFilterChange'] = transect.boat_vel.gga_vel._BoatData__gps_altitude_filter_change
-                settings['GPSHDOPFilter'] = transect.boat_vel.gga_vel._BoatData__gps_HDOP_filter
-                settings['GPSHDOPFilterMax'] = transect.boat_vel.gga_vel._BoatData__gps_HDOP_filter_max
-                settings['GPSHDOPFilterChange'] = transect.boat_vel.gga_vel._BoatData__gps_HDOP_filter_change
-                settings['GPSSmoothFilter'] = transect.boat_vel.gga_vel._BoatData__smooth_filter
-                settings['GPSInterpolation'] = transect.boat_vel.gga_vel._BoatData__interpolate
+                settings['ggaDiffQualFilter'] = transect.boat_vel.gga_vel.gps_diff_qual_filter
+                settings['ggaAltitudeFilter'] = transect.boat_vel.gga_vel.gps_altitude_filter
+                settings['ggaAltitudeFilterChange'] = transect.boat_vel.gga_vel.gps_altitude_filter_change
+                settings['GPSHDOPFilter'] = transect.boat_vel.gga_vel.gps_HDOP_filter
+                settings['GPSHDOPFilterMax'] = transect.boat_vel.gga_vel.gps_HDOP_filter_max
+                settings['GPSHDOPFilterChange'] = transect.boat_vel.gga_vel.gps_HDOP_filter_change
+                settings['GPSSmoothFilter'] = transect.boat_vel.gga_vel.smooth_filter
+                settings['GPSInterpolation'] = transect.boat_vel.gga_vel.interpolate
             else:
                 settings['ggaDiffQualFilter'] = 1
                 settings['ggaAltitudeFilter'] = 'Off'
@@ -818,23 +813,23 @@ class Measurement(object):
                 if 'GPSSmoothFilter' not in settings.keys():
                     settings['GPSSmoothFilter'] = 'Off'
                     
-        if transect.boat_vel.vtg_vel is not None:
-            if len(transect.boat_vel.vtg_vel) > 0:
-                settings['GPSHDOPFilter'] = transect.boat_vel.vtg_vel._BoatData__gps_HDOP_filter
-                settings['GPSHDOPFilterMax'] = transect.boat_vel.vtg_vel._BoatData__gps_HDOP_filter_max
-                settings['GPSHDOPFilterChange'] = transect.vtg_vel._BoatData__gps_HDOP_filter_change
-                settings['GPSSmoothFilter'] = transect.boat_vel.vtg_vel._BoatData__smooth_filter
-                settings['GPSInterpolation'] = transect.boat_vel.vtg_vel._BoatData__interpolate
-            else:
-                settings['vtgSmoothFilter'] = 'Off'
-                if 'GPSInterpolation' not in settings.keys():
-                    settings['GPSInterpolation'] = 'None'
-                if 'GPSHDOPFilter' not in settings.keys():
-                    settings['GPSHDOPFilter'] = 'Off'
-                    settings['GPSHDOPFilterMax'] = []
-                    settings['GPSHDOPFilterChange'] = []
-                if 'GPSSmoothFilter' not in settings.keys():
-                    settings['GPSSmoothFilter'] = 'Off'
+        # if transect.boat_vel.vtg_vel is not None:
+        #     if len(transect.boat_vel.vtg_vel) > 0:
+            settings['GPSHDOPFilter'] = transect.boat_vel.vtg_vel.gps_HDOP_filter
+            settings['GPSHDOPFilterMax'] = transect.boat_vel.vtg_vel.gps_HDOP_filter_max
+            settings['GPSHDOPFilterChange'] = transect.boat_vel.vtg_vel.gps_HDOP_filter_change
+            settings['GPSSmoothFilter'] = transect.boat_vel.vtg_vel.smooth_filter
+            settings['GPSInterpolation'] = transect.boat_vel.vtg_vel.interpolate
+        else:
+            settings['vtgSmoothFilter'] = 'Off'
+            if 'GPSInterpolation' not in settings.keys():
+                settings['GPSInterpolation'] = 'None'
+            if 'GPSHDOPFilter' not in settings.keys():
+                settings['GPSHDOPFilter'] = 'Off'
+                settings['GPSHDOPFilterMax'] = []
+                settings['GPSHDOPFilterChange'] = []
+            if 'GPSSmoothFilter' not in settings.keys():
+                settings['GPSSmoothFilter'] = 'Off'
                     
         #Depth Settings
         settings['depthAvgMethod'] = transect.depths.bt_depths.avg_method
@@ -849,14 +844,103 @@ class Measurement(object):
         settings['depthInterpolation'] = select.interp_type
         
         #Extrap Settings
-        settings['extrapTop'] = transect.extrap._ExtrapData__top_method
-        settings['extrapBot'] = transect.extrap._ExtrapData__bot_method
-        settings['extrapExp'] = transect.extrap._ExtrapData__exponent
+        settings['extrapTop'] = transect.extrap.top_method
+        settings['extrapBot'] = transect.extrap.bot_method
+        settings['extrapExp'] = transect.extrap.exponent
         
         #Edge Settings
-        settings['edgeVelMethod'] = transect.edges._Edges__vel_method
-        settings['edgeRecEdgeMethod'] = transect.edges._Edges__rec_edge_method
+        settings['edgeVelMethod'] = transect.edges.vel_method
+        settings['edgeRecEdgeMethod'] = transect.edges.rec_edge_method
         
         return settings
-        
-    
+
+    def QRevDefaultSettings(self):
+        '''QRev default and filter settings for a measurement'''
+
+        settings = {}
+
+        # Naviagation reference (NEED LOGIC HERE)
+        settings['NavRef'] = self.transects[0].boat_vel.selected
+
+        # Composite tracks
+        settings['CompTracks'] = 'Off'
+
+        # Water track filter settings
+        settings['WTbeamFilter'] = -1
+        settings['WTdFilter'] = 'Auto'
+        settings['WTdFilterThreshold'] = np.nan
+        settings['WTwFilter'] = 'Auto'
+        settings['WTwFilterThreshold'] = np.nan
+        settings['WTsmoothFilter'] = 'Off'
+        if self.transects[0].adcp.manufacturer == 'TRDI':
+            settings['WTsnrFilter'] = 'Off'
+        else:
+            settings['WTsnrFilter'] = 'Auto'
+        temp = [x.w_vel for x in self.transects]
+        excluded_dist = np.nanmin([x.excluded_dist_m for x in temp])
+        if excluded_dist < 0.158 and self.transects[0].adcp.model == 'M9':
+            settings['WTExcludedDistance'] = 0.16
+        else:
+            settings['WTExcludedDistance'] = excluded_dist
+
+        # Bottom track filter settings
+        settings['BTbeamFilter'] = -1
+        settings['BTdFilter'] = 'Auto'
+        settings['BTdFilterThreshold'] = np.nan
+        settings['BTwFilter'] = 'Auto'
+        settings['BTwFilterThreshold'] = np.nan
+        settings['BTsmoothFilter'] = 'Off'
+
+        # GGA Filter settings
+        settings['ggaDiffQualFilter'] = 2
+        settings['ggaAltitudeFilter'] = 'Auto'
+        settings['ggaAltitudeFilterChange'] = np.nan
+
+        # VTG filter settings
+        settings['vtgsmoothFilter'] = np.nan
+
+        # GGA and VTG filter settings
+        settings['GPSHDOPFilter'] = 'Auto'
+        settings['GPSHDOPFilterMax'] = np.nan
+        settings['GPSHDOPFilterChange'] = np.nan
+        settings['GPSSmoothFilter'] = 'Off'
+
+        # Depth Averaging
+        settings['depthAvgMethod'] = 'IDW'
+        settings['depthValidMethod'] = 'QRev'
+
+        # Depth Reference
+
+        # Default to 4 beam depth average
+        settings['depthReference'] = 'btDepths'
+        # Depth settings
+        settings['depthFilterType'] = 'smooth'
+        settings['depthComposite'] = 'On'
+
+        # Interpolation settings
+        settings = self.QRevDefaultInterp(settings)
+
+        # Edge settings
+        settings['edgeVelMethod'] = 'MeasMag'
+        settings['edgeRecEdgeMethod'] = 'Fixed'
+
+        return settings
+
+    def QRevDefaultInterp(self, settings):
+        '''Adds QRev default interpolation settings to existing settings data structure
+
+        INPUT:
+        settings: data structure of reference and filter settings
+
+        OUTPUT:
+        settings: data structure with reference, filter, and interpolation settings
+        '''
+
+        settings['BTInterpolation'] = 'Linear'
+        settings['WTEnsInterpolation'] = 'Linear'
+        settings['WTCellInterpolation'] = 'TRDI'
+        settings['GPSInterpolation'] = 'Linear'
+        settings['depthInterpolation'] = 'Linear'
+        settings['WTwDepthFilter'] = 'On'
+
+        return settings
