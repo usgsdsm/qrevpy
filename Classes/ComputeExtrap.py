@@ -4,42 +4,62 @@ Created on Sep 26, 2017
 @author: gpetrochenkov
 """
 import numpy as np
-from Classes import ExtrapQSensitivity, SelectFit
-from Classes import NormData
+from Classes.SelectFit import SelectFit
+from Classes.ExtrapQSensitivity import ExtrapQSensitivity
+from Classes.NormData import NormData
 
 class ComputeExtrap(object):
     """Class to compute the optimized or manually specified extrapolation methods"""
     
     def __init__(self):
-        self.threshold = None #threshold as a percent for determining if a median is valid 
-        self.subsection = None #percent of discharge, does not account for transect direction
-        self.fit_method = None #method used to determine fit.  Automatic or manual
-        self.norm_data = None #object of class norm data
-        self.sel_fit = None #Object of class SelectFit
-        self.q_sensitivity = None #Object of class ExtrapQSensitivity
-        self.messages = [] #Variable for messages to UserWarning
+        self.threshold = None  # Threshold as a percent for determining if a median is valid
+        self.subsection = None  #Percent of discharge, does not account for transect direction
+        self.fit_method = None  # Method used to determine fit.  Automatic or manual
+        self.norm_data = []  # Object of class norm data
+        self.sel_fit = []  # Object of class SelectFit
+        self.q_sensitivity = None  # Object of class ExtrapQSensitivity
+        self.messages = []  # Variable for messages to UserWarning
         
-    def populate_data(self, trans_data, kargs = None):
+    def populate_data(self, transects, compute_sensitivity=True):
         
         self.threshold = 20
         self.subsection = [0, 100]
         self.fit_method = 'Automatic'
-        self.process_profiles(trans_data, 'q')
-        #Compute the sensitivity of the final discharge to changes in extrapolation methods
-        if kargs is None:
-            self.q_sensitivity = ExtrapQSensitivity(trans_data,self.sel_fit)
+        self.process_profiles(transects=transects, data_type='q')
+        # Compute the sensitivity of the final discharge to changes in extrapolation methods
+        if compute_sensitivity:
+            self.q_sensitivity = ExtrapQSensitivity(transects, self.sel_fit)
             
-    def process_profiles(self, trans_data, data_type):
-        """Function that serves and the main control for other classes and functions"""
+    def process_profiles(self, transects, data_type):
+        """Function that coordinates the fitting process.
+
+        Parameters
+        ----------
+        transects: object
+            Object of TransectData
+        data_type: str
+            Type of data processing (q or v)
+        """
         
         
-        #Compute normalized data
-        self.norm_data = NormData(trans_data, data_type, self.threshold, self.subsection)
-        
+        # Compute normalized data for each transect
+        for transect in transects:
+            norm_data = NormData()
+            norm_data.populate_data(transect=transect,
+                                    data_type=data_type,
+                                    threshold=self.threshold,
+                                    data_extent=self.subsection)
+            self.norm_data.append(norm_data)
+
+        # Compute composite normalized data
+        comp_data = NormData()
+        comp_data.create_composite(transects=transects, norm_data=self.norm_data, threshold=self.threshold)
+        self.norm_data.append(comp_data)
+
         #Compute the fit for the selected  method
         if self.fit_method == 'Manual':
             self.sel_fit = SelectFit()
-            self.sel_fit.populate_data(self.norm_data, self.fit_method, trans_data)
+            self.sel_fit.populate_data(self.norm_data, self.fit_method, transects)
         else:
             self.sel_fit = SelectFit()
             self.sel_fit.populate_data(self.norm_data, self.fit_method)

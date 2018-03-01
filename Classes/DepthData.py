@@ -233,8 +233,7 @@ class DepthData(object):
             self.compute_avg_BT_depth()
         else:
             self.depth_processed_m = np.array(self.depth_beams_m)
-            # DSM changed 1/24/2018 self.depth_processed_m[np.squeeze(self.valid_data) == 0] = np.nan
-            self.depth_processed_m[self.valid_data == 0] = np.nan
+            self.depth_processed_m[np.squeeze(self.valid_data) == 0] = np.nan
             
     def apply_interpolation(self, transect, kargs=None):
         """Coordinates application of interpolations
@@ -526,13 +525,14 @@ class DepthData(object):
     def interpolate_linear(self, transect):
         """Apply linear interpolation"""
         
-        #Set interpolation type
+        # Set interpolation type
         self.interp_type='Linear'
-        
-        #Create position array
-        if transect.boat_vel[transect.boat_vel.selected] is None:
-            boat_vel_x = transect.boat_vel[transect.boat_vel.selected].u_processed_mps
-            boat_vel_y = transect.boat_vel[transect.boat_vel.selected].v_processed_mps         
+
+        select = getattr(transect.boat_vel, transect.boat_vel.selected)
+        # Create position array
+        if select is not None:
+            boat_vel_x = select.u_processed_mps
+            boat_vel_y = select.v_processed_mps
             track_x = boat_vel_x * transect.date_time.ens_duration_sec
             track_y = boat_vel_y * transect.date_time.ens_duration_sec
         else:

@@ -20,7 +20,7 @@ import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.convenience import cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
-from Classes.BoatData import run_std_trim
+from Classes.BoatData import BoatData
 from scipy import interpolate
 
 
@@ -384,7 +384,7 @@ class WaterData(object):
         self.d_filter_threshold = 99
         self.w_filter = 'Off'
         self.w_filter_threshold = 99
-        self.smooth_filter = 'Off'
+        self.smooth_filter = False
         self.interpolate_ens = 'None'
         self.interpolate_cells = 'None'
         
@@ -800,7 +800,8 @@ class WaterData(object):
             # up to 9 samples
             self.interpolate_cells_linear(transect)
         
-    def apply_filter(self, transect, **kwargs):
+    def apply_filter(self, transect, beam=None, difference=None, difference_threshold=None, vertical=None,
+                     vertical_threshold=None, other=None, excluded=None, snr=None, wt_depth=None):
         """Coordinates application of specified filters and subsequent interpolation.
         Parameters
         ----------
@@ -820,80 +821,37 @@ class WaterData(object):
         """
 
         # Determine filters to apply
-        if len(kwargs) > 0:
-            # if type is not None:
-            # n_args = len(kargs)
-            # n = 0
-            # while n < n_args:
-            #     if kargs[n] == 'Beam':
-            #         n += 1
-            #         beam_filter_setting = kargs[n]
-            #         self.filter_beam(beam_filter_setting)
-            #     elif kargs[n] == 'Difference':
-            #         n += 1
-            #         d_filter_setting = kargs[n]
-            #         if d_filter_setting == 'Manual':
-            #             n+=1
-            #             self.filter_diff_vel(d_filter_setting, [kargs[n]])
-            #         else:
-            #             self.filter_diff_vel(d_filter_setting)
-            #     elif kargs[n] == 'Vertical':
-            #         n += 1
-            #         w_filter_setting = kargs[n]
-            #         if w_filter_setting == 'Manual':
-            #             n += 1
-            #             setting = kargs[n]
-            #             if np.isnan(setting):
-            #                 setting = self.w_filter_threshold
-            #             self.filter_vert_vel(w_filter_setting, [setting])
-            #         else:
-            #             self.filter_vert_vel(w_filter_setting, [setting])
-            #     elif kargs[n] == 'Other':
-            #         n += 1
-            #         self.filter_smooth(transect, [kargs[n]])
-            #     elif kargs[n] == 'Excluded':
-            #         n += 1
-            #         self.filter_excluded(transect, [kargs[n]])
-            #     elif kargs[n] == 'SNR':
-            #         n += 1
-            #         self.filter_snr(kargs[n])
-            #     elif kargs[n] == 'wtDepth':
-            #         n += 1
-            #         self.filter_WT_depth(transect, [kargs[n]])
-            #
-            #     n += 1
-            if 'Beam' in kwargs:
-                self.filter_beam(kwargs['Beam'])
-            if 'Difference' in kwargs:
-                try:
-                    d_filter_setting = float(kwargs['Difference'])
-                    self.filter_diff_vel('Manual', d_filter_setting)
-                except ValueError:
-                    self.filter_diff_vel(kwargs['Difference'])
-            if 'Vertical' in kwargs:
-                try:
-                    w_filter_setting = float(kwargs['Difference'])
-                    self.filter_vert_vel('Manual', w_filter_setting)
-                except ValueError:
-                    self.filter_vert_vel(kwargs['Difference'])
-            if 'Other' in kwargs:
-                self.filter_smooth(transect, kwargs['Other'])
-            if 'Excluded' in kwargs:
-                self.filter_excluded(transect, kwargs['Excluded'])
-            if 'SNR' in kwargs:
-                self.filter_snr(kwargs['SNR'])
-            if 'wtDepth' in kwargs:
-                self.filter_wt_depth(transect, kwargs['wtDepth'])
+        if len({beam, difference, difference_threshold, vertical, vertical_threshold, other, excluded, snr, wt_depth}) > 1:
+            if beam is not None:
+                self.filter_beam(setting=beam)
+            if difference is not None:
+                if difference == 'Manual':
+                    self.filter_diff_vel(setting=difference, threshold=difference_threshold)
+                else:
+                    self.filter_diff_vel(setting=difference)
+            if vertical is not None:
+                if vertical == 'Manual':
+                    self.filter_vert_vel(setting=vertical, threshold=vertical_threshold)
+                else:
+                    self.filter_vert_vel(setting=vertical)
+            if other is not None:
+                self.filter_smooth(transect=transect, setting=other)
+            if excluded is not None:
+                self.filter_excluded(transect=transect, setting=excluded)
+            if snr is not None:
+                self.filter_snr(setting=snr)
+            if wt_depth is not None:
+                self.filter_wt_depth(transect=transect, setting=wt_depth)
         else:
-            self.filter_beam(self.beam_filter)
-            self.filter_diff_vel(self.d_filter, self.d_filter_threshold)
-            self.filter_vert_vel(self.w_filter, self.w_filter_threshold)
-            self.filter_smooth(transect, self.smooth_filter)
-            self.filter_excluded(transect, self.excluded_dist_m)
-            self.filter_snr(self.snr_filter)
+            self.filter_beam(setting=self.beam_filter)
+            self.filter_diff_vel(setting=self.d_filter, threshold=self.d_filter_threshold)
+            self.filter_vert_vel(setting=self.w_filter, threshold=self.w_filter_threshold)
+            self.filter_smooth(transect=transect, setting=self.smooth_filter)
+            self.filter_excluded(transect=transect, setting=self.excluded_dist_m)
+            self.filter_snr(setting=self.snr_filter)
 
         # After filters have been applied, interpolate to estimate values for invalid data.
-        self.apply_interpolation(transect)   
+        self.apply_interpolation(transect=transect)
         
     def sos_correction(self, transect, ratio):
         """Corrects water velocities for a change in speed of sound.
@@ -924,25 +882,25 @@ class WaterData(object):
             Object of TransectData
         """
 
-        depth_selected = transect.depths.selected
+        selected = transect.depths.selected
+        depth_selected = getattr(transect.depths, transect.depths.selected)
         cells_above_slbt = self.cells_above_sl_bt
         
         # Compute cutoff for vertical beam depths
-        if depth_selected == 'vb_depths':
-            depth_selected = getattr(transect.depths, transect.depths.selected)
+        if selected == 'vb_depths':
             sl_cutoff_vb = depth_selected.depth_processed_m - \
                 depth_selected.draft_use_m * np.cos(np.deg2rad(transect.adcp.beam_angle_deg)) \
                 - self.sl_lag_effect_m + depth_selected.draft_use_m
             cells_above_slvb = np.round(depth_selected.depth_cell_depth_m, 2) < np.round(sl_cutoff_vb, 2)
             idx = np.where(transect.depths.bt_depths.valid_data == False)
             cells_above_slbt[:, idx] = cells_above_slvb[:, idx]
-            cells_above_sl = cells_above_slbt and cells_above_slvb
+            cells_above_sl = np.logical_and(cells_above_slbt, cells_above_slvb)
         else:
             cells_above_sl = cells_above_slbt
 
         # Compute cutoff from interpolated depths
         # Find ensembles with no valid beam depths
-        idx = np.where(np.nansum(depth_selected.valid_beams) == 0)
+        idx = np.where(np.nansum(depth_selected.valid_beams) == 0)[0]
 
         # Determine side lobe cutoff for ensembles with no valid beam depths
         if len(idx) > 0:
@@ -974,7 +932,7 @@ class WaterData(object):
             cells_above_sl[cells_above_sl_int == 0] = 0
         
         self.cells_above_sl = cells_above_sl
-        valid_vel = not np.isnan(self.u_mps)
+        valid_vel = np.logical_not(np.isnan(self.u_mps))
         self.valid_data[1, :, :] = self.cells_above_sl * valid_vel
         self.all_valid_data()
         self.compute_snr_rng()
@@ -1140,22 +1098,25 @@ class WaterData(object):
                 d_vel_min_ref = np.nanmedian(d_vel_filtered) - multiplier * d_vel_std
                 
                 # Identify valid and invalid data
-                d_vel_bad_idx = np.where(d_vel_filtered > d_vel_max_ref | d_vel_filtered < d_vel)
-                d_vel_good_idx = np.where(d_vel_filtered <= d_vel_max_ref | d_vel_filtered >= d_vel)
+                d_vel_bad_idx = np.where(np.logical_or(np.greater(d_vel_filtered, d_vel_max_ref),
+                                                       np.less(d_vel_filtered, d_vel_min_ref)))[0]
+                d_vel_good_rows, d_vel_good_cols = np.where(np.logical_or(np.less_equal(d_vel_filtered, d_vel_max_ref),
+                                                        np.greater_equal(d_vel_filtered, d_vel_min_ref)))
                 
                 # Update filtered data array
-                d_vel_filtered = d_vel_filtered[d_vel_good_idx]
+                d_vel_filtered = d_vel_filtered[d_vel_good_rows, d_vel_good_cols]
                 
                 # Determine differences due to last filter iteration
                 d_vel_std2 = iqr(d_vel_filtered)
                 std_diff = d_vel_std2 - d_vel_std
-                self.num_bins_filtered.append(d_vel_bad_idx.shape[1])
+                self.num_bins_filtered.append(len(d_vel_bad_idx))
                 
         # Set valid data row 2 for difference velocity filter results
-        d_vel_bad_idx = np.where((d_vel > d_vel_max_ref) | (d_vel < d_vel_min_ref))
+        d_vel_bad_idx = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
+                                               np.less(d_vel, d_vel_min_ref)))[0]
         valid = self.cells_above_sl
-        
-        valid[d_vel_bad_idx] = False
+        if len(d_vel_bad_idx) > 0:
+            valid[d_vel_bad_idx] = False
         self.valid_data[2, :, :] = valid
         
         # Set threshold property
@@ -1216,11 +1177,13 @@ class WaterData(object):
                     w_vel_min_ref = np.nanmedian(w_vel_filtered) - multiplier * w_vel_std
                     
                     # Identify valid and invalid data
-                    w_vel_bad_idx = np.where((w_vel_filtered > w_vel_max_ref) or (w_vel_filtered < w_vel_min_ref))
-                    w_vel_good_idx = np.where((w_vel_filtered <= w_vel_max_ref) or (w_vel_filtered >= w_vel_min_ref))
+                    w_vel_bad_idx = np.where(np.logical_or(np.greater(w_vel_filtered, w_vel_max_ref),
+                                                           np.less(w_vel_filtered, w_vel_min_ref)))[0]
+                    w_vel_good_rows, w_vel_good_cols = np.where(np.logical_or(np.less_equal(w_vel_filtered, w_vel_max_ref),
+                                                            np.greater_equal(w_vel_filtered, w_vel_min_ref)))
                     
                     # Update filtered data array
-                    w_vel_filtered = w_vel_filtered[w_vel_good_idx]
+                    w_vel_filtered = w_vel_filtered[w_vel_good_rows, w_vel_good_cols]
                     
                     # Determine differences due to last filter iteration
                     w_vel_std2 = iqr(w_vel_filtered)
@@ -1228,10 +1191,11 @@ class WaterData(object):
                     num_bins_filtered.append(len(w_vel_bad_idx))
                     
             # Set valid data row 3 for difference velocity filter results
-            w_vel_bad_idx = np.where((w_vel > w_vel_max_ref) | (w_vel < w_vel_min_ref))
+            w_vel_bad_idx = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),
+                                                   np.less(w_vel, w_vel_min_ref)))[0]
             valid = self.cells_above_sl
-
-            valid[w_vel_bad_idx] = False
+            if len(w_vel_bad_idx) > 0:
+                valid[w_vel_bad_idx] = False
             self.valid_data[3, :, :] = valid
 
             # Set threshold property
@@ -1312,7 +1276,7 @@ class WaterData(object):
             # Apply a trimmed standard deviation filter multiple times
             # speed_filtered = speed
             for i in range(cycles):
-                fill_array = run_std_trim(half_width, speed_res.T)
+                fill_array = BoatData.run_std_trim(half_width, speed_res.T)
                 
                 # Compute filter bounds
                 upper_limit = speed_smooth + multiplier * fill_array
@@ -1356,7 +1320,7 @@ class WaterData(object):
         
         if setting == 'Auto':
             if self.snr_rng is not None:
-                bad_snr_idx = self.sn_rng > 12
+                bad_snr_idx = self.snr_rng > 12
                 valid = self.cells_above_sl
                 
                 bad_snr_array = np.tile(bad_snr_idx, (valid.shape[0], 1))
@@ -1376,13 +1340,13 @@ class WaterData(object):
         ----------
         transect: object
             Object of TransectData
-        setting: str
-            Setting for filter (On, Off)
+        setting: bool
+            Setting for filter (True, False)
         """
         self.wt_depth_filter = setting
         valid = self.cells_above_sl
         
-        if setting == 'On':
+        if setting:
             trans_select = getattr(transect.depths, transect.depths.selected)
             valid[:, np.isnan(trans_select.depth_processed_m)] = False
         self.valid_data[8, :, :] = valid
@@ -1690,8 +1654,8 @@ class WaterData(object):
         self.interpolate_cells = 'TRDI'
 
         # Construct variables
-        depths = getattr(transect, transect.depths.selected)
-        valid = self.validData[0]
+        depths = getattr(transect.depths, transect.depths.selected)
+        valid = self.valid_data[0]
         cell_depth = depths.depth_cell_depth_m
         z_all = np.subtract(depths.depth_processed_m, cell_depth)
         z = np.copy(z_all)
@@ -1777,8 +1741,8 @@ class WaterData(object):
         """Computes the range between the average snr for all beams.
 
         The average is computed using only data above the side lobe cutoff."""
-        cells_above_sl = np.copy(float(self.cells_above_sl))
+        cells_above_sl = np.copy(self.cells_above_sl.astype(float))
         cells_above_sl[cells_above_sl < 0.5] = np.nan
         snr_adjusted = self.rssi * cells_above_sl
-        snr_average = np.squeeze(np.nanmean(snr_adjusted, 0))
-        self.snr_rng = np.nanmax(snr_average) - np.nanmin(snr_average)
+        snr_average = np.nanmean(snr_adjusted, 1)
+        self.snr_rng = np.nanmax(snr_average, 0) - np.nanmin(snr_average, 0)

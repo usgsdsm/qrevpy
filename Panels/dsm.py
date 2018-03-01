@@ -6,6 +6,7 @@ import dsm_gui
 import sys
 from Panels.selectFile import OpenMeasurementDialog
 from Classes.Measurement import Measurement
+from Classes.ComputeExtrap import ComputeExtrap
 
 
 class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
@@ -26,6 +27,8 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             meas = Measurement(in_file=self.select.fullName, source='SonTek')
+            meas.extrap_fit = ComputeExtrap()
+            meas.extrap_fit.populate_data(meas.transects)
 
             print('SonTek')
         elif self.select.type == 'TRDI':

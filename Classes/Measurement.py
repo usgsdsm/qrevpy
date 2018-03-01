@@ -44,7 +44,7 @@ class Measurement(object):
             self.load_trdi(in_file, checked=checked)
             
         elif source == 'SonTek':
-            self.load_SonTek(in_file)
+            self.load_sontek(in_file)
                 
         select = self.transects[0].boat_vel.selected
         if select == 'bt_vel':
@@ -55,32 +55,30 @@ class Measurement(object):
             ref = 'VTG'
             
         if self.mb_tests is not None:
-            # for x in self.mb_tests:
-            #     x.auto_use_2_correct()
             self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
                 
-        #update status "Save initial settings"
-        self.intitial_settings = self.current_settings()
+        # Save initial settings
+        self.initial_settings = self.current_settings()
         
-        #Set processing
+        # Set processing type
         if proc_type == 'QRev':
-            #UpdateStatus "Apply Qrev default settings"
+            # Apply QRev default settings
             settings = self.QRevDefaultSettings()
-            settings['Processing'] = 'Qrev'
+            settings['Processing'] = 'QRev'
             
-            for x in self.transects:
-                self.apply_settings(x, settings)
-                
+            for transect in self.transects:
+                self.apply_settings(transect, settings)
+
             # self.composite_norm = NormData()
             # self.composite_norm.get_composite(self.transects)
         
         elif proc_type == 'None':
-            #UpdateStatus "Proicessing with no filters and interpolation
+            #UpdateStatus "Processing with no filters and interpolation
             settings = self.NoFilterInterpSettings()
             settings['Processing'] = 'None'
             
-            for x in self.transects:
-                self.apply_settings(x, settings)
+            for transect in self.transects:
+                self.apply_settings(transect, settings)
                 
         else:
             self.discharge = QComp()
@@ -88,16 +86,19 @@ class Measurement(object):
         
 
     # DSM change 1/23/2018 def load_trdi(self, mmt, **kargs):
-    def load_trdi(self, mmt, type='Q', checked=False):
+    def load_trdi(self, mmt_file, type='Q', checked=False):
         """method to load trdi MMT file"""
 
         #read in the MMT file
-        self.trdi = MMT_TRDI(mmt)
-        mmt = self.trdi
-    
+        # self.trdi = MMT_TRDI(mmt)
+        # mmt = self.trdi
+        mmt = MMT_TRDI(mmt_file)
+
         #Get properties if they exist, otherwise set them as blank strings
-        self.station_name = str(self.trdi.site_info['Name'])
-        self.station_number = str(self.trdi.site_info['Number'])
+        # self.station_name = str(self.trdi.site_info['Name'])
+        # self.station_number = str(self.trdi.site_info['Number'])
+        self.station_name = str(mmt.site_info['Name'])
+        self.station_number = str(mmt.site_info['Number'])
 
         # DSM Not sure this is needed 1/19/2018
         self.processing = 'WR2'
@@ -109,7 +110,7 @@ class Measurement(object):
         #-------------------------Done Refactor----------------------------------------------
         #Create object for pre-measurement tests
         if isinstance(mmt.qaqc, dict) or isinstance(mmt.mbt_transects):
-            self.qaqc_TRDI(mmt)
+            self.qaqc_trdi(mmt)
         
         #Save comments from mmt file in comments
         try:
@@ -240,7 +241,7 @@ class Measurement(object):
                     
                 idx += 1
 
-    def qaqc_TRDI(self, mmt):
+    def qaqc_trdi(self, mmt):
         """Processes qaqc test, calibrations, and evaluations
         
         Input:
@@ -298,12 +299,12 @@ class Measurement(object):
                                 
                     self.mb_tests.append(mb_test)
                                 
-    def load_SonTek(self, fullnames):
+    def load_sontek(self, fullnames):
         """Coordinates reading of all SonTek data files.
 
         Parameters
         ----------
-        fullNames: list
+        fullnames: list
             File names including path for all discharge transects converted to Matlab files.
         """
 
@@ -324,6 +325,18 @@ class Measurement(object):
                 self.station_number = rsdata.SiteInfo.Station_Number
 
         self.qaqc_sontek(pathname)
+
+        for transect in self.transects:
+            transect.change_coord_sys(new_coord_sys='Earth')
+            transect.change_nav_reference(update=False, new_nav_ref=self.transects[0].boat_vel.selected)
+            transect.boat_interpolations(update=False, target='BT', method='Hold9')
+            transect.boat_interpolations(update=False, target='GPS', method='None')
+            transect.apply_averaging_method(setting='Simple')
+            transect.process_depths(update=False, interpolation_method='HoldLast')
+            transect.update_water()
+            transect.wt_filters(wt_depth=True)
+            transect.wt_interpolations(target='Ensembles', interp_type='None')
+            transect.wt_interpolations(target='Cells', interp_type='TRDI')
 
     def qaqc_sontek(self, pathname):
         """Reads and stores system tests, compass calibrations, and moving-bed tests.
@@ -370,7 +383,6 @@ class Measurement(object):
 
         # Moving-bed tests
         self.sontek_moving_bed_tests(pathname)
-        pass
 
     def sontek_moving_bed_tests(self, pathname):
         """Locates and processes SonTek moving-bed tests.
@@ -604,109 +616,126 @@ class Measurement(object):
         #Check to see if transect number specified
         self.apply_settings(transect, s)
         
-    def apply_settings(self, transect, s, kargs = None):
-        """Applies reference, filter, and interpolation settings
+    def apply_settings(self, transect, settings, kargs = None):
+        """Applies reference, filter, and interpolation settings.
         
-        Input:
-        s: data structure of reference, filter, and interpolation settings
+        Parameters
+        ----------
+        transect: object
+            Object of TransectData
+        settings: dict
+            Dictionary of reference, filter, and interpolation settings
         kargs: transect number to apply settings to only 1 transect
         """
         
-        #Moving-boat ensembles
-        if 'processing' in s.keys():
-            transect.change_q_ensembles(s['Processing'])
-            self.processing = s['Processing']
+        # Moving-boat ensembles
+        if 'Processing' in settings.keys():
+            transect.change_q_ensembles(proc_method=settings['Processing'])
+            self.processing = settings['Processing']
         
-        #Navigation reference
-        if transect.boat_vel.selected != s['NavRef']:
-            transect.change_nav_reference(0, s['NavRef'])
-            if transect.mbt != False:
-                self.mb_tests[transect.mbt_idx].auto_use_2_correct(s['NavRef'])
+        # Navigation reference
+        if transect.boat_vel.selected != settings['NavRef']:
+            transect.change_nav_reference(update=False, new_nav_ref=settings['NavRef'])
+            if len(self.mb_tests) > 0:
+                self.mb_tests.auto_use_2_correct(moving_bed_tests=self.mb_tests, boat_ref=settings['NavRef'])
                 
-        #Composite tracks
-        #Changing the nav reference applies the current setting for
-        #composite tracks, check to see if a change is needed
-        if transect.boat_vel.composite == s['CompTracks']:
-            transect.composite_tracks(0, s['CompTracks'])
+        # Composite tracks
+        # Changing the nav reference applies the current setting for
+        # Composite tracks, check to see if a change is needed
+        if transect.boat_vel.composite != settings['CompTracks']:
+            transect.composite_tracks(update=False, setting=settings['CompTracks'])
             
-        #Set difference velocity BT filter
-        if s['BTdFilter'] == 'Manual':
-            BTdFilter = [s['BTdFilter'], s['BTdFilterThreshold']]
+        # Set difference velocity BT filter
+        bt_kwargs = {}
+        if settings['BTdFilter'] == 'Manual':
+            bt_kwargs['difference'] = settings['BTdFilter']
+            bt_kwargs['difference_threshold'] = settings['BTdFilterThreshold']
         else:
-            BTdFilter = [s['BTdFilter']]
+            bt_kwargs['difference'] = settings['BTdFilter']
             
-        #Set vertical velocity BTfilter
-        if s['BTwFilter'] == 'Manual':
-            BTwFilter = [s['BTwFilter'], s['BTwFilterThreshold']]
+        # Set vertical velocity BTfilter
+        if settings['BTwFilter'] == 'Manual':
+            bt_kwargs['vertical'] = settings['BTwFilter']
+            bt_kwargs['vertical_threshold'] = settings['BTwFilterThreshold']
         else:
-            BTwFilter = [s['BTwFilter']]
+            bt_kwargs['vertical'] = settings['BTwFilter']
             
-        #Apply BT settings
-        bt_settings = ['Beam',s['BTbeamFilter'],'Difference',BTdFilter[:],'Vertical',BTwFilter[:],'Other',s['BTsmoothFilter']];
-        transect.boat_filters(0,bt_settings)
+        # Apply BT settings
+        transect.boat_filters(update=False,**bt_kwargs)
         
-        #BT Interpolation
-        transect.boat_interpolations(0, 'BT', s['BTInterpolation'])
+        # BT Interpolation
+        transect.boat_interpolations(update=False, target='BT', method=settings['BTInterpolation'])
         
-        #GPS filter settings
+        # GPS filter settings
         if transect.gps is not None:
-            
+            gga_kwargs = {}
             if transect.boat_vel.gga_vel is not None:
-                #GGA
-                if s['ggaAltitudeFilter'] == 'Manual':
-                    ggaAltitudeFilter = [s['ggaAltitudeFilter'], s['ggaAltitudeFilterChange']]
+                # GGA
+                if settings['ggaAltitudeFilter'] == 'Manual':
+                    gga_kwargs['altitude'] = settings['ggaAltitudeFilter']
+                    gga_kwargs['altitude_threshold'] = settings['ggaAltitudeFilterChange']
                 else:
-                    ggaAltitudeFilter = [s['ggaAltitudeFilter']]
+                    gga_kwargs['altitude'] = settings['ggaAltitudeFilter']
                     
-                #Set GGA HDOP Filter
-                if s['GPSHDOPFilter'] == 'Manual':
-                    ggaHDOPFilter = [s['GPSHDOPFilter'], s['GPSHDOPFilterMax'], s['GPSHDOPFilterChange']]
+                # Set GGA HDOP Filter
+                if settings['GPSHDOPFilter'] == 'Manual':
+                    gga_kwargs['hdop'] = settings['GPSHDOPFilter'],
+                    gga_kwargs['hdop_max_threshold'] = settings['GPSHDOPFilterMax'],
+                    gga_kwargs['hdop_change_threshold'] = settings['GPSHDOPFilterChange']
                 else:
-                    ggaHDOPFilter = [s['GPSHDOPFilter']]
-                    
-                #Apply GGA filters
-                gga_settings = ['Differential', s['ggaDiffQualFilter'], 'Altitude', ggaAltitudeFilter, 'HDOP', ggaHDOPFilter, 'Other', s['GPSSmoothFilter']]
-                transect.gps_filters(0, gga_settings)
+                    gga_kwargs['hdop'] = settings['GPSHDOPFilter']
+
+                gga_kwargs['other'] = settings['GPSSmoothFilter']
+                # Apply GGA filters
+                transect.gps_filters(update=False, **gga_kwargs)
             
             if transect.boat_vel.vtg_vel is not None:
-                
-                if s['GPSHDOPFilter'] == 'Manual':
-                    vtgSettings = ['HDOP', s['GPSHDOPFilter'], s['GPSHDOPFilterMax'],s['GPSHDOPFilterChange'],'Other',s['GPSSmoothFilter']]
+                vtg_kwargs = {}
+                if settings['GPSHDOPFilter'] == 'Manual':
+                    vtg_kwargs['hdop'] = settings['GPSHDOPFilter']
+                    vtg_kwargs['hdop_max_threshold'] = settings['GPSHDOPFilterMax']
+                    vtg_kwargs['hdop_change_threshold'] = settings['GPSHDOPFilterChange']
+                    vtg_kwargs['other'] = settings['GPSSmoothFilter']
                 else:
-                    vtgSettings = ['HDOP', s['GPSHDOPFilter'], 'Other', s['GPSSmoothFilter']]
+                    vtg_kwargs['hdop'] = settings['GPSHDOPFilter']
+                    vtg_kwargs['other'] = settings['GPSSmoothFilter']
                     
-                #Apply VTG filters
-                transect.gps_filters(0, vtgSettings)
+                # Apply VTG filters
+                transect.gps_filters(update=False, **vtg_kwargs)
                 
-            transect.boat_interpolations(0, 'GPS', s['GPSInterpolation'])
+            transect.boat_interpolations(update=False, target='GPS', method=settings['GPSInterpolation'])
             
-        #Set depth reference
-        transect.set_depth_reference(0, s['depthReference'])
+        # Set depth reference
+        transect.set_depth_reference(update=False, setting=settings['depthReference'])
         
-        transect.process_depths(1, kargs = ['Filter', s['depthFilterType'],
-                                            'Interpolate', s['depthInterpolation'],
-                                            'Composite', s['depthComposite'],
-                                            'AvgMethod', s['depthAvgMethod'],
-                                            'ValidMethod', s['depthValidMethod']])
+        transect.process_depths(update=True,
+                                filter_method=settings['depthFilterType'],
+                                interpolation_method=settings['depthInterpolation'],
+                                composite_setting=settings['depthComposite'],
+                                avg_method=settings['depthAvgMethod'],
+                                valid_method=settings['depthValidMethod'])
         
-        #Set WT difference velocity filter
-        if s['WTdFilter'] == 'Manual':
-            WTdFilter = [s['WTdFilter'], s['WTdFilterThreshold']]
+        # Set WT difference velocity filter
+        wt_kwargs = {}
+        if settings['WTdFilter'] == 'Manual':
+            wt_kwargs['difference'] = settings['WTdFilter']
+            wt_kwargs['difference_threshold'] = settings['WTdFilterThreshold']
         else:
-            WTdFilter = [s['WTdFilter']]
+            wt_kwargs['difference'] = settings['WTdFilter']
             
-        #Set WT vertical velocity filter
-        if s['WTwFilter'] == 'Manual':
-            WTwFilter = [s['WTwFilter'], s['WTwFilterThreshold']]
+        # Set WT vertical velocity filter
+        if settings['WTwFilter'] == 'Manual':
+            wt_kwargs['vertical'] = settings['WTwFilter']
+            wt_kwargs['vertical_threshold'] = settings['WTwFilterThreshold']
         else:
-            WTwFilter = [s['WTwFilter']]  
-            
-        wtSettings = ['Beam', s['WTbeamFilter'], 'Difference', WTdFilter, 
-                      'Vertical', WTwFilter, 'Other', s['WTsmoothFilter'],
-                      'SNR', s['WTsnrFilter'], 'wtDepth', s['WTwDepthFilter'],
-                      'Excluded', s['WTExcludedDistance']]
+            wt_kwargs['vertical'] = settings['WTwFilter']
+
+        wt_kwargs['other'] = settings['WTsmoothFilter']
+        wt_kwargs['snr'] = settings['WTsnrFilter']
+        wt_kwargs['wt_depth'] = settings['WTwDepthFilter']
+        wt_kwargs['excluded'] = settings['WTExcludedDistance']
         
-        transect.wt_filters(wtSettings) 
+        transect.wt_filters(**wt_kwargs)
 
     def apply_settings2(self, trans_data, s, kargs=None):
         """Refactored so that the previous calculations can be multithreaded
@@ -871,7 +900,7 @@ class Measurement(object):
         settings['WTdFilterThreshold'] = np.nan
         settings['WTwFilter'] = 'Auto'
         settings['WTwFilterThreshold'] = np.nan
-        settings['WTsmoothFilter'] = 'Off'
+        settings['WTsmoothFilter'] = False
         if self.transects[0].adcp.manufacturer == 'TRDI':
             settings['WTsnrFilter'] = 'Off'
         else:
@@ -889,7 +918,7 @@ class Measurement(object):
         settings['BTdFilterThreshold'] = np.nan
         settings['BTwFilter'] = 'Auto'
         settings['BTwFilterThreshold'] = np.nan
-        settings['BTsmoothFilter'] = 'Off'
+        settings['BTsmoothFilter'] = False
 
         # GGA Filter settings
         settings['ggaDiffQualFilter'] = 2
@@ -903,7 +932,7 @@ class Measurement(object):
         settings['GPSHDOPFilter'] = 'Auto'
         settings['GPSHDOPFilterMax'] = np.nan
         settings['GPSHDOPFilterChange'] = np.nan
-        settings['GPSSmoothFilter'] = 'Off'
+        settings['GPSSmoothFilter'] = False
 
         # Depth Averaging
         settings['depthAvgMethod'] = 'IDW'
@@ -915,7 +944,7 @@ class Measurement(object):
         settings['depthReference'] = 'btDepths'
         # Depth settings
         settings['depthFilterType'] = 'smooth'
-        settings['depthComposite'] = 'On'
+        settings['depthComposite'] = True
 
         # Interpolation settings
         settings = self.QRevDefaultInterp(settings)
@@ -941,6 +970,6 @@ class Measurement(object):
         settings['WTCellInterpolation'] = 'TRDI'
         settings['GPSInterpolation'] = 'Linear'
         settings['depthInterpolation'] = 'Linear'
-        settings['WTwDepthFilter'] = 'On'
+        settings['WTwDepthFilter'] = True
 
         return settings

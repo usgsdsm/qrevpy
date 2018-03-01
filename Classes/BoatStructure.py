@@ -44,7 +44,7 @@ class BoatStructure(object):
         # Future versions may try to determine this setting from SonTek data
         self.composite = False  # Setting for compositir tracks
         
-    def add_boat_object(self, source, vel_in, freq_in, coord_sys_in, nav_ref_in, min_beams=3):
+    def add_boat_object(self, source, vel_in, freq_in=None, coord_sys_in=None, nav_ref_in=None, min_beams=3, bottom_mode='Variable'):
         """Adds a BoatData object to the appropriate property
 
         Parameters
@@ -61,11 +61,13 @@ class BoatStructure(object):
             Source of boat velocity data
         min_beams: float
             Setting to allow 3 beam solutions or require 4 beam solutions or set to Auto (-1)
+        bottom_mode: str
+            Bottom mode used
         """
         
         if nav_ref_in == 'BT':
             self.bt_vel = BoatData()
-            self.bt_vel.populate_data(source, vel_in, freq_in, coord_sys_in, nav_ref_in, min_beams)
+            self.bt_vel.populate_data(source, vel_in, freq_in, coord_sys_in, nav_ref_in, min_beams, bottom_mode)
         if nav_ref_in == 'GGA':
             self.gga_vel = BoatData()
             self.gga_vel.populate_data(source, vel_in, freq_in, coord_sys_in, nav_ref_in)

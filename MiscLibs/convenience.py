@@ -36,7 +36,7 @@ def pol2cart(rho, phi):
     return(x, y)
 
 def iqr(data):
-    q75, q25 = np.percentile(data, [75 ,25])
+    q75, q25 = np.nanpercentile(data, [75 ,25])
     iqr = q75 - q25
     
     return iqr

@@ -3,8 +3,6 @@ Created on Sep 26, 2017
 
 @author: gpetrochenkov
 """
-from docutils.nodes import reference
-from IPython.utils._tokenize_py2 import Exponent
 
 class ExtrapQSensitivity(object):
     """Class to compute the sensitivity of the discharge to various extrapolation methods"""
@@ -32,5 +30,5 @@ class ExtrapQSensitivity(object):
         self.q_man_per_diff = None #manually specified extrapolations percent difference from reference
         
     def populate_data(self, trans_data, extrap_fits):
-        
+        pass
         

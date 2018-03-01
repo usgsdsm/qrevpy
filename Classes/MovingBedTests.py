@@ -75,7 +75,7 @@ class MovingBedTests(object):
         self.mb_spd_mps = None  # Magnitude of moving=bed velocity in mps
         self.percent_mb = None  # Potential error due to moving bed in percent
         self.moving_bed = None  # Moving-bed determined 'Yes' 'No'
-        self.user_valid = None  # Logical to allow user to determine if test should be considered a valid test
+        self.user_valid = True  # Logical to allow user to determine if test should be considered a valid test
         self.test_quality = None  # Quality of test 'Valid' 'Warnings' 'Errors'
         self.use_2_correct = None  # Use this test to correct discharge
         self.selected = None  # Selected ad valid moving-bed test to user for correction or determine moving-bed condition
@@ -103,12 +103,12 @@ class MovingBedTests(object):
         else:
             self.mb_sontek(file, type)
         
-        #Convert to earth coordinates and set the navigation reference to BT
-        #for both boat and water data    
+        # Convert to earth coordinates and set the navigation reference to BT
+        # for both boat and water data
         self.transect.change_coord_sys(new_coord_sys='Earth')
         self.transect.change_nav_reference(update=True, new_nav_ref='BT')
             
-        #Adjust data for default manufacturer specific handling of invalid data
+        # Adjust data for default manufacturer specific handling of invalid data
         delta_t = adjusted_ensemble_duration(self.transect, 'mbt')
         
         if self.type == 'Loop':
@@ -157,8 +157,8 @@ class MovingBedTests(object):
         """
         # Assign data from transect to local variables
         # TODO edit BoatData to remove use of kargs
-        self.transect.boat_interpolations(False, 'BT', kargs=['Linear'])
-        self.transect.boat_interpolations(False, 'GPS', kargs=['Linear'])
+        self.transect.boat_interpolations(update=False, target='BT', method='Linear')
+        self.transect.boat_interpolations(update=False, target='GPS', method='Linear')
         trans_data = self.transect
         in_transect_idx = trans_data.in_transect_idx
         n_ensembles = len(in_transect_idx)

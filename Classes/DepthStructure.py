@@ -174,7 +174,7 @@ class DepthStructure(object):
                 comp_source[np.isnan(comp_depth) == False] = 1
                 comp_depth[np.isnan(comp_depth)] = np.squeeze(ds_filtered[np.isnan(comp_depth)])
                 comp_source[(np.isnan(comp_depth) == False) & (np.isnan(comp_source) == True)] = 3
-                comp_depth[np.isnan(comp_depth)] = np.squeeze(vb_filtered[np.isnan(comp_depth)])
+                comp_depth[np.isnan(comp_depth)] = vb_filtered[np.isnan(comp_depth)]
                 comp_source[(np.isnan(comp_depth == False) & (np.isnan(comp_source) == True))] = 2
                 comp_depth[np.isnan(comp_depth)] = np.squeeze(self.bt_depths.depth_processed_m[np.isnan(comp_depth)])
                 comp_source[(np.isnan(comp_depth) == False) & (np.isnan(comp_source) == True)] = 4
@@ -201,25 +201,24 @@ class DepthStructure(object):
                
             #Save composite depth to depth_processed of selected primary reference
             
-            obj = getattr(self,ref)
-            obj.apply_composite(comp_depth, comp_source)
+            selected_data = getattr(self, ref)
+            selected_data.apply_composite(comp_depth, comp_source)
                 
         else:
-            obj = getattr(self,ref)
-            comp_source = np.zeros(obj.depth_processed_m.shape)
+            selected_data = getattr(self, ref)
+            comp_source = np.zeros(selected_data.depth_processed_m.shape)
             
             if ref == 'bt_depths':
-                obj.valid_data[np.isnan(obj.valid_data)] = False
-                comp_source[obj.valid_data] = 1
+                selected_data.valid_data[np.isnan(selected_data.valid_data)] = False
+                comp_source[np.squeeze(selected_data.valid_data)] = 1
             elif ref == 'vb_depths':
-                comp_source[obj.valid_data] = 2
+                comp_source[np.squeeze(selected_data.valid_data)] = 2
             elif ref == 'ds_depths':
-                comp_source[obj.valid_data] = 3
-                
-            
-            obj.apply_interpolation(transect) 
-            comp_depth = obj.depth_processed_m
-            obj.apply_composite(comp_depth, comp_source)
+                comp_source[np.squeeze(selected_data.valid_data)] = 3
+
+            selected_data.apply_interpolation(transect)
+            comp_depth = selected_data.depth_processed_m
+            selected_data.apply_composite(comp_depth, comp_source)
             
             
     def set_draft(self, target, draft):

@@ -27,7 +27,7 @@ from scipy.signal import butter, filtfilt
 import numpy.matlib as m
 
 
-
+# TODO lowess needs to handle data with nan.
 def lowess(x, y, f=2. / 3., iter=3):
     """lowess(x, y, f=2./3., iter=3) -> yest
     Lowess smoother: Robust locally weighted regression.
