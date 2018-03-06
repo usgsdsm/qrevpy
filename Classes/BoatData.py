@@ -268,7 +268,7 @@ class BoatData(object):
         else:
             o_coord_sys = self.orig_coord_sys.strip()
 
-        if self.orig_coord_sys[0].strip() != new_coord_sys.strip():
+        if self.orig_coord_sys.strip() != new_coord_sys.strip():
             # Assign the transformation matrix and retrieve the sensor data
             t_matrix = adcp.t_matrix.matrix
             t_matrix_freq = adcp.frequency_kHz
@@ -905,7 +905,7 @@ class BoatData(object):
             self.beam_filter = -1
 
         # Combine all filter data to composite valid data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data, 0)
 
     def filter_diff_vel(self, setting, threshold=None):
@@ -975,8 +975,6 @@ class BoatData(object):
                 d_vel_greater_idx = np.where(d_vel_filtered >= d_vel_min_ref)[0]
                 d_vel_good_idx = list(set(np.hstack((d_vel_less_idx, d_vel_greater_idx))))
 
-
-
                 # Update filtered data array
                 d_vel_filtered=np.copy(d_vel_filtered[d_vel_good_idx])
 
@@ -986,13 +984,13 @@ class BoatData(object):
 
         # Set valid data row 3 for difference velocity filter results
         self.valid_data[2, ] = False
-        self.valid_data[3, d_vel_good_idx] = True
-        self.valid_data[3, self.valid_data[2, :] == False] = True
-        self.valid_data[3, np.isnan(self.d_mps)] = True
+        self.valid_data[2, d_vel_good_idx] = True
+        self.valid_data[2, self.valid_data[2, :] == False] = True
+        self.valid_data[2, np.isnan(self.d_mps)] = True
         self.d_filter_threshold = d_vel_max_ref
 
         # Combine all filter data to composite filter data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data == False, 0)
 
     def filter_vert_vel(self, setting, threshold=None):
@@ -1064,7 +1062,7 @@ class BoatData(object):
         self.w_filter_threshold = w_vel_max_ref
 
         # Combine all filter data to composite valid data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data[0, :])
 
     def filter_smooth(self, transect, setting):
@@ -1153,7 +1151,7 @@ class BoatData(object):
             self.smooth_speed = np.nan
 
         # Combine all filter data to composite valid data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, ])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, ], 0)
         self.num_invalid = np.sum(self.valid_data[0, :] == False, 0)
 
     def apply_gps_filter(self, transect, differential=None,
@@ -1252,7 +1250,7 @@ class BoatData(object):
                 self.valid_data[2, np.isnan(gps_data.diff_qual_ens)] = True
 
         # Combine all filter data to composite valid data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     def filter_altitude(self, gps_data, setting=None, threshold=None):
@@ -1309,7 +1307,7 @@ class BoatData(object):
                 change = num_valid_old - num_valid
 
         # Combine all filter data to composite valid data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     def filter_hdop(self, gps_data, setting=None, max_threshold=None, change_threshold=None):
@@ -1373,7 +1371,7 @@ class BoatData(object):
                     num_valid_old = num_valid
 
         # Combine all filter data to composite data
-        self.valid_data[0, :] = np.all(self.valid_data[1:, :])
+        self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     @staticmethod

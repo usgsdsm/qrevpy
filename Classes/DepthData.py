@@ -52,7 +52,6 @@ class DepthData(object):
             Smooth function lower limit or window, in meters.
         avg_method:str
             Defines averaging method: "Simple", "IDW", only applicable to bottom track.
-        avg_depth:??????????????????
         filter_type: str
             Type of filter: "None", "TRDI", "Smooth".
         interp_type: str
@@ -136,7 +135,6 @@ class DepthData(object):
 # ===============================
 # DSM stopped here 1/24/2018
         self.apply_filter('dummy', filter_type='None')
-        
 
     def change_draft(self, draft):
         """Changes the draft for object
@@ -190,11 +188,10 @@ class DepthData(object):
             depth[self.valid_beams == False] = np.nan
             
             #Compute average depths
-            self.depth_processed_m = self.average_depth(depth, self.draft_use_m, self.avg_method)
-            self.depth_processed_m = self.avg_depth
+            self.depth_processed_m = DepthData.average_depth(depth, self.draft_use_m, self.avg_method)
             
             #Set depths to nan if depth are not valid beam depths
-            self.depth_processed_m[self.valid_data == 0] = np.nan
+            self.depth_processed_m[self.valid_data == False] = np.nan
 
     def apply_filter(self, transect, filter_type=[]):
         """Coordinate the application of depth filters.
@@ -607,22 +604,36 @@ class DepthData(object):
     def filter_butter(self, transect):
         """Filters depth of every beam using a Butterworth filter at a specified order and cutoff frequency"""
         pass  
-    
-    def average_depth(self, depth, draft, method):
-        """Compute average depth from bottom track beam depths
+
+    @staticmethod
+    def average_depth(depth, draft, method):
+        """Compute average depth from bottom track beam depths.
+
+        Parameters
+        ----------
+        depth: np.array(float)
+            Individual beam depths for each beam in each ensemble including the draft
+        draft: float
+            Draft of ADCP
+        method: str
+            Averaging method (Simple, IDW)
         
-        depth - array of beam depths
+        Returns
+        -------
+        avg_depth: np.array(float)
+            Average depth for each ensemble
         
         """
         if method == 'Simple':
-            self.avg_depth = np.nanmean(depth)
+            avg_depth = np.nanmean(depth)
         else:
             #compute inverse weighted mean depth
             rng = depth - draft
-            w = 1-rng / repmat(np.nansum(rng), 4, 1)
-            self.avg_depth = np.array(draft+np.nansum((rng*w) / repmat(np.nansum(w,0), 4, 1), 0))
-            self.avg_depth[self.avg_depth == draft] = np.nan
-            
+            w = 1 - np.divide(rng, np.nansum(rng, 0))
+            avg_depth = draft+np.nansum(np.divide((rng * w), np.nansum(w, 0)), 0)
+            avg_depth[avg_depth == draft] = np.nan
+
+        return avg_depth
            
             
     def run_IQR(self, half_width, mydata):

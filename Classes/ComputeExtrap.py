@@ -28,7 +28,8 @@ class ComputeExtrap(object):
         self.process_profiles(transects=transects, data_type='q')
         # Compute the sensitivity of the final discharge to changes in extrapolation methods
         if compute_sensitivity:
-            self.q_sensitivity = ExtrapQSensitivity(transects, self.sel_fit)
+            self.q_sensitivity = ExtrapQSensitivity()
+            self.q_sensitivity.populate_data(transects=transects, extrap_fits=self.sel_fit)
             
     def process_profiles(self, transects, data_type):
         """Function that coordinates the fitting process.
@@ -56,18 +57,21 @@ class ComputeExtrap(object):
         comp_data.create_composite(transects=transects, norm_data=self.norm_data, threshold=self.threshold)
         self.norm_data.append(comp_data)
 
-        #Compute the fit for the selected  method
-        if self.fit_method == 'Manual':
-            self.sel_fit = SelectFit()
-            self.sel_fit.populate_data(self.norm_data, self.fit_method, transects)
-        else:
-            self.sel_fit = SelectFit()
-            self.sel_fit.populate_data(self.norm_data, self.fit_method)
-            
-        if self.sel_fit.top_fit_r2 is not None:
-            #Evaluate if there is a potential that a 3-point top method may be appropriate
-            if self.sel_fit.top_fit_r2 > 0.9 or self.sel_fit.top_r2 > 0.9 and np.abs(self.sel_fit.top_max_diff) > 0.2:
-                self.messages.append('The measurement profile may warrant a 3-point fit at the top')
+        # Compute the fit for the selected  method
+        for n in range(len(transects)):
+            if self.fit_method == 'Manual':
+                sel_fit = SelectFit()
+                sel_fit.populate_data(normalized=self.norm_data[n], fit_method=self.fit_method, transect=transects[n])
+                self.sel_fit.append(sel_fit)
+            else:
+                sel_fit = SelectFit()
+                sel_fit.populate_data(self.norm_data[n], self.fit_method)
+                self.sel_fit.append(sel_fit)
+
+            if sel_fit.top_fit_r2 is not None:
+                #Evaluate if there is a potential that a 3-point top method may be appropriate
+                if sel_fit.top_fit_r2 > 0.9 or sel_fit.top_r2 > 0.9 and np.abs(sel_fit.top_max_diff) > 0.2:
+                    self.messages.append('The measurement profile may warrant a 3-point fit at the top')
                 
     def update_q_sensitivity(self, trans_data):
         self.q_sensitivity = ExtrapQSensitivity()

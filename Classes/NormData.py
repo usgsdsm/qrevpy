@@ -49,7 +49,7 @@ class NormData(object):
         self.unit_normalized_75 = None  # Value for which 75% or normalized values are larger
         self.data_type = None  # Type of data (v, q, V, or Q)
         self.data_extent = None  # Defines percent of data from start of transect to use, default [0, 100]
-        self.valid_data = None  # Index of median values with point count greater than threshold cutoff
+        self.valid_data = np.array([])  # Index of median values with point count greater than threshold cutoff
         
     def populate_data(self, transect, data_type, threshold, data_extent=None):
         """Computes the normalized values for a single transect.
@@ -122,14 +122,14 @@ class NormData(object):
                 unit[i, :] = np.vstack([w_vel_x[i, :], w_vel_y[i, :]]).dot(unit_vec)
                                        
         # Compute Total
-        unit_total = np.nansum(np.nansum(unit))
+        unit_total = np.nansum(np.nansum(unit), 0)
         
         # Adjust to positive value
         if unit_total < 0:
             unit *= -1
             
         # Compute normalize unit values
-        unit_norm = np.divide(unit, np.abs(np.nanmean(unit)))
+        unit_norm = np.divide(unit, np.abs(np.nanmean(unit, 0)))
         
         # Apply extents if they have been specified
         if data_extent[0] != 0 or data_extent[1] != 100:
@@ -177,7 +177,7 @@ class NormData(object):
         """
 
         # Set averaging interval
-        avg_interval = np.arange(0, 1, .05)
+        avg_interval = np.arange(0, 1.05, .05)
 
         # Intialize variables to nan
         unit_norm_med = np.tile([np.nan], len(avg_interval))
@@ -188,14 +188,16 @@ class NormData(object):
 
         # Process each normalized increment
         for i in range(len(avg_interval) - 1):
-            idx = np.where((self.cell_depth_normalized > avg_interval[i])
-                           & (self.cell_depth_normalized <= avg_interval[i + 1])
-                           & (np.isnan(self.unit_normalized) == False))
-            unit_norm_med[i] = np.nanmedian(self.unit_normalized[idx])
-            unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[idx]) == False)
+            condition_1 = self.cell_depth_normalized > avg_interval[i]
+            condition_2 = self.cell_depth_normalized <= avg_interval[i + 1]
+            condition_3 = np.isnan(self.unit_normalized) == False
+            condition_all = np.logical_and(np.logical_and(condition_1, condition_2), condition_3)
+
+            unit_norm_med[i] = np.nanmedian(self.unit_normalized[condition_all])
+            unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[condition_all]) == False)
             unit_25[i] = np.nanpercentile(self.unit_normalized, 25)
             unit_75[i] = np.nanpercentile(self.unit_normalized, 75)
-            avgz[i] = np.nanmean(self.cell_depth_normalized[idx])
+            avgz[i] = 1 - np.nanmean(self.cell_depth_normalized[condition_all])
 
         # Mark increments invalid if they do not have sufficient data
         cutoff = np.nanmedian(unit_norm_med_no[unit_norm_med_no > 0]) * (threshold / 100)

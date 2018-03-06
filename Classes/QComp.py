@@ -158,17 +158,17 @@ class QComp(object):
         # measured discharge
         self.int_cells, self.int_ens = QComp.discharge_interpolated(self.top_ens, self.middle_cells, self.bottom_ens, data_in)
         
-        # Compute left edge discharge
-        if data_in.edges.left.type == 'User Q':
+        # Compute right edge discharge
+        if data_in.edges.right.edge_type == 'User Q':
             self.right = QComp.discharge_edge('right', data_in, top_method, bot_method, exponent)
         else:
-            self.right = data_in.edges.right.user_Q_cms
+            self.right = data_in.edges.right.user_discharge_cms
             
         # Compute left edge discharge
-        if data_in.edges.left.type == 'User Q':
+        if data_in.edges.left.edge_type == 'User Q':
             self.left = QComp.discharge_edge('left', data_in, top_method, bot_method, exponent)
         else:
-            self.left = data_in.edges.left.user_Q_cms
+            self.left = data_in.edges.left.user_discharge_cms
             
         # Compute moving-bed correction, if applicable.  Two checks are used to account for the
         # way the meas object is created.
@@ -414,7 +414,7 @@ class QComp(object):
         # Top constant extrapolation
         elif top_method == 'Constant':
             n_ensembles = len(delta_t)
-            top_value = np.tile([np.nan], (1, n_ensembles))
+            top_value = np.tile([np.nan], (n_ensembles))
             for j in range(n_ensembles):
                 if idx_top[j] != 0:
                     top_value[j] = delta_t[j] * component(idx_top[j], j) * top_rng[j]
@@ -427,7 +427,7 @@ class QComp(object):
             # Determine number of ensembles
             n_ensembles = len(delta_t)
             # Preallocate qtop vector
-            top_value = np.tile([np.nan], (1, n_ensembles))
+            top_value = np.tile([np.nan], (n_ensembles))
 
             for j in range(n_ensembles):
 
@@ -472,7 +472,7 @@ class QComp(object):
         """
 
         # Get data from transect object
-        valid_data1 = transect.w_vel.valid_data[:, :, 0]
+        valid_data1 = transect.w_vel.valid_data[0, :, :]
         valid_data2 = np.isnan(xprod) == False
         valid_data = valid_data1 * valid_data2
         trans_select = getattr(transect.depths, transect.depths.selected)
@@ -481,9 +481,9 @@ class QComp(object):
 
         # Preallocate variables
         n_ensembles = valid_data.shape[1]
-        idx_top = np.zeros(1, valid_data.shape[1])
-        idx_top_3 = np.zeros(3, valid_data.shape[1])
-        top_rng = np.tile([np.nan], (1, n_ensembles))
+        idx_top = np.zeros(valid_data.shape[1]).astype(int)
+        idx_top_3 = np.zeros((3, valid_data.shape[1])).astype(int)
+        top_rng = np.tile([np.nan], (n_ensembles))
 
         # Loop through ensembles
         for n in range(n_ensembles):
@@ -617,10 +617,10 @@ class QComp(object):
                 np.nansum(((z_ns + 0.5 * cell_size) ** (exponent + 1))
                           - ((z_ns - 0.5 * cell_size) ** (exponent + 1)))
 
-            # Compute the bottom discharge of each profile
-            bot_value = delta_t * (coef / (exponent + 1)) * (bot_rng**(exponent + 1))
+        # Compute the bottom discharge of each profile
+        bot_value = delta_t * (coef / (exponent + 1)) * (bot_rng**(exponent + 1))
 
-            return bot_value
+        return bot_value
 
     @staticmethod
     def bot_variables(x_prod, transect):
@@ -644,7 +644,7 @@ class QComp(object):
 
         # Identify valid data
         in_transect_idx = transect.in_transect_idx
-        valid_data1 = transect.w_vel.valid_data[:, in_transect_idx]
+        valid_data1 = transect.w_vel.valid_data[0, :, in_transect_idx].T
         valid_data2 = np.isnan(x_prod) == False
         valid_data = valid_data1 * valid_data2
 
@@ -656,17 +656,17 @@ class QComp(object):
 
         # Preallocate variables
         n_ensembles = valid_data.shape[1]
-        idx_bot = np.zeros((1, valid_data.shape[1]))
-        bot_rng = np.tile([np.nan], (1, n_ensembles))
+        idx_bot = np.zeros((valid_data.shape[1])).astype(int)
+        bot_rng = np.tile([np.nan], (n_ensembles))
 
         for n in range(n_ensembles):
             # Identifying bottom most valid cell
-            idx_temp = np.where(valid_data[:,n] == True)[0]
+            idx_temp = np.where(valid_data[:, n] == True)[0]
             if len(idx_temp) > 0:
                 idx_temp = idx_temp[-1]
                 idx_bot[n] = idx_temp
                 # Compute bottom range
-                bot_rng[n] = depth_ens[n] - cell_depth[idx_bot[n],n] - 0.5 * cell_size[idx_bot]
+                bot_rng[n] = depth_ens[n] - cell_depth[idx_bot[n], n] - 0.5 * cell_size[idx_bot[n], n]
             else:
                 bot_rng[n] = 0
 
@@ -1603,7 +1603,7 @@ class QComp(object):
         return valid_ens
 
     @staticmethod
-    def discharge_interpolated(q_top_ens,q_mid_cells,q_bot_ens,transect):
+    def discharge_interpolated(q_top_ens, q_mid_cells, q_bot_ens, transect):
         """Determines the amount of discharge in interpolated cells and ensembles.
 
         Parameters
@@ -1627,7 +1627,7 @@ class QComp(object):
         valid_ens, valid_wt = TransectData.raw_valid_data(transect)
 
         # Compute interpolated cell discharge
-        q_int_cells = np.nansum(np.nansum(q_mid_cells[not valid_wt]))
+        q_int_cells = np.nansum(np.nansum(q_mid_cells[np.logical_not(valid_wt)]))
 
         #  Method to compute invalid ensemble discharge depends on if
         # navigation data are interpolated (QRev) or if expanded delta
@@ -1657,7 +1657,9 @@ class QComp(object):
 
         else:
             # Compute discharge in invalid ensembles where all data were interpolated
-            q_int_ens = np.nansum(np.nansum(q_mid_cells[:,not valid_ens])) + np.nansum(q_top_ens[not valid_ens]) + np.nansum(q_bot_ens[not valid_ens])
+            q_int_ens = np.nansum(np.nansum(q_mid_cells[:, np.logical_not(valid_ens)])) \
+                        + np.nansum(q_top_ens[np.logical_not(valid_ens)]) \
+                        + np.nansum(q_bot_ens[np.logical_not(valid_ens)])
 
         return q_int_cells, q_int_ens
 

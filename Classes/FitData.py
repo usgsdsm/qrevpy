@@ -5,27 +5,54 @@ from scipy.stats import t
 
 
 class FitData(object):
-    '''  Class adapted from the extrap program.
+    """Class to compute top and bottom extrapolation methods and associated statistics.
 
-     Class definition for profile extrapolation fit properties. This class
-     consists of a constructor method and a method to plot the fit as a
-     solid line.
      Data required for the constructor method include data of class
      NormData, threshold for the minimum number of points for a valid
      median, top extrapolation method, bottom extrapolation method, type
      of fit, and if a manual fit, the exponent.
-     David S. Mueller, 2/18/2011
 
-     Modified 6/17/2011, dsm
-     1) Added fit statistics
+    Attributes
+    ----------
+    self.file_name: str
+        Name of transect file
+    top_method: str
+        Top extrapolation method
+    bot_method: str
+        Bottom extrapolation method
+    coef: float
+        Power fit coefficient
+    exponent: float
+        Power fit exponent
+    u: np.array(float)
+        Fit values of the variable
+    u_auto: np.array(float)
+        Fit values from automatic fit
+    z_auto: np.array(float)
+        z values for automtic fit
+    z: np.array(float)
+        Distance from the streambed for fit variable
+    exp_method: str
+        Method to determine exponent (default, optimize, or manual)
+    data_type: str
+        Type of data (velocity or unit discharge)
+    exponent_95_ci: float
+        95% confidence intervals for optimized exponent
+    residuals: np.array(float)
+        Residuals from fit
+    r_squared: float
+        R squared of model
 
-     Modified 10/17/2011, dsm
-     2) Moved application of threshold criteria to NormData as property
-     validData.
-
-     Last modificaitons / validation 5/15/2012'''
+    These have been added by Greg
+    fit_func: str
+        Method to use in curve fit
+    bounds = None  # Bounds for curve fitting coefficients (None if not necessary)
+    p0 = None  # Initial guess in curve fit (None if not necessary)
+    """
 
     def __init__(self):
+        """Initialize object and instance variables."""
+
         self.file_name = None  # Name of transect file
         self.top_method = None  # Top extrapolation method
         self.bot_method = None  # Bottom extrapolation method
@@ -44,11 +71,23 @@ class FitData(object):
         self.p0 = None  # Initial guess in curve fit (None if not necessary)
         self.r_squared = None  # R squared of model
 
-    def populate_data(self, norm_data, top, bot, method, kargs = None):
+    def populate_data(self, norm_data, top, bot, method, exponent=None):
+        """Computes fit and stores associated data.
 
-        # If no arguments just create object
+        Parameters
+        ----------
+        norm_data: object
+            Object of NormData
+        top: str
+            Top extrapolation method
+        bot: str
+            Bottom extrapolation method
+        method:
+            Method used to define the exponent (default, optimize, or manual), default is 1/6.
+        exponent:
+            Exponent for power or no slip fit methods.
+        """
 
-        unit_norm_no = norm_data.unit_normalized_no
         avg_z = norm_data.unit_normalized_z
         y = norm_data.unit_normalized_med
         idxz = np.squeeze(norm_data.valid_data)
@@ -58,7 +97,7 @@ class FitData(object):
         upper_bound = [np.inf, 1]
 
         # Process data if available
-        if idxz is not None:
+        if len(idxz) > 0:
             idx_power = idxz
 
             # Create arrays for data fitting
@@ -72,86 +111,105 @@ class FitData(object):
 
             fit_combo = ''.join([top, bot])
             if fit_combo == 'PowerPower':
-                self.z = np.arange(0,1.01,.01)
-                self.z = self.z.T
+                self.z = np.arange(0, 1.01, 0.01)
+                # self.z = self.z.T
                 zc = np.nan
                 uc = np.nan
             elif fit_combo == 'ConstantPower':
                 self.z = np.arange(0, np.max(avg_z[idxz])+0.01, 0.01)
-                self.z = np.vstack([self.z, np.nan])
+                self.z = np.hstack([self.z, np.nan])
                 zc = np.arange(np.max(avg_z[idxz] + 0.01), 1.01, 0.01)
-                zc = zc.T
+                # zc = zc.T
                 uc = np.tile(y[idxz[0]], zc.shape)
             elif fit_combo == '3-PointPower':
                 self.z = np.arange(0, np.max(avg_z[idxz]) + 0.01, 0.01)
-                self.z = np.vstack([self.z, np.nan])
-                # If less than 6 bins use contatnt at the top
+                self.z = np.hstack([self.z, np.nan])
+                # If less than 6 bins use constant at the top
                 if len(idxz) < 6:
                     zc = np.arange(np.max(idxz) + 0.01, 1.01, 0.01)
-                    zc = zc.T
+                    # zc = zc.T
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
-                    p = poly1d(avg_z[0:3], y[0:3])
+                    p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
                     zc = np.max(avg_z[idxz] + 0.01, 1.01, 0.01)
-                    zc = zc.T
+                    # zc = zc.T
                     uc = zc * p[0] + p[1]
 
             elif fit_combo == 'ConstantNo Slip':
                 # Optimize constant / no slip if sufficient cells are available
-                if method == 'optimize':
-                    idx = idxz[1+len(idxz)- np.floor(len(avg_z[idxz]) / 3):-1];
+                if method.lower() == 'optimize':
+                    idx = idxz[int(1+len(idxz) - np.floor(len(avg_z[idxz])) / 3)::]
                     if len(idx) < 4:
                         method = 'default'
 
-                # Compute Constant / No Sli using WinRiver II and
-                # RiverSurveyor Live defaault cells
+                # Compute Constant / No Slip using WinRiver II and
+                # RiverSurveyor Live default cells
                 else:
-                    idx = np.where(avg_z[idxz] <= .2)
+                    idx = np.where(avg_z[idxz] <= .2)[0]
                     if len(idx) < 1:
                         idx = idxz[-1]
                     else:
-                        idx = idxz[idx[0]]
+                        idx = idxz[idx]
 
                 # Configures u and z arrays
-                idxns = idx
+                idxns = np.array([idx]).T
                 self.z = np.arange(0, avg_z[idxns[0]] + 0.01, 0.01)
                 self.z = np.hstack([self.z, [np.nan]])
                 idx_power = idx
+                zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.01, 0.01)
+                uc = np.tile(y[idxz[0]], zc.shape)
 
-                # If less than 6 bins use constatnt at the top
+            elif fit_combo == '3-PointNo Slip':
+                # Optimize 3-Point / no slip if sufficient cells are available
+                if method.lower() == 'optimize':
+                    idx = idxz[int(1 + len(idxz) - np.floor(len(avg_z[idxz])) / 3)::]
+                    if len(idx) < 4:
+                        method = 'default'
+
+                # Compute 3-Point / No Slip using WinRiver II and
+                # RiverSurveyor Live default cells
+                else:
+                    idx = np.where(avg_z[idxz] <= .2)[0]
+                    if len(idx) < 1:
+                        idx = idxz[-1]
+                    else:
+                        idx = idxz[idx]
+
+                # Configures u and z arrays
+                idxns = np.array([idx]).T
+                self.z = np.arange(0, avg_z[idxns[0]] + 0.01, 0.01)
+                self.z = np.hstack([self.z, [np.nan]])
+                idx_power = idx
+                # If less than 6 bins use constant at the top
                 if len(idxz) < 6:
-                    zc = np.arange(np.max(avg_z) +0.01, 1.01, 0.01)
-                    zc = zc.T
+                    zc = np.arange(np.max(idxz) + 0.01, 1.01, 0.01)
+                    # zc = zc.T
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
-                    p = np.polyfit(avg_z[idxz[0:3]], y[idxz[0:3]], deg=1)
-
-                    zc = np.arange(np.max(avg_z[idxz]), 1.01, .01)
-                    zc = zc.T
+                    p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
+                    zc = np.max(avg_z[idxz] + 0.01, 1.01, 0.01)
+                    # zc = zc.T
                     uc = zc * p[0] + p[1]
-
 
             # Compute exponent
             zfit = avg_z[idx_power]
             yfit = y[idx_power]
 
             # Check data validity
-            ok1 = [np.isfinite(z) for z in zfit]
-            ok2 = [np.isfinite(y) for y in yfit]
-            ok_ =  np.array([z == 1 and y == 1 for z,y in zip(ok1,ok2)])
-            if np.all(ok_) == False:
-                pass
-                # Add warning
+            ok_ = np.logical_and(np.isfinite(zfit), np.isfinite(yfit))
+            # if np.all(ok_) == False:
+            #     pass
+            #     # TODO Add warning
 
             self.exponent = np.nan
             self.exponent_95_ci = np.nan
-            self.rsqr = np.nan
+            self.r_squared = np.nan
 
             lower_method = method.lower()
 
             if lower_method == 'manual':
                 self.fit_func = 'linear'
-                self.exponent = kargs[0]
+                self.exponent = exponent
                 self.bounds = None
                 self.p0 = None
 
@@ -168,17 +226,17 @@ class FitData(object):
                 self.p0 = [strt[-1], 1./6]
 
             fit_funcs = {
-                'linear': lambda x, a: a * x**(self.exponent),
+                'linear': lambda x, a: a * x**self.exponent,
                 'power': lambda x, a, b: a * x**b
             }
 
-            if len(ok_) > 1:
+            if ok_.size > 1:
                 if self.bounds is not None:
                     popt, pcov = curve_fit(fit_funcs[self.fit_func],
-                                       zfit, yfit, p0 = self.p0, bounds = self.bounds)
+                                           zfit, yfit, p0=self.p0, bounds=self.bounds)
                 else:
                     popt, pcov = curve_fit(fit_funcs[self.fit_func],
-                                       zfit, yfit, p0 = self.p0)
+                                           zfit, yfit, p0=self.p0)
 
                 # Extract exponent and confidence intervals from fit
                 if lower_method == 'optimize':
@@ -188,7 +246,6 @@ class FitData(object):
 
                     if len(zfit[ok_]) > 2:
                         n = len(y)    # number of data points
-                        p = len(popt) # number of parameters
 
                         t_val = t.cdf(.025, n-1)
 
@@ -203,9 +260,9 @@ class FitData(object):
                                 upper.append(np.nan)
 
                         # Stack the confidence intervals
-                        self.exponent_95_ci  = np.vstack([lower, upper])
+                        self.exponent_95_ci = np.vstack([lower, upper])
                         if method == 'optimize':
-                            self.exponent_95_ci  = self.exponent_95_ci[:,1]
+                            self.exponent_95_ci = self.exponent_95_ci[:, 1]
 
                         # Get the rsquared for the model
                         ss_tot = np.sum((y[idx_power] - np.mean(yfit))**2)
@@ -216,7 +273,9 @@ class FitData(object):
                         self.r_squared = np.nan
 
             # Fit power curve to appropriate data
-            self.coef = ((self.exponent + 1) * .05 * np.nansum(y[idx_power])) / np.nansum(((avg_z[idx_power] + .5 * .05)**(self.exponent - 1) - ((avg_z[idx_power] - .5 * .05)**(self.exponent+1))))
+            self.coef = ((self.exponent + 1) * .05 * np.nansum(y[idx_power])) / \
+                np.nansum(((avg_z[idx_power] + .5 * .05)**(self.exponent - 1)
+                           - ((avg_z[idx_power] - .5 * .05)**(self.exponent+1))))
 
             # Compute residuals
             self.residuals = y[idx_power] - self.coef * avg_z[idx_power]**self.exponent

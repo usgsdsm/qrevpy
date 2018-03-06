@@ -32,7 +32,7 @@ class Measurement(object):
         self.extrap_fit = None
         self.processing = None
         self.comments = None
-        self.discharge = None
+        self.discharge = []
         self.uncertainty = None
         self.initial_settings = None
         self.qa = None
@@ -69,9 +69,6 @@ class Measurement(object):
             for transect in self.transects:
                 self.apply_settings(transect, settings)
 
-            # self.composite_norm = NormData()
-            # self.composite_norm.get_composite(self.transects)
-        
         elif proc_type == 'None':
             #UpdateStatus "Processing with no filters and interpolation
             settings = self.NoFilterInterpSettings()
@@ -892,7 +889,7 @@ class Measurement(object):
         settings['NavRef'] = self.transects[0].boat_vel.selected
 
         # Composite tracks
-        settings['CompTracks'] = 'Off'
+        settings['CompTracks'] = False
 
         # Water track filter settings
         settings['WTbeamFilter'] = -1
@@ -973,3 +970,4 @@ class Measurement(object):
         settings['WTwDepthFilter'] = True
 
         return settings
+

@@ -18,7 +18,7 @@ from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
 import matplotlib.dates as mdates
 from datetime import datetime
-from MiscLibs.convenience import nandiff
+from MiscLibs.convenience import nandiff, sontek_3d_arrange
 
 
 class TransectData(object):
@@ -652,10 +652,10 @@ class TransectData(object):
         cell_size = rsdata.System.Cell_Size.reshape(1, num_ens)
         cell_size_all = np.tile(cell_size, (max_cells, 1))
         top_of_cells = rsdata.System.Cell_Start.reshape(1, num_ens)
-        cell_depth = (np.tile(np.arange(1, max_cells+1, 1).reshape(max_cells, 1), (1, num_ens)) * 0.5 * cell_size_all) + np.tile(top_of_cells, (max_cells,1))
+        cell_depth = ((np.tile(np.arange(1, max_cells+1, 1).reshape(max_cells, 1), (1, num_ens)) - 0.5) * cell_size_all) + np.tile(top_of_cells, (max_cells,1))
 
         # Prepare bottom track depth variable
-        depth = rsdata.BottomTrack.BT_Beam_Depth.reshape(4, num_ens)
+        depth = rsdata.BottomTrack.BT_Beam_Depth.T
         depth[depth == 0] = np.nan
 
         # Create depth object for bottom track beams
@@ -687,6 +687,7 @@ class TransectData(object):
         # --------------
 
         # Rearrange arrays for consistency with WaterData class
+
         vel = np.swapaxes(rsdata.WaterTrack.Velocity, 1, 0)
         snr = np.swapaxes(rsdata.System.SNR, 1, 0)
         corr = np.swapaxes(rsdata.WaterTrack.Correlation, 1, 0)
@@ -703,10 +704,11 @@ class TransectData(object):
         # to the reported water velocity
         boat_vel = np.swapaxes(rsdata.Summary.Boat_Vel, 1, 0)
         vel[0, :, :] = vel[0, :, :] + boat_vel[0, :]
+        vel[1, :, :] = vel[1, :, :] + boat_vel[1, :]
         # Because Matlab pads arrays with zeros and RR data has variable
         # number of bins, the raw data may be padded with zeros.  The next
         # four statements changes those to nan.
-        vel[vel==0] = np.nan
+        vel[vel == 0] = np.nan
         ref_water = 'None'
 
         # The initial coordinate system must be set to earth for early versions of RiverSurveyor firmware.
@@ -1545,9 +1547,9 @@ class TransectData(object):
         # Determine valid water track ensembles based on water track and navigation data.
         boat_vel_select = getattr(transect.boat_vel, transect.boat_vel.selected)
         if np.nansum(boat_vel_select.u_processed_mps) > 0:
-            valid_nav = boat_vel_select.valid_data[0,in_transect_idx]
+            valid_nav = boat_vel_select.valid_data[0, in_transect_idx]
         else:
-            valid_nav = np.tile(False, in_transect_idx)
+            valid_nav = np.tile(False, in_transect_idx.shape[0])
 
         valid_wt = transect.w_vel.valid_data[0, :, in_transect_idx]
         valid_wt_ens = np.any(valid_wt, 1)
@@ -1555,18 +1557,23 @@ class TransectData(object):
         # Determine valid depths
         depths_select = getattr(transect.depths, transect.depths.selected)
         if transect.depths.composite:
+            valid_depth = np.tile(True, (depths_select.depth_source_ens.shape[0]))
             idx_na = np.where(depths_select.depth_source_ens[in_transect_idx] == 'NA')[0]
-            valid_depth = not np.where(depths_select.depth_source_ens[in_transect_idx] == 'IN')[0]
-            valid_depth[idx_na] = False
+            if len(idx_na) > 0:
+                valid_depth[idx_na] = False
+            interpolated_depth_idx = np.where(depths_select.depth_source_ens[in_transect_idx] == 'IN')[0]
+            if len(interpolated_depth_idx) > 0:
+                valid_depth[interpolated_depth_idx] = False
         else:
             valid_depth = depths_select.valid_data[in_transect_idx]
             idx = np.where(np.isnan(depths_select.depth_processed_m[in_transect_idx]))[0]
-            valid_depth[idx] = False
+            if len(idx) > 0:
+                valid_depth[idx] = False
 
         # Determine valid ensembles based on all data
-        valid_ens = np.any(np.vstack((valid_nav, valid_wt_ens, valid_depth)))
+        valid_ens = np.all(np.vstack((valid_nav, valid_wt_ens, valid_depth)), 0)
 
-        return valid_ens, valid_wt
+        return valid_ens, valid_wt.T
 
 
 # ========================================================================

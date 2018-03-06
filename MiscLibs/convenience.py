@@ -65,7 +65,6 @@ def rad2azdeg(angle):
         deg[sub_zero] = deg[sub_zero] + 360
         
         return deg
-            
 
 def nandiff(values):
     
@@ -85,8 +84,24 @@ def nandiff(values):
     return np.array(final_values)
 
 
+def get_object_values(list_in, item, checked=None):
+    if checked is not None:
+        working_list = np.array(list_in)[checked]
+    else:
+        working_list = list_in
 
-        
+    out = []
+    for obj in working_list:
+        temp = getattr(obj, item)
+        out.append(temp)
+    return np.array(out)
 
+def sontek_3d_arrange(data_in):
+    r1 = np.squeeze(data_in[:, 0, :])
+    r2 = np.squeeze(data_in[:, 1, :])
+    r3 = np.squeeze(data_in[:, 2, :])
+    r4 = np.squeeze(data_in[:, 3, :])
+    new_array = np.array([r1, r2, r3, r4])
+    return new_array
 
 
