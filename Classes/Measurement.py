@@ -971,3 +971,10 @@ class Measurement(object):
 
         return settings
 
+    def change_extrapolation(self):
+        top = self.extrap_fit.sel_fit[-1].top_method
+        bot = self.extrap_fit.sel_fit[-1].bot_method
+        exp = self.extrap_fit.sel_fit[-1].exponent
+
+        for transect in self.transects:
+            transect.set_extrapolation(top=top, bot=bot, exp=exp)

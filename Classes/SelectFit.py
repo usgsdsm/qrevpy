@@ -139,7 +139,7 @@ class SelectFit(object):
                              - ppobj.coef * normalized.unit_normalized_z[valid_data[:2]] ** ppobj.exponent)
 
             # Compute the difference between the middle two cells of data and the optimized power fit
-            mid1 = int(np.floor(len(np.isnan(valid_data) == False) / 2))
+            mid1 = int(np.floor(len(np.isnan(valid_data) == False) / 2)) - 1
 
             mid2 = np.nansum(normalized.unit_normalized_med[valid_data[mid1:mid1 + 2]]
                              - ppobj.coef * normalized.unit_normalized_z[valid_data[mid1:mid1 + 2]]
@@ -150,10 +150,11 @@ class SelectFit(object):
 
             # Evaluate difference in data and power fit at water surface using a linear fit throught the top 4
             # median cells and save results
-            x = normalized.unit_normalized_med[valid_data[:4]]
+            y = normalized.unit_normalized_med[valid_data[:4]]
             #             x = sm.add_constant(x)
-            y = normalized.unit_normalized_z[valid_data[:4]]
-            lin_fit = sm.OLS(x, y)
+            x = normalized.unit_normalized_z[valid_data[:4]]
+            x = sm.add_constant(x)
+            lin_fit = sm.OLS(y, x)
             result = lin_fit.fit()
             dsmfitr2 = 1 - (np.sum(result.resid ** 2) / np.mean(np.abs(result.resid)))
             self.top_fit_r2 = dsmfitr2

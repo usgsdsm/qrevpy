@@ -58,7 +58,7 @@ class ComputeExtrap(object):
         self.norm_data.append(comp_data)
 
         # Compute the fit for the selected  method
-        for n in range(len(transects)):
+        for n in range(len(self.norm_data)):
             if self.fit_method == 'Manual':
                 sel_fit = SelectFit()
                 sel_fit.populate_data(normalized=self.norm_data[n], fit_method=self.fit_method, transect=transects[n])
@@ -68,10 +68,10 @@ class ComputeExtrap(object):
                 sel_fit.populate_data(self.norm_data[n], self.fit_method)
                 self.sel_fit.append(sel_fit)
 
-            if sel_fit.top_fit_r2 is not None:
-                #Evaluate if there is a potential that a 3-point top method may be appropriate
-                if sel_fit.top_fit_r2 > 0.9 or sel_fit.top_r2 > 0.9 and np.abs(sel_fit.top_max_diff) > 0.2:
-                    self.messages.append('The measurement profile may warrant a 3-point fit at the top')
+        if sel_fit.top_fit_r2 is not None:
+            # Evaluate if there is a potential that a 3-point top method may be appropriate
+            if (sel_fit.top_fit_r2 > 0.9 or sel_fit.top_r2 > 0.9) and np.abs(sel_fit.top_max_diff) > 0.2:
+                self.messages.append('The measurement profile may warrant a 3-point fit at the top')
                 
     def update_q_sensitivity(self, trans_data):
         self.q_sensitivity = ExtrapQSensitivity()

@@ -42,12 +42,6 @@ class FitData(object):
         Residuals from fit
     r_squared: float
         R squared of model
-
-    These have been added by Greg
-    fit_func: str
-        Method to use in curve fit
-    bounds = None  # Bounds for curve fitting coefficients (None if not necessary)
-    p0 = None  # Initial guess in curve fit (None if not necessary)
     """
 
     def __init__(self):
@@ -66,9 +60,6 @@ class FitData(object):
         self.data_type = None  # Type of data (velocity or unit discharge)
         self.exponent_95_ci = None  # 95% confidence intervals for optimized exponent
         self.residuals = None  # Residuals from fit
-        self.fit_func = None  # Method to use in curve fit
-        self.bounds = None  # Bounds for curve fitting coefficients (None if not necessary)
-        self.p0 = None  # Initial guess in curve fit (None if not necessary)
         self.r_squared = None  # R squared of model
 
     def populate_data(self, norm_data, top, bot, method, exponent=None):
@@ -208,22 +199,22 @@ class FitData(object):
             lower_method = method.lower()
 
             if lower_method == 'manual':
-                self.fit_func = 'linear'
+                fit_func = 'linear'
                 self.exponent = exponent
-                self.bounds = None
-                self.p0 = None
+                bounds = None
+                p0 = None
 
             elif lower_method == 'default':
-                self.fit_func = 'linear'
+                fit_func = 'linear'
                 self.exponent = 1./6.
-                self.bounds = None
-                self.p0 = None
+                bounds = None
+                p0 = None
 
             elif lower_method == 'optimize':
-                self.fit_func = 'power'
-                self.bounds = [lower_bound, upper_bound]
+                fit_func = 'power'
+                bounds = [lower_bound, upper_bound]
                 strt = yfit[ok_]
-                self.p0 = [strt[-1], 1./6]
+                p0 = [strt[-1], 1./6]
 
             fit_funcs = {
                 'linear': lambda x, a: a * x**self.exponent,
@@ -231,12 +222,12 @@ class FitData(object):
             }
 
             if ok_.size > 1:
-                if self.bounds is not None:
-                    popt, pcov = curve_fit(fit_funcs[self.fit_func],
-                                           zfit, yfit, p0=self.p0, bounds=self.bounds)
+                if bounds is not None:
+                    popt, pcov = curve_fit(fit_funcs[fit_func],
+                                           zfit, yfit, p0=p0, bounds=bounds)
                 else:
-                    popt, pcov = curve_fit(fit_funcs[self.fit_func],
-                                           zfit, yfit, p0=self.p0)
+                    popt, pcov = curve_fit(fit_funcs[fit_func],
+                                           zfit, yfit, p0=p0)
 
                 # Extract exponent and confidence intervals from fit
                 if lower_method == 'optimize':
@@ -244,38 +235,29 @@ class FitData(object):
                     if self.exponent is None or self.exponent < 0.05:
                         self.exponent = 0.05
 
-                    if len(zfit[ok_]) > 2:
-                        n = len(y)    # number of data points
+                if len(zfit[ok_]) > 2:
 
-                        t_val = t.cdf(.025, n-1)
+                    n = len(zfit)    # number of data points
 
-                        # Get 95% confidence intervals
-                        upper, lower = [], []
-                        for j in range(len(popt)):
-                            if self.bounds[0][j] == -np.inf and self.bounds[1][j] == np.inf:
-                                lower.append(popt[j] - t_val * np.sqrt(np.diag(pcov)[j]))
-                                upper.append(popt[j] + t_val * np.sqrt(np.diag(pcov)[j]))
-                            else:
-                                lower.append(np.nan)
-                                upper.append(np.nan)
+                    t_val = t.ppf(.975, n-1)
 
-                        # Stack the confidence intervals
-                        self.exponent_95_ci = np.vstack([lower, upper])
-                        if method == 'optimize':
-                            self.exponent_95_ci = self.exponent_95_ci[:, 1]
+                    # Get 95% confidence intervals
+                    lower = (popt[-1] - t_val * np.sqrt(np.diag(pcov)[-1]))
+                    upper = (popt[-1] + t_val * np.sqrt(np.diag(pcov)[-1]))
+                    self.exponent_95_ci = np.vstack([lower, upper])
 
-                        # Get the rsquared for the model
-                        ss_tot = np.sum((y[idx_power] - np.mean(yfit))**2)
-                        ss_res = np.sum((y[idx_power] - fit_funcs[self.fit_func](zfit, *popt))**2)
-                        self.r_squared = 1 - (ss_res/ss_tot)
-                    else:
-                        self.exponent_95_ci = np.nan
-                        self.r_squared = np.nan
+                    # Get the rsquared for the model
+                    ss_tot = np.sum((y[idx_power] - np.mean(yfit))**2)
+                    ss_res = np.sum((y[idx_power] - fit_funcs[fit_func](zfit, *popt))**2)
+                    self.r_squared = 1 - (ss_res/ss_tot)
+                else:
+                    self.exponent_95_ci = np.nan
+                    self.r_squared = np.nan
 
             # Fit power curve to appropriate data
-            self.coef = ((self.exponent + 1) * .05 * np.nansum(y[idx_power])) / \
-                np.nansum(((avg_z[idx_power] + .5 * .05)**(self.exponent - 1)
-                           - ((avg_z[idx_power] - .5 * .05)**(self.exponent+1))))
+            self.coef = ((self.exponent + 1) * 0.05 * np.nansum(y[idx_power])) / \
+                np.nansum(((avg_z[idx_power] + (0.5 * 0.05))**(self.exponent + 1)
+                           - ((avg_z[idx_power] - (0.5 * 0.05))**(self.exponent + 1))))
 
             # Compute residuals
             self.residuals = y[idx_power] - self.coef * avg_z[idx_power]**self.exponent
