@@ -206,18 +206,28 @@ class SelectFit(object):
             # (b) the difference is either positive or the difference
             # of the top measured cell differs from the best
             # selected power fit by more than 5%.
+            top_condition = (np.abs(self.top_max_diff > 0.1) and (self.top_max_diff > 0)
+                             or np.abs(normalized.unit_normalized_med[valid_data[0]] - ppobj.u[-1]) > 0.05)
+
             # OR
+
             # 2) The bottom of the power fit doesn't fit the data
             # well. This is determined to be the situation when (a)
             # the difference between and optimized no slip fit
             # and the selected best power fit of the whole profile
             # is greater than 10% and (b) the optimized on slip fit has
             # and r^2 greater than 0.6.
+            bottom_condition = ((np.abs(self.bot_diff) > 0.1) and self.bot_r2 > 0.6)
+
             # OR
+
             # 3) Flow is bidirectional. The sign of the top of the
             # profile is different from the sign of the bottom of
             # the profile.
+            bidirectional_condition = (np.sign(normalized.unit_normalized_med[valid_data[0]])
+                                       != np.sign(normalized.unit_normalized_med[valid_data[-1]]))
             # OR
+
             # 4) The profile is C-shaped. This is determined by
             # (a) the sign of the top and bottom difference from
             # the best selected power fit being different than the
@@ -225,14 +235,9 @@ class SelectFit(object):
             # power fit and (b) the combined difference of the top
             # and bottom difference from the best selected power
             # fit being greater than 10%.
+            c_shape_condition = (np.sign(bot2) * np.sign(top2) == np.sign(mid2) and np.abs(bot2 + top2) > 0.1)
 
-            if (np.abs(self.top_max_diff > 0.1)
-                and (self.top_max_diff > 0 or np.abs(
-                        normalized.unit_normalized_med[valid_data[0]] - ppobj.u[-1]) > 0.05)
-                or ((np.abs(self.bot_diff) > 0.1) and self.bot_r2 > 0.6)
-                or (np.sign(normalized.unit_normalized_med)[valid_data[0]] != np.sign(
-                        normalized.unit_normalized_med[valid_data[-1]]))) \
-                    or np.sign(bot2) * np.sign(top2) == np.sign(mid2) and np.abs(bot2 + top2) > 0.1:
+            if top_condition or bottom_condition or bidirectional_condition or c_shape_condition:
 
                 # Set the bottom to no slip
                 self.bot_method_auto = 'No Slip'

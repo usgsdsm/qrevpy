@@ -14,7 +14,7 @@ class EdgeData(object):
 
     Attributes
     ----------
-    edge_type: str
+    type: str
         Shape of edge: 'Triangular', 'Rectangular', 'Custom, 'User Q'
     distance_m: float
         Distance to shore, in m.
@@ -52,7 +52,7 @@ class EdgeData(object):
         """
 
         # Set properties for custom coefficient
-        self.edge_type = edge_type
+        self.type = edge_type
         self.distance_m = distance
         self.number_ensembles = number_ensembles
         self.user_discharge_cms = user_discharge

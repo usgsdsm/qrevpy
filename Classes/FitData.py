@@ -129,7 +129,7 @@ class FitData(object):
             elif fit_combo == 'ConstantNo Slip':
                 # Optimize constant / no slip if sufficient cells are available
                 if method.lower() == 'optimize':
-                    idx = idxz[int(1+len(idxz) - np.floor(len(avg_z[idxz])) / 3)::]
+                    idx = idxz[int(1+len(idxz) - np.floor(len(avg_z[idxz])) / 3) - 1::]
                     if len(idx) < 4:
                         method = 'default'
 
@@ -153,7 +153,7 @@ class FitData(object):
             elif fit_combo == '3-PointNo Slip':
                 # Optimize 3-Point / no slip if sufficient cells are available
                 if method.lower() == 'optimize':
-                    idx = idxz[int(1 + len(idxz) - np.floor(len(avg_z[idxz])) / 3)::]
+                    idx = idxz[int(1 + len(idxz) - np.floor(len(avg_z[idxz])) / 3) - 1::]
                     if len(idx) < 4:
                         method = 'default'
 

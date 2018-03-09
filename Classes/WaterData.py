@@ -1618,13 +1618,15 @@ class WaterData(object):
                 valid_z = np.isnan(z) == False
                 valid_combined = valid & valid_z
 
-                # TODO Need to test
-                u = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])),
-                                         self.u_processed_mps[valid_combined],
+                # TODO Need to evaluate other methods like natural neighbor, compare against Matlab
+                u = interpolate.griddata(np.array([z[valid_combined].ravel(),
+                                                   track_array[valid_combined].ravel()]).T,
+                                         self.u_processed_mps[valid_combined].ravel(),
                                          (z, track_array))
 
-                v = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])),
-                                         self.v_processed_mps[valid_combined],
+                v = interpolate.griddata(np.array([z[valid_combined].ravel(),
+                                                   track_array[valid_combined].ravel()]).T,
+                                         self.v_processed_mps[valid_combined].ravel(),
                                          (z, track_array))
 
                 self.u_processed_mps = np.tile(np.nan, self.u_mps.shape)
@@ -1697,10 +1699,12 @@ class WaterData(object):
 
                     # Interpolate velocities using linear interpolation
                     elif bot_method == 'No Slip':
-                        self.u_processed_mps[idx_middle, n] = np.interp(cell_depth[idx_middle, n], not cell_depth[:, n],
-                                                                        self.u_processed_mps[:, n])
-                        self.v_processed_mps[idx_middle, n] = np.interp(cell_depth[idx_middle, n], not cell_depth[:, n],
-                                                                        self.v_processed_mps[:, n])
+                        self.u_processed_mps[idx_middle, n] = np.interp(x=cell_depth[idx_middle, n],
+                                                                        xp=cell_depth[valid[:, n], n],
+                                                                        fp=self.u_processed_mps[valid[:, n], n])
+                        self.v_processed_mps[idx_middle, n] = np.interp(x=cell_depth[idx_middle, n],
+                                                                        xp=cell_depth[valid[:, n], n],
+                                                                        fp=self.v_processed_mps[valid[:, n], n])
 
     def estimate_processed_valid_cells(self, transect):
         """Estimate the number of valid cells for invalid ensembles.
@@ -1735,7 +1739,7 @@ class WaterData(object):
             # Apply excluded distance
             processed_valid_cells = processed_valid_cells * self.valid_data[6, :, :]
 
-            return processed_valid_cells
+        return processed_valid_cells
 
     def compute_snr_rng(self):
         """Computes the range between the average snr for all beams.

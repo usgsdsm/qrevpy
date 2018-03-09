@@ -73,17 +73,18 @@ class ComputeExtrap(object):
             if (sel_fit.top_fit_r2 > 0.9 or sel_fit.top_r2 > 0.9) and np.abs(sel_fit.top_max_diff) > 0.2:
                 self.messages.append('The measurement profile may warrant a 3-point fit at the top')
                 
-    def update_q_sensitivity(self, trans_data):
+    def update_q_sensitivity(self, transects):
         self.q_sensitivity = ExtrapQSensitivity()
-        self.q_sensitivity.populate_data(trans_data, self.sel_fit)
+        self.q_sensitivity.populate_data(transects, self.sel_fit)
         
-    def change_fit_method(self, trans_data, new_fit_method, n, kargs = None):
-        """Function to change the extrapolation methods and update the discharge sensitivity computations"""
+    def change_fit_method(self, transect, new_fit_method, n, kargs = None):
+        # TODO this function needs to be thought through only appears to be needed for setting individual transects to view in extrap window
+        """Function to change the extrapolation methods associated with single transect"""
         self.fit_method = new_fit_method
         self.sel_fit = SelectFit()
         self.sel_fit.populate_data(self.norm_data, new_fit_method, kargs)
-        self.q_sensitivity = ExtrapQSensitivity()
-        self.q_sensitivity.populate_data(trans_data, self.sel_fit)
+        # self.q_sensitivity = ExtrapQSensitivity()
+        # self.q_sensitivity.populate_data(trans_data, self.sel_fit)
         
     def change_threshold(self, trans_data, data_type, threshold):
         """Function to change the threshold for accepting the increment median as valid.  The threshold

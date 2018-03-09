@@ -28,13 +28,7 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             meas = Measurement(in_file=self.select.fullName, source='SonTek')
-            meas.extrap_fit = ComputeExtrap()
-            meas.extrap_fit.populate_data(meas.transects)
-            meas.change_extrapolation()
-            for transect in meas.transects:
-                q = QComp()
-                q.populate_data(data_in=transect)
-                meas.discharge.append(q)
+
             print('SonTek')
         elif self.select.type == 'TRDI':
             # Show mmt filename in GUI header

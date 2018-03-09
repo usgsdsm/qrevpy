@@ -844,7 +844,7 @@ class TransectData(object):
             self.start_edge = 'Right'
         else:
             ensembles_right = np.nansum(rsdata.System.Step == 4)
-            ensembles_left = np.nansum(rsdata.System.Step == 1)
+            ensembles_left = np.nansum(rsdata.System.Step == 2)
             self.in_transect_idx = np.arange(ensembles_left + 1, num_ens - ensembles_right, 1)
             self.start_edge = 'Left'
 
@@ -870,7 +870,7 @@ class TransectData(object):
             edge_type = 'UserQ'
         self.edges.right.populate_data(edge_type=edge_type,
                                       distance=rsdata.Setup.Edges_1__DistanceToBank,
-                                      number_ensembles=ensembles_left,
+                                      number_ensembles=ensembles_right,
                                       coefficient=None,
                                       user_discharge=rsdata.Setup.Edges_1__EstimatedQ)
 

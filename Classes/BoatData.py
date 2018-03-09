@@ -973,7 +973,7 @@ class BoatData(object):
                 # Identify valid and invalid data
                 d_vel_less_idx = np.where(d_vel_filtered <= d_vel_max_ref)[0]
                 d_vel_greater_idx = np.where(d_vel_filtered >= d_vel_min_ref)[0]
-                d_vel_good_idx = list(set(np.hstack((d_vel_less_idx, d_vel_greater_idx))))
+                d_vel_good_idx = list(np.intersect1d(d_vel_less_idx, d_vel_greater_idx))
 
                 # Update filtered data array
                 d_vel_filtered=np.copy(d_vel_filtered[d_vel_good_idx])
@@ -984,8 +984,11 @@ class BoatData(object):
 
         # Set valid data row 3 for difference velocity filter results
         self.valid_data[2, ] = False
+        d_vel_less_idx = np.where(d_vel <= d_vel_max_ref)[0]
+        d_vel_greater_idx = np.where(d_vel >= d_vel_min_ref)[0]
+        d_vel_good_idx = list(np.intersect1d(d_vel_less_idx, d_vel_greater_idx))
         self.valid_data[2, d_vel_good_idx] = True
-        self.valid_data[2, self.valid_data[2, :] == False] = True
+        self.valid_data[2, self.valid_data[1, :] == False] = True
         self.valid_data[2, np.isnan(self.d_mps)] = True
         self.d_filter_threshold = d_vel_max_ref
 
