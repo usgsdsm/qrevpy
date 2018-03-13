@@ -233,16 +233,16 @@ class DepthStructure(object):
         else:
             self.ds_depths.change_draft(draft)    
             
-    def depth_filter(self,transect,kargs):
+    def depth_filter(self,transect, filter_method):
         """Method to apply filter to all available depth sources, so that
         all sources have the same filter applied """
         
         if self.bt_depths is not None:
-            self.bt_depths.apply_filter(transect, kargs)
+            self.bt_depths.apply_filter(transect, filter_method)
         if self.vb_depths is not None:
-            self.vb_depths.apply_filter(transect, kargs)
+            self.vb_depths.apply_filter(transect, filter_method)
         if self.ds_depths is not None:
-            self.ds_depths.apply_filter(transect, kargs)
+            self.ds_depths.apply_filter(transect, filter_method)
             
     def depth_interpolation(self, transect, kargs):
         """Method to apply interpolation to all available depth sources, so

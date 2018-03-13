@@ -206,8 +206,8 @@ class SelectFit(object):
             # (b) the difference is either positive or the difference
             # of the top measured cell differs from the best
             # selected power fit by more than 5%.
-            top_condition = (np.abs(self.top_max_diff > 0.1) and (self.top_max_diff > 0)
-                             or np.abs(normalized.unit_normalized_med[valid_data[0]] - ppobj.u[-1]) > 0.05)
+            top_condition = (np.abs(self.top_max_diff > 0.1) and ((self.top_max_diff > 0)
+                             or np.abs(normalized.unit_normalized_med[valid_data[0]] - ppobj.u[-1]) > 0.05))
 
             # OR
 

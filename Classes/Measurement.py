@@ -981,7 +981,7 @@ class Measurement(object):
         # Default to 4 beam depth average
         settings['depthReference'] = 'btDepths'
         # Depth settings
-        settings['depthFilterType'] = 'smooth'
+        settings['depthFilterType'] = 'Smooth'
         settings['depthComposite'] = True
 
         # Interpolation settings

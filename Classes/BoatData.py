@@ -700,13 +700,17 @@ class BoatData(object):
             ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
 
             # Apply linear interpolation
-            self.u_processed_mps = np.interp(ens_time,
-                                             ens_time[self.valid_data[0, :]],
-                                             u[self.valid_data[0, :]])
+            self.u_processed_mps = np.interp(x=ens_time,
+                                             xp=ens_time[self.valid_data[0, :]],
+                                             fp=u[self.valid_data[0, :]],
+                                             left=np.nan,
+                                             right=np.nan)
             # Apply linear interpolation
-            self.v_processed_mps = np.interp(ens_time,
-                                             ens_time[self.valid_data[0, :]],
-                                             v[self.valid_data[0, :]])
+            self.v_processed_mps = np.interp(x=ens_time,
+                                             xp=ens_time[self.valid_data[0, :]],
+                                             fp=v[self.valid_data[0, :]],
+                                             left=np.nan,
+                                             right=np.nan)
 
     def interpolate_composite(self, transect):
         """This function interpolates processed data flagged invalid using linear interpolation.
@@ -1060,6 +1064,9 @@ class BoatData(object):
 
         # Set valid data row 4 for difference velocity filter results
         self.valid_data[3, :] = False
+        w_vel_less_idx = np.where(w_vel <= w_vel_max_ref)[0]
+        w_vel_greater_idx = np.where(w_vel >= w_vel_min_ref)[0]
+        w_vel_good_idx = list(np.intersect1d(w_vel_less_idx, w_vel_greater_idx))
         self.valid_data[3, w_vel_good_idx] = True
         self.valid_data[3, self.valid_data[1, :] == False] = True
         self.w_filter_threshold = w_vel_max_ref

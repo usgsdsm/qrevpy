@@ -405,9 +405,9 @@ class QComp(object):
 
         # Top power extrapolation
         if top_method == 'Power':
-            coef = ((exponent + 1) * np.nansum(component * cell_size)) / \
+            coef = ((exponent + 1) * np.nansum(component * cell_size, 0)) / \
                     np.nansum(((z + 0.5 * cell_size)**(exponent+1))
-                              - ((z - 0.5 * cell_size)**(exponent+1)))
+                              - ((z - 0.5 * cell_size)**(exponent+1)), 0)
             top_value = delta_t * (coef / (exponent + 1)) * \
                 (depth_ens**(exponent + 1) - (depth_ens-top_rng)**(exponent + 1))
 
@@ -591,9 +591,9 @@ class QComp(object):
 
         # Bottom power extrapolation
         if bot_method == 'Power':
-            coef = ((exponent+1) * np.nansum(component * cell_size)) / \
+            coef = ((exponent+1) * np.nansum(component * cell_size, 0)) / \
                 np.nansum(((z + 0.5 * cell_size)**(exponent + 1))
-                          - (z - 0.5 * cell_size)**(exponent + 1))
+                          - (z - 0.5 * cell_size)**(exponent + 1), 0)
 
         # Bottom no slip extrapolation
         elif bot_method == 'No Slip':
