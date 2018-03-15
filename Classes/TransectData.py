@@ -78,9 +78,19 @@ class TransectData(object):
                                 #files2load idx
 
     def trdi(self, mmt_transect, pd0_data, mmt, mbt_idx, kargs=None):
+        """Create object, lists, and instance variables for TRDI data.
 
+        Parameters
+        ----------
+        mmt_transect:
+        pd0_data:
+        mmt:
+        mbt_idx: I DON"T THINK THIS SHOULD BE NEEDED
+        kargs: NEED TO ELIMINATE THIS
+        """
         # TODO why is this needed
         # self.mbt = mbt_idx
+        # This starts at line 148 from the Matlab code. Matlab code handled creating PD0 object
         pd0 = pd0_data
         
         # Get the configuration property of the mmt_transect
@@ -582,8 +592,8 @@ class TransectData(object):
             start_sec = int(pd0.Sensor.time[idx, 2] + pd0.Sensor.time[idx, 3] / 100)
             
             start_dt = datetime(start_year, start_month, start_day, start_hour, start_min, start_sec)
-            start_serial_time = time.mktime(start_dt.timetuple())
-            start_date = time.strftime('%m/%d/%Y', time.gmtime(start_serial_time))
+            start_serial_time = mdates.date2num(start_dt)
+            start_date = datetime.strftime(start_dt, '%m/%d/%Y')
             
             # End data and time
             idx = np.where(np.isnan(pd0.Sensor.time[:, 0]) == False)[0][-1]
@@ -599,7 +609,8 @@ class TransectData(object):
             end_sec = int(pd0.Sensor.time[idx, 2] + pd0.Sensor.time[idx, 3] / 100)
             
             end_dt = datetime(end_year, end_month, end_day, end_hour, end_min, end_sec)
-            end_serial_time = time.mktime(end_dt.timetuple())
+            end_serial_time = mdates.date2num(end_dt)
+            end_date = datetime.strftime(start_dt, '%m/%d/%Y')
             
             # Create date/time object
             self.date_time = DateTime()
@@ -1222,16 +1233,24 @@ class TransectData(object):
         Parameters
         ----------
         kwargs
-            beam:
-                Setting for beam filter (Auto, Off, threshold value)
-            difference:
-                Setting for difference filter (Auto, Off, threshold value)
-            vertical:
-                Setting for vertical filter (Auto, Off, threshold value)
+            beam: int
+                Setting for beam filter (3, 4, or -1)
+            difference: str
+                Setting for difference filter (Auto, Off, Manual)
+            difference_threshold: float
+                Threshold value for Manual setting.
+            vertical: str
+                Setting for vertical filter (Auto, Off, Manual)
+            vertical_threshold: float
+                Threshold value for Manual setting.
             other:
-                Setting for other filters (Off, On)
+                Setting for other filters (Off, Auto)
             excluded:
                 Excluded distance below the transducer, in m
+            snr: str
+                SNR filter setting (Auto, Off)
+            wt_depth: bool
+                Setting for marking water data invalid if no available depth
         """
         
         self.w_vel.apply_filter(self, **kwargs)
@@ -1483,6 +1502,119 @@ class TransectData(object):
         self.sensorsdata.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
         self.sensorsdata.set_selected('salinity_ppt', 'internal')
 
+    def change_sos(self, parameter=None, salinity=None, selected=None, speed=None):
+        """Coordinates changing the speed of sounc.
+
+        Parameters
+        ----------
+        parameter: str
+            Speed of sound parameter to be changed ('temperatureSrc', 'temperature', 'salinity', 'sosSrc', 'sos')
+        salinity: float
+            Salinity in ppt
+        selected: str
+            Selected speed of sound ('internal', 'computed', 'user') or temperature ('internal', 'user')
+        speed: float
+            Manually supplied speed of sound for 'user' source
+        """
+
+        if parameter == 'temperatureSrc':
+            # If a user temperature has not been stored use the mean temperature as the user temperature
+            if selected == 'user' and self.sensors.temperature_deg_c.user == None:
+                temperature_selected = getattr(self.sensors.temperature_deg_c, 'selected')
+                adcp_temp = temperature_selected.data
+                temperature = np.tile(np.nanmean(adcp_temp), adcp_temp.shape)
+                self.sensors.temperature_deg_c.user.change_data(data_in=temperature)
+                self.sensors.temperature_deg_c.user.set_source(source_in='Manual Input')
+            # Set the temperature data to the selected source
+            self.sensors.temperature_deg_c.set_selected(selected_name=selected)
+            # Update the speed of sound
+
+
+        elif parameter == 'temperature':
+
+        elif parameter == 'salinity':
+
+        elif parameter == 'sosSrc':
+
+        elif parameter == 'sos':
+
+    def update_sos(self, selected=None, source=None, speed=None ):
+        """Sets a new specified speed of sound.
+
+        Parameters
+        ----------
+        self: obj
+            Object of TransectData
+        selected: str
+             Selected speed of sound ('internal', 'computed', 'user')
+        source: str
+            Source of speed of sound (Computer, Calculated)
+        speed: float
+            Manually supplied speed of sound for 'user' source
+        """
+
+        # Get current speed of sound
+        sos_selected = getattr(self.sensors.speed_of_sound_mps, self.sensors.speed_of_sound_mps.selected)
+        old_sos = sos_selected.data
+
+        # If called with no input set source to internal and determine whether computed or calculated based on availability
+        # of user supplied temperature or salinity
+        if selected is None and source is None:
+            self.sensors.speed_of_sound_mps.set_selected('internal')
+            # If temperature or salinity is set by the user the speed of sound is computed otherwise it is consider
+            # calculated by the ADCP.
+            if (self.sensors.temperature_deg_c.selected == 'user') or (self.sensors.salinity_ppt.selected == 'user'):
+                self.sensors.speed_of_sound_mps.internal.set_source('Computed')
+            else:
+                self.sensors.speed_of_sound_mps.internal.set_source('Calculated')
+
+        # If source is set to calculated, the selected is set to internal and the original data from the ADCP is used
+        elif selected == 'internal' and source == 'Calculated':
+            self.sensors.speed_of_sound_mps.set_selected(selected_name='internal')
+            self.sensors.speed_of_sound_mps.internal.set_source(source_in=source)
+
+        # If source is computed, check on whether user is selected for temperature or salinity, if not then
+        # Computed is changed to Calculated
+        elif selected == 'internal' and source == 'Computed':
+            self.sensors.speed_of_sound_mps.set_selected('internal')
+            # If temperature or salinity is set by the user, the speed of sound is computed otherwise it is consider
+            # calculated by the ADCP.
+            if (self.sensors.temperature_deg_c.selected == 'user') or (self.sensors.salinity_ppt.selected == 'user'):
+                self.sensors.speed_of_sound_mps.internal.set_source('Computed')
+            else:
+                self.sensors.speed_of_sound_mps.internal.set_source('Calculated')
+
+        # Manual input for speed of sound
+        elif selected == 'user' and source == 'Manual Input':
+            self.sensors.speed_of_sound_mps.set_selected(selected_name=selected)
+            self.sensors.speed_of_sound_mps.user.set_source(source_in=source)
+
+
+        # Determine new speed of sound
+        if self.sensors.speed_of_sound_mps.selected == 'internal':
+
+            if self.sensors.speed_of_sound_mps.internal.source == 'Calculated':
+                # Internal: Calculated
+                new_sos = self.sensors.speed_of_sound_mps.internal.data_orig
+                self.sensors.speed_of_sound_mps.internal.change_data(data_in=new_sos)
+                # Change temperature and salinity selected to internal
+                self.sensors.temperature_deg_c.set_selected(selected_name='internal')
+                self.sensors.salinity_ppt.set_selected(selected_name='internal')
+            else:
+                # Internal: Computed
+                temperature_selected = getattr(self.sensors.temperature_deg_c, self.sensors.temperature_deg_c.selected)
+                temperature = temperature_selected.data
+                salinity_selected = getattr(self.sensors.salinity_ppt, self.sensors.salinity_ppt.selected)
+                salinity = salinity_selected.data
+                new_sos = Sensors.speed_of_sound(temperature=temperature, salinity=salinity)
+                self.sensors.speed_of_sound_mps.internal.change_data(data_in=new_sos)
+        else:
+            new_sos = np.tile(speed, len(self.sensors.speed_of_sound_mps.internal.data_orig))
+            self.sensors.speed_of_sound_mps.user.change_data(data_in=new_sos)
+
+        return old_sos, new_sos
+
+
     def sos_user(self, kargs = None):
         """Compute new speed of sound from temperature and salinity
 
@@ -1584,7 +1716,7 @@ class TransectData(object):
 # DSM changed 1/23/2018 def allocate_transects(source, mmt, kargs)
 def allocate_transects(source, mmt, type='Q', checked=False):
     #DEBUG, set threaded to false to get manual serial commands
-    multi_threaded = True
+    multi_threaded = False
     
     #Refactored from TransectData to iteratively create TransectData objects
         #----------------------------------------------------------------
@@ -1650,7 +1782,9 @@ def allocate_transects(source, mmt, type='Q', checked=False):
             pd0_threads.append(pd0_thread)
     else:   
         # DSM changed 1/24/2018 pd0_data = [Pd0TRDI(''.join([pathname,'/',x[0][0].Path])) for x in valid_files if x[1] == 1]
-        pd0_data = [Pd0TRDI(file for file in valid_files)]
+        for file in valid_files:
+            add_pd0(file)
+            # pd0_data = Pd0TRDI(file)
 
     # DSM changed 1/24/2018 for x in pd0_threads:
     #     x.join()
@@ -1668,7 +1802,8 @@ def allocate_transects(source, mmt, type='Q', checked=False):
     def add_transect(transect, source, in_file, pd0_data, mmt, mbt):
         transect.get_data(source, in_file,pd0_data, mmt, mbt)
         processed_transects.append(transect)
-        
+
+
     # Process each transect
     for k in range(len(pd0_data)):
         
@@ -1699,7 +1834,7 @@ def allocate_transects(source, mmt, type='Q', checked=False):
                 
                 
             else:
-                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt)
+                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt, mbt_idx)
             
         else:
             if multi_threaded:
@@ -1715,7 +1850,7 @@ def allocate_transects(source, mmt, type='Q', checked=False):
                 
                 
             else:
-                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt)
+                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt, False)
     
     if multi_threaded:
         for x in transect_threads:

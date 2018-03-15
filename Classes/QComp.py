@@ -211,6 +211,32 @@ class QComp(object):
         else:
             self.total = self.left + self.right + (self.middle + self.bottom + self.top) * self.correction_factor
 
+    def populate_from_QRev_mat(self, q_in):
+        """Populated QComp instance variables with data from QRev Matlab file.
+
+        Parameters
+        ----------
+        q_in: object
+            mat_struct_object containing QComp class data
+        """
+
+        self.top = q_in.top
+        self.middle = q_in.middle
+        self.bottom = q_in.bottom
+        self.top_ens = q_in.topEns
+        self.middle_cells = q_in.middleCells
+        self.middle_ens = q_in.middleEns
+        self.bottom_ens = q_in.bottomEns
+        self.left = q_in.left
+        self.left_idx = q_in.leftidx
+        self.right = q_in.right
+        self.right_idx = q_in.rightidx
+        self.total_uncorrected = q_in.totalUncorrected
+        self.total = q_in.total
+        self.correction_factor = q_in.correctionFactor
+        self.int_cells = q_in.intCells
+        self.int_ens = q_in.intEns
+
     @staticmethod
     def cross_product(transect=None, w_vel_x=None, w_vel_y=None, b_vel_x=None, b_vel_y=None, start_edge=None):
         """Computes the cross product of the water and boat velocity.
@@ -1586,19 +1612,19 @@ class QComp(object):
             if boat_vel_selected.interpolate == 'TRDI':
                 nav_valid = boat_vel_selected.valid_data[0, in_transect_idx]
             else:
-                nav_valid = not np.isnan(boat_vel_selected.u_processed_mps[in_transect_idx])
+                nav_valid = np.logical_not(np.isnan(boat_vel_selected.u_processed_mps[in_transect_idx]))
         else:
             nav_valid = np.tile(False, len(in_transect_idx))
 
         # Depending on type of interpolation determine the valid water track ensembles
-        water_valid = np.any(trans_data.w_vel.valid_data[:, in_transect_idx], 1)
+        water_valid = np.any(trans_data.w_vel.valid_data[0, :, in_transect_idx], 1)
 
         # Determine the ensembles with valid depth
         depths_select = getattr(trans_data.depths, trans_data.depths.selected)
-        depth_valid = not np.isnan(depths_select.depth_processed_m[in_transect_idx])
+        depth_valid = np.logical_not(np.isnan(depths_select.depth_processed_m[in_transect_idx]))
 
         # Determine the ensembles with valid depth, navigation, and water data
-        valid_ens = nav_valid and water_valid and depth_valid
+        valid_ens = np.all(np.vstack((nav_valid, water_valid, depth_valid)), 0)
 
         return valid_ens
 

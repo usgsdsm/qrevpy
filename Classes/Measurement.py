@@ -1,6 +1,7 @@
 from Classes.MMT_TRDI import MMT_TRDI
 import numpy as np
 import os
+import scipy.io as sio
 from Classes.TransectData import TransectData, allocate_transects
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.PreMeasurement import PreMeasurement
@@ -41,42 +42,45 @@ class Measurement(object):
         self.comments = []
         self.ext_temp_chk = {}
 
-        if source == 'TRDI':
-            self.load_trdi(in_file, checked=checked)
-            
-        elif source == 'SonTek':
-            self.load_sontek(in_file)
-                
-        select = self.transects[0].boat_vel.selected
-        if select == 'bt_vel':
-            ref = 'BT'
-        elif select == 'gga_vel':
-            ref = 'GGA'
-        elif select == 'vtg_vel':
-            ref = 'VTG'
-            
-        if self.mb_tests is not None:
-            self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
-                
-        # Save initial settings
-        self.initial_settings = self.current_settings()
-        
-        # Set processing type
-        if proc_type == 'QRev':
-            # Apply QRev default settings
-            settings = self.QRevDefaultSettings()
-            settings['Processing'] = 'QRev'
-            self.apply_settings(settings)
-
-        elif proc_type == 'None':
-            #UpdateStatus "Processing with no filters and interpolation
-            settings = self.NoFilterInterpSettings()
-            settings['Processing'] = 'None'
-            
-            self.apply_settings(settings)
-                
+        if source == 'QRev':
+            self.load_qrev_mat(fullname=in_file)
         else:
-            self.discharge = QComp()
+            if source == 'TRDI':
+                self.load_trdi(in_file, checked=checked)
+
+            elif source == 'SonTek':
+                self.load_sontek(in_file)
+
+            select = self.transects[0].boat_vel.selected
+            if select == 'bt_vel':
+                ref = 'BT'
+            elif select == 'gga_vel':
+                ref = 'GGA'
+            elif select == 'vtg_vel':
+                ref = 'VTG'
+
+            if self.mb_tests is not None:
+                self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
+
+            # Save initial settings
+            self.initial_settings = self.current_settings()
+
+            # Set processing type
+            if proc_type == 'QRev':
+                # Apply QRev default settings
+                settings = self.QRevDefaultSettings()
+                settings['Processing'] = 'QRev'
+                self.apply_settings(settings)
+
+            elif proc_type == 'None':
+                #UpdateStatus "Processing with no filters and interpolation
+                settings = self.NoFilterInterpSettings()
+                settings['Processing'] = 'None'
+
+                self.apply_settings(settings)
+
+            else:
+                self.discharge = QComp()
         
         
 
@@ -112,9 +116,10 @@ class Measurement(object):
             self.comments.append('MMT Remarks: ' + mmt.site_info.remarks)
         except:
             pass
-        
-        for t in range(len(self.trdi.transects)):
-            notes = getattr(self.trdi.transects[t], 'Notes')
+
+
+        for t in range(len(self.transects)):
+            notes = getattr(mmt.transects[t], 'Notes')
             for x in range(len(notes)):
                 note = 'Transect: ' + t + ' File: ' + x + ' ' + notes[x].NoteDate + ': ' + notes[x].NoteText
                 self.comments.append(note)
@@ -142,7 +147,7 @@ class Measurement(object):
         threshold_settings['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
         
         #--------------------------------------------DONE REFACTOR
-        multi_threaded = True
+        multi_threaded = False
         
         if multi_threaded == True:
             transect_threads = []
@@ -186,55 +191,41 @@ class Measurement(object):
                 x.join()
                 
             
-        else:       
-            #Update Status 'Converting to earth coordinates'
-            for x in self.transects:
-                x.change_coord_sys('Earth')
-                
-            #Update Status 'Setting navigation reference'
+        else:
+
+            # Determine reference used in WR2 if available
             if 'Reference' in mmt.site_info.keys():
-                for x in self.transects:
-                    x.change_nav_reference(0,mmt.site_info['Reference'])
-                    
-            #Set composite tracks
-            #This feature not currently supported in WinRiver 2, and is turned off in Qrev by default
-            
-            #get threshold settings from mmt file
-            #Update Status 'Applying processing settings'
-            for x in self.transects:
-                self.thresholds_TRDI(x, threshold_settings)
-                    
-            #apply boat interpolations
-            #Update Status 'Applying filters and interpolation to BT
-            for x in self.transects:
-                x.boat_interpolations(0, 'BT', 'None')
-                
-            for x in self.transects:
-                if x.gps is not None:
-                    x.boat_interpolations(0, 'GPS', 'HoldLast') 
-                 
-            for x in self.transects:
-                x.update_water()
-                
-            #Update status 'Applying filters and interpolation to WT')
-            
-            """Note: this is where some computation efficiency could be gained by
-            not recomputing each time but applying all filters, interpolating,
-            and then computing Q"""
-                
-            idx = 0
-            for x in self.transects:
-                x.wt_filters(['wt_depth', 'On'])
-                x.wt_interpolations(['Ensembles', 'None'])
-                
-                mmt_SOS_method = mmt.transects[idx].active_config['Proc_Speed_of_Sound_Correction']
-                if mmt_SOS_method == 1:
-                    self.change_SOS(idx, 'salinity', 'user')
-                    self.change_SOS(idx, 'sosSrc',' Computed', [])
-                elif mmt_SOS_method == 2:
-                    self.change_SOS(idx, 'sosSrc', 'user', mmt.transects[idx].active_config['Proc_Fixed_Speed_of_Sound'])  
-                    
-                idx += 1
+                reference = mmt.site_info['Reference']
+            else:
+                reference = "BT"
+
+            transect_idx = 0
+            # Convert to earth coordinates
+            for transect in self.transects:
+                # Convert to earth coordinates
+                transect.change_coord_sys(new_coord_sys='Earth')
+                # Set navigation reference
+                transect.change_nav_reference(update=False, new_nav_ref=reference)
+                # Apply WR2 thresholds
+                self.thresholds_TRDI(transect, threshold_settings)
+                # Apply boat interpolations
+                transect.boat_interpolations(update=False, target='BT', method='None')
+                if transect.gps is not None:
+                    transect.boat_interpolations(update=False, target='GPS', method='HoldLast')
+                # Update water data for changes in boat velocity
+                transect.update_water()
+                # Filter water data
+                transect.wt_filters({'wt_depth': 'On'})
+                # Interpolate water data
+                transect.wt_interpolations({'target': 'Ensembles', 'interp_type': 'None'})
+                # Apply speed of sound computations as required
+                mmt_sos_method = mmt.transects[idx].active_config['Proc_Speed_of_Sound_Correction']
+                if mmt_sos_method == 1:
+                    transect.change_sos( 'salinity', 'user')
+                    transect.change_sos( 'sosSrc',' Computed', [])
+                elif mmt_sos_method == 2:
+                    transect.change_sos( 'sosSrc', 'user', mmt_sos_method)
+                transect_idx += 1
 
     def qaqc_trdi(self, mmt):
         """Processes qaqc test, calibrations, and evaluations
@@ -275,7 +266,7 @@ class Measurement(object):
         if len(mmt.mbt_transects) > 0:
             
             #Create transect object/s
-            transects= allocate_transects('TRDI',mmt,kargs=['MB'])
+            transects= allocate_transects('TRDI', mmt, type='MB')
             if len(transects) > 0:
                 self.mb_tests = []
                 
@@ -293,7 +284,33 @@ class Measurement(object):
                                     pass
                                 
                     self.mb_tests.append(mb_test)
-                                
+
+    def thresholds_TRDI(self, transect, settings):
+        """Retrieve and apply manual filter settings from mmt file
+
+        Input:
+        mmt: object of MMT_TRDI
+        transect: object of TransectData
+        settings: threshold settings computed before processing
+        """
+
+        # Apply WT settings
+        wt_settings = ['Beam', settings['num_beam_WT'], 'Manual', settings['diff_vel_threshold_WT'],
+                       'Vertical', 'Manual', settings['vert_vel_threshold_WT']]
+
+        transect.w_vel.apply_filter(transect, kargs=wt_settings)
+
+        # Apply BT settings
+        bt_settings = ['Beam', settings['num_beam_BT'], 'Manual', settings['diff_vel_threshold_BT'],
+                       'Vertical', 'Manual', settings['vert_vel_threshold_BT']]
+        transect.boat_vel.bt_vel.apply_filter(transect, kargs=bt_settings)
+
+        # Apply depth settings
+        transect.depths.set_valid_data_method(settings['depth_valid_method'])
+        transect.depths.depth_filter(transect, settings['depth_screening'])
+        transect.depths.bt_depths.compute_avg_BT_depth(settings['depth_weighting'])
+        transect.depths.composite_depths(transect)
+
     def load_sontek(self, fullnames):
         """Coordinates reading of all SonTek data files.
 
@@ -406,31 +423,55 @@ class Measurement(object):
                                                     file=os.path.join(pathname, file),
                                                     type='Stationary')
 
-    def thresholds_TRDI(self, transect, settings):
-        """Retrieve and pply manual filter settings from mmt file
-        
-        Input:
-        mmt: object of MMT_TRDI
-        transect: object of TransectData
-        settings: threshold settings computed before processing
+    def load_qrev_mat(self, fullname):
+        """Loads and coordinates the mapping of existing QRev Matlab files into Python instance variables.
+
+        Parameters
+        ----------
+        fullname: str
+            Fullname including path to *_QRev.mat files.
         """
-        
-        #Apply WT settings
-        wt_settings = ['Beam', settings['num_beam_WT'], 'Manual', settings['diff_vel_threshold_WT'],
-                       'Vertical', 'Manual', settings['vert_vel_threshold_WT']]
-        
-        transect.w_vel.apply_filter(transect, kargs=wt_settings)
-        
-        #Apply BT settings
-        bt_settings = ['Beam', settings['num_beam_BT'], 'Manual', settings['diff_vel_threshold_BT'],
-                       'Vertical', 'Manual', settings['vert_vel_threshold_BT']]
-        transect.boat_vel.bt_vel.apply_filter(transect, kargs=bt_settings)
-    
-        #Apply depth settings
-        transect.depths.set_valid_data_method(settings['depth_valid_method'])
-        transect.depths.depth_filter(transect, settings['depth_screening'])
-        transect.depths.bt_depths.compute_avg_BT_depth(settings['depth_weighting'])
-        transect.depths.composite_depths(transect)
+
+        # Read Matlab file and extract meas_struct
+        mat_data = sio.loadmat(fullname, struct_as_record=False, squeeze_me=True)
+        meas_struct=mat_data['meas_struct']
+
+        # Assign data from meas_struct to associated instance variables in Measurement and associated objects.
+        self.station_name = meas_struct.stationName
+        self.station_number = meas_struct.stationNumber
+        self.processing = meas_struct.processing
+        self.comments = meas_struct.comments
+        self.userRating = meas_struct.userRating
+        self.initial_settings = meas_struct.initialSettings
+
+        self.transects = []
+        self.mb_tests = []
+        self.system_test = []
+        self.compass_cal = []
+        self.compass_eval = []
+        self.ext_temp_chk = None
+        self.extrap_fit = None
+
+        # Discharge
+        if hasattr(meas_struct.discharge, 'bottom'):
+            # Measurement has discharge data from only one transect
+            bottom = meas_struct.discharge.bottom
+            q=QComp()
+            q.populate_from_QRev_mat(meas_struct.discharge)
+            self.discharge.append(q)
+        else:
+            # Measurement has discharge data from multiple transects
+            for q_data in meas_struct.discharge:
+                q=QComp()
+                q.populate_from_QRev_mat(q_data)
+                self.discharge.append(q)
+
+        self.uncertainty = None
+
+        self.qa = None
+
+        self.comments = []
+        self.ext_temp_chk = {}
 
     def set_3_beam_WT_threshold_TRDI(self, mmt_transect):
         """Get 3-beam processing for WT from mmt file

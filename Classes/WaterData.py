@@ -460,7 +460,7 @@ class WaterData(object):
             Object of instrument data
         """
         
-        o_coord_sys = self.orig_coord_sys.strip()
+        o_coord_sys = self.orig_coord_sys[0].strip()
         
         if o_coord_sys != new_coord_sys:
             
@@ -807,17 +807,25 @@ class WaterData(object):
         ----------
         transect: object
             Object of TransectData
-        kwargs
-            beam:
-                Setting for beam filter (Auto, Off, threshold value)
-            difference:
-                Setting for difference filter (Auto, Off, threshold value)
-            vertical:
-                Setting for vertical filter (Auto, Off, threshold value)
-            other:
-                Setting for other filters (Off, On)
-            excluded:
-                Excluded distance below the transducer, in m
+
+        beam: int
+            Setting for beam filter (3, 4, or -1)
+        difference: str
+            Setting for difference filter (Auto, Off, Manual)
+        difference_threshold: float
+            Threshold value for Manual setting.
+        vertical: str
+            Setting for vertical filter (Auto, Off, Manual)
+        vertical_threshold: float
+            Threshold value for Manual setting.
+        other:
+            Setting for other filters (Off, Auto)
+        excluded:
+            Excluded distance below the transducer, in m
+        snr: str
+            SNR filter setting (Auto, Off)
+        wt_depth: bool
+            Setting for marking water data invalid if no available depth
         """
 
         # Determine filters to apply

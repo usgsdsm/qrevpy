@@ -153,7 +153,7 @@ class DepthStructure(object):
                 vb_filtered[np.squeeze(self.vb_depths.valid_data) == False] = np.nan
             else:
                 vb_filtered = repmat([np.nan],n_ensembles,1)
-
+                vb_filtered = np.squeeze(vb_filtered)
                   
             #Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:
@@ -161,6 +161,7 @@ class DepthStructure(object):
                 ds_filtered[np.squeeze(self.ds_depths.valid_data) == False] = np.nan
             else:
                 ds_filtered = repmat([np.nan],n_ensembles,1)
+                ds_filtered = np.squeeze(ds_filtered)
                 
             if len(bt_filtered.shape) > 1:
                 comp_source = repmat([np.nan],bt_filtered.shape[0],bt_filtered.shape[1])

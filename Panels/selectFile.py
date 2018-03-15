@@ -87,9 +87,12 @@ class OpenMeasurementDialog(QtWidgets.QDialog, wSelectFile.Ui_selectFile):
         """Parses fullnames into filenames and pathnames and sets default folder.
         """
         # Parse filenames and pathname from fullName
-        for file in self.fullName:
-            self.pathName, fileTemp = os.path.split(file)
-            self.fileName.append(fileTemp)
+        if isinstance(self.fullName, str):
+            self.pathName, self.fileName = os.path.split(self.fullName)
+        else:
+            for file in self.fullName:
+                self.pathName, fileTemp = os.path.split(file)
+                self.fileName.append(fileTemp)
 
         # Update the folder setting
         self.settings.set('Folder', self.pathName)

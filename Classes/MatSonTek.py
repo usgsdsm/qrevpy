@@ -10,7 +10,7 @@ class MatSonTek(object):
      mat_data: dictionary
         This is a dictionary of mat_struct, which can be accessed as mat_data[key].struct_name.sub_name.
     convert2correct: method
-        Converts all English data to meteric units.
+        Converts all English data to metric units.
     """
 
     def __init__(self, fullname):

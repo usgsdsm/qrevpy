@@ -164,7 +164,7 @@ class SelectFit(object):
             # If the optimized power fit does not have an r^2 better than 0.8 or if the optimized
             # exponent if 0.1667 falls within the 95% confidence interval of the optimized fit,
             # there is insufficient justification to change the exponent from 0.1667
-            if (ppobj.r_squared < 0.8) or ((0.1667 > self.exponent_95_ci[0]) and (0.1667 < self.exponent_95_ci)):
+            if (ppobj.r_squared < 0.8) or ((0.1667 > self.exponent_95_ci[0]) and (0.1667 < self.exponent_95_ci[1])):
                 # If an optimized exponent cannot be justified the linear fit is used to determine if a constant
                 # fit at the top is a better alternative than a power fit.  If the power fit is the better
                 # alternative the exponent is set to the default 0.1667 and the data is refit
