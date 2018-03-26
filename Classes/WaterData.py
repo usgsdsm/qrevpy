@@ -22,6 +22,7 @@ from MiscLibs.convenience import cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
 from Classes.BoatData import BoatData
 from scipy import interpolate
+import copy
 
 
 class WaterData(object):
@@ -617,10 +618,10 @@ class WaterData(object):
             else:
                 
                 # Reset velocity properties to raw values
-                self.u_mps = self.raw_vel_mps[0]
-                self.v_mps = self.raw_vel_mps[1]
-                self.w_mps = self.raw_vel_mps[2]
-                self.d_mps = self.raw_vel_mps[3]
+                self.u_mps = np.copy(self.raw_vel_mps[0])
+                self.v_mps = np.copy(self.raw_vel_mps[1])
+                self.w_mps = np.copy(self.raw_vel_mps[2])
+                self.d_mps = np.copy(self.raw_vel_mps[3])
                 
                 if adcp.manufacturer == 'TRDI':
                     self.u_mps[self.u_mps == 0] = np.nan
@@ -635,10 +636,10 @@ class WaterData(object):
         else:
             
             # Reset velocity properties to raw values
-            self.u_mps = self.raw_vel_mps[0]
-            self.v_mps = self.raw_vel_mps[1]
-            self.w_mps = self.raw_vel_mps[2]
-            self.d_mps = self.raw_vel_mps[3]
+            self.u_mps = np.copy(self.raw_vel_mps[0])
+            self.v_mps = np.copy(self.raw_vel_mps[1])
+            self.w_mps = np.copy(self.raw_vel_mps[2])
+            self.d_mps = np.copy(self.raw_vel_mps[3])
             
             if adcp.manufacturer == 'TRDI':
                 self.u_mps[self.u_mps == 0] = np.nan
@@ -892,7 +893,7 @@ class WaterData(object):
 
         selected = transect.depths.selected
         depth_selected = getattr(transect.depths, transect.depths.selected)
-        cells_above_slbt = self.cells_above_sl_bt
+        cells_above_slbt = np.copy(self.cells_above_sl_bt)
         
         # Compute cutoff for vertical beam depths
         if selected == 'vb_depths':
@@ -908,7 +909,7 @@ class WaterData(object):
 
         # Compute cutoff from interpolated depths
         # Find ensembles with no valid beam depths
-        idx = np.where(np.nansum(depth_selected.valid_beams) == 0)[0]
+        idx = np.where(np.nansum(depth_selected.valid_beams, 0) == 0)[0]
 
         # Determine side lobe cutoff for ensembles with no valid beam depths
         if len(idx) > 0:
@@ -920,26 +921,28 @@ class WaterData(object):
             sl_cutoff_int = (depth_selected.depth_processed_m[idx] - depth_selected.draft_use_m) \
                 * np.cos(np.deg2rad(transect.adcp.beam_angle_deg)) - sl_lag_effect_m + \
                 depth_selected.draft_use_m
-
-            cells_above_sl[:, idx] = depth_selected.depth_cell_depth_m < sl_cutoff_int
+            for i in range(len(idx)):
+                cells_above_sl[:, idx[i]] = np.less(depth_selected.depth_cell_depth_m[:, idx[i]], sl_cutoff_int[i])
             
         # Find ensembles with at least 1 invalid beam depth
-        idx = np.where(np.nansum(depth_selected.valid_beams) < 4)
+        idx = np.where(np.nansum(depth_selected.valid_beams, 0) < 4)[0]
         if len(idx) > 0:
             if len(self.sl_lag_effect_m) > 1:
                 sl_lag_effect_m = self.sl_lag_effect_m[idx]
             else:
-                sl_lag_effect_m = self.sl_lag_effect_m[idx]
+                sl_lag_effect_m = self.sl_lag_effect_m
                 
-            sl_cutoff_int = (depth_selected.depth_processed_m[idx] - depth_selected.draft_use_m
-                             * np.cos(np.deg2rad(transect.adcp.beam_angle_deg))) \
+            sl_cutoff_int = (depth_selected.depth_processed_m[idx] - depth_selected.draft_use_m)\
+                             * np.cos(np.deg2rad(transect.adcp.beam_angle_deg)) \
                 - sl_lag_effect_m + depth_selected.draft_use_m
-            cells_above_sl_int = np.ones(cells_above_sl.shape)
-            cells_above_sl_int[:, idx] = depth_selected.depth_cell_depth_m[:, idx] < sl_cutoff_int
+            cells_above_sl_int = np.tile(True, cells_above_sl.shape)
+
+            for i in range(len(idx)):
+                cells_above_sl_int[:, idx[i]] = np.less(depth_selected.depth_cell_depth_m[:, idx[i]], sl_cutoff_int[i])
             
             cells_above_sl[cells_above_sl_int == 0] = 0
         
-        self.cells_above_sl = cells_above_sl
+        self.cells_above_sl = np.copy(cells_above_sl)
         valid_vel = np.logical_not(np.isnan(self.u_mps))
         self.valid_data[1, :, :] = self.cells_above_sl * valid_vel
         self.all_valid_data()
@@ -988,7 +991,7 @@ class WaterData(object):
             
             # Determine how many beams or transformed coordinates are valid
             valid_vel_sum = np.sum(valid_vel, 0)
-            valid = self.cells_above_sl
+            valid = np.copy(self.cells_above_sl)
             
             # Compare number of valid beams or velocity coordinates to filter value
             valid[(valid_vel_sum < self.beam_filter) & (valid_vel_sum > 2)] = False
@@ -1000,57 +1003,109 @@ class WaterData(object):
             # Apply automatic filter
 
             # Create temporary object
-            temp = np.copy(self)
+            temp = copy.deepcopy(self)
 
             # Apply beam filter to temporary object
             temp.filter_beam(4)
-            
+
             # determine number of ensembles (NOT NECESSARY?)
             # n_ens = len(temp.valid_data[5,:,:])
             
             # Create matrix of valid data with nan below side lobe
-            valid = temp.valid_data[5, :, :]
+            valid_bool = temp.valid_data[5, :, :]
+            valid = valid_bool.astype(float)
             valid[temp.cells_above_sl == False] = np.nan
             
             # Find cells with 3 beams solutions
-            idx = np.where(valid == 0)
-            if len(idx) > 0:
-                # Find cells with 4 beams solutions
-                valid_idx = np.where(valid == 1)
-                
-                # Valid water u and v for cells with 4 beam solutions
-                valid_u = temp.u_mps(valid == 1)
-                valid_v = temp.v_mps(valid == 1)
-                
+            rows_3b, cols_3b = np.where(valid == 0)
+            if len(rows_3b) > 0:
+                # # Find cells with 4 beams solutions
+                valid_rows, valid_cols = np.where(valid == 1)
+                #
+                # # Valid water u and v for cells with 4 beam solutions
+                # valid_u = np.tile(np.nan, valid.shape)
+                # valid_v = np.tile(np.nan, valid.shape)
+                # valid_u[valid_rows, valid_cols] = temp.u_mps[valid_rows, valid_cols]
+                # valid_v[valid_rows, valid_cols] = temp.v_mps[valid_rows, valid_cols]
+                valid_u = temp.u_mps[valid == 1]
+                valid_v = temp.v_mps[valid == 1]
                 # Use interpolate water velocity of cells with 3 beam solutions
                 # TODO check out
-                est_u = interpolate.griddata(valid_idx, valid_u, idx)
-                est_v = interpolate.griddata(valid_idx, valid_v, idx)
+
+                # The following code duplicates Matlab scatteredInterpolant which seems to only estimate along columns
+                # as long as there is data in the ensemble above and below the value being estimated.
+                row_numbers = np.linspace(0, valid.shape[0] - 1, valid.shape[0])
+                # # est_u=temp.u_mps
+                n = 0
+                for col in cols_3b:
+                    if np.isnan(valid[n+1, col]):
+                        est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
+                        est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
+                    else:
+                        est_u = np.interp(x=rows_3b[n],
+                                          xp=row_numbers[valid_bool[:, col]],
+                                          fp=temp.u_mps[valid_bool[:, col], col])
+
+                        est_v = np.interp(x=rows_3b[n],
+                                          xp=row_numbers[valid_bool[:, col]],
+                                          fp=temp.v_mps[valid_bool[:, col], col])
+                    u_ratio = (temp.u_mps[rows_3b[n], col] / est_u) - 1
+                    v_ratio = (temp.v_mps[rows_3b[n], col] / est_v) -1
+                    if np.abs(u_ratio) < 0.5 or np.abs(v_ratio) < 0.5:
+                        valid_bool[rows_3b[n], col] = True
+                    else:
+                        valid_bool[rows_3b[n], col] = False
+                    n +=1
+
+
+
+                # # The following works for situations when there is no data above or below the value being estimated,
+                # # but does not agree with Matlab when there is data above and below.
+                #
+                # # Find cells with 4 beams solutions
+                # valid_rows, valid_cols = np.where(valid == 1)
+                #
+                # # Valid water u and v for cells with 4 beam solutions
+                # valid_u = np.tile(np.nan, valid.shape)
+                # valid_v = np.tile(np.nan, valid.shape)
+                # # valid_u[valid_rows, valid_cols] = temp.u_mps[valid_rows, valid_cols]
+                # # valid_v[valid_rows, valid_cols] = temp.v_mps[valid_rows, valid_cols]
+                # valid_u = temp.u_mps[valid == 1]
+                # valid_v = temp.v_mps[valid == 1]
+                # row_numbers = np.linspace(0, valid.shape[1] - 1, valid.shape[1])
+                # col_numbers = np.linspace(0, valid.shape[0] - 1, valid.shape[0])
+                # idx_cols, idx_rows = np.meshgrid(col_numbers, row_numbers)
+                #
+                # all_est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (idx_cols, idx_rows))
+                # all_est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (idx_cols, idx_rows))
 
                 # Compute the ratio of estimated value to actual 3 beam solution
-                idx = np.ravel_multi_index(temp.u_mps, dims=valid_idx, order='C')
-                
-                if len(est_u) == 0:
-                    u_ratio = 1
-                else:
-                    u_ratio = (temp.u_mps[idx] / est_u) - 1
-                    
-                if len(temp.v_mps) == 0:
-                    v_ratio = 1
-                else:
-                    v_ratio = (temp.v_mps[idx] / est_v) - 1
-                    
+                # idx = np.ravel_multi_index(temp.u_mps, dims=valid_idx, order='C')
+                # idx = np.ravel_multi_index(valid_idx, dims=valid_idx, order='C')
+                # if len(idx[0]) == 0:
+                #     u_ratio = 1
+                # else:
+                #     u_ratio = (temp.u_mps[idx] / est_u[idx]) - 1
+                #
+                # if len(temp.v_mps) == 0:
+                #     v_ratio = 1
+                # else:
+                #     v_ratio = (temp.v_mps[idx] / est_v) - 1
+
                 # If 3-beam differs from 4-beam by more 50% mark it invalid
-                num_ratio = u_ratio.shape[0]
-                valid[np.isnan(valid)] = 0
-                
-                for n in range(num_ratio):
-                    if np.abs(u_ratio[n]) < .5 or np.abs(v_ratio[n]) < .5:
-                        valid[idx[n]] = 1
+                # num_ratio = u_ratio.shape[0]
+                # valid[np.isnan(valid)] = 0
+                #
+                # for n in range(num_ratio):
+                #     if np.abs(u_ratio[n]) < .5 or np.abs(v_ratio[n]) < .5:
+                #         valid[idx[n]] = 1
                         
-                self.valid_data[5, :, :] = valid
+                self.valid_data[5, :, :] = valid_bool
             else:
                 self.valid_data[5, :, :] = temp.valid_data[5, :, :]
+
+        # Combine all filter data and update processed properties
+        self.all_valid_data()
                 
     def filter_diff_vel(self, setting, threshold=None):
         """Applies filter to difference velocity.
@@ -1120,11 +1175,12 @@ class WaterData(object):
                 self.num_bins_filtered.append(len(d_vel_bad_idx))
                 
         # Set valid data row 2 for difference velocity filter results
-        d_vel_bad_idx = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
-                                               np.less(d_vel, d_vel_min_ref)))[0]
-        valid = self.cells_above_sl
-        if len(d_vel_bad_idx) > 0:
-            valid[d_vel_bad_idx] = False
+        bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
+                                               np.less(d_vel, d_vel_min_ref)))
+        valid = np.copy(self.cells_above_sl)
+        if len(bad_idx_rows) > 0:
+            valid[bad_idx_rows, bad_idx_cols] = False
+        valid[np.isnan(self.d_mps)] = True
         self.valid_data[2, :, :] = valid
         
         # Set threshold property
@@ -1199,11 +1255,11 @@ class WaterData(object):
                     num_bins_filtered.append(len(w_vel_bad_idx))
                     
             # Set valid data row 3 for difference velocity filter results
-            w_vel_bad_idx = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),
-                                                   np.less(w_vel, w_vel_min_ref)))[0]
-            valid = self.cells_above_sl
-            if len(w_vel_bad_idx) > 0:
-                valid[w_vel_bad_idx] = False
+            bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),
+                                                   np.less(w_vel, w_vel_min_ref)))
+            valid = np.copy(self.cells_above_sl)
+            if len(bad_idx_rows) > 0:
+                valid[bad_idx_rows, bad_idx_cols] = False
             self.valid_data[3, :, :] = valid
 
             # Set threshold property
@@ -1271,8 +1327,8 @@ class WaterData(object):
             # wt_bad = np.tile([np.nan], w_vele.shape)
             
             # Compute mean speed and direction of water
-            w_vele_avg = np.nanmean(w_vele)
-            w_veln_avg = np.nanmean(w_veln)
+            w_vele_avg = np.nanmean(w_vele, 0)
+            w_veln_avg = np.nanmean(w_veln, 0)
             _, speed = cart2pol(w_vele_avg, w_veln_avg)
             # dir = np.rad2deg(dir)
             
@@ -1291,10 +1347,10 @@ class WaterData(object):
                 lower_limit = speed_smooth - multiplier * fill_array
                 
                 # Apply filter to residuals
-                wt_bad_idx = np.where((speed > upper_limit) or (speed < lower_limit))
+                wt_bad_idx = np.where((speed > upper_limit) or (speed < lower_limit))[0]
                 speed_res[wt_bad_idx] = np.nan
             
-            valid = self.cells_above_sl
+            valid = np.copy(self.cells_above_sl)
             
             valid[:, wt_bad_idx] = False
             self.valid_data[4, :, :] = valid
@@ -1304,7 +1360,7 @@ class WaterData(object):
         
         else:
             # No filter applied
-            self.valid_data[4, :, :] = self.cells_above_sl
+            self.valid_data[4, :, :] = np.copy(self.cells_above_sl)
             self.smooth_upper_limit = np.nan
             self.smooth_lower_limit = np.nan
             self.smooth_speed = np.nan
@@ -1329,7 +1385,7 @@ class WaterData(object):
         if setting == 'Auto':
             if self.snr_rng is not None:
                 bad_snr_idx = self.snr_rng > 12
-                valid = self.cells_above_sl
+                valid = np.copy(self.cells_above_sl)
                 
                 bad_snr_array = np.tile(bad_snr_idx, (valid.shape[0], 1))
                 valid[bad_snr_array] = False
@@ -1338,7 +1394,7 @@ class WaterData(object):
                 # Combine all filter data and update processed properties
                 self.all_valid_data()
         else:
-            self.valid_data[7, :, :] = self.cells_above_sl
+            self.valid_data[7, :, :] = np.copy(self.cells_above_sl)
             self.all_valid_data()
         
     def filter_wt_depth(self, transect, setting):
@@ -1352,7 +1408,7 @@ class WaterData(object):
             Setting for filter (True, False)
         """
         self.wt_depth_filter = setting
-        valid = self.cells_above_sl
+        valid = np.copy(self.cells_above_sl)
         
         if setting:
             trans_select = getattr(transect.depths, transect.depths.selected)
@@ -1382,7 +1438,7 @@ class WaterData(object):
 
         # Apply filter
         exclude = np.round(top_cell_depth, 3) <= threshold
-        valid = self.cells_above_sl
+        valid = np.copy(self.cells_above_sl)
         valid[exclude] = False
         self.valid_data[6, :, :] = valid
         
@@ -1399,8 +1455,8 @@ class WaterData(object):
         
         # Set processed data to nan for all invalid data
         valid = self.valid_data[0]
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         self.u_processed_mps[valid[0] == False] = np.nan
         self.v_processed_mps[valid[0] == False] = np.nan
         
@@ -1423,8 +1479,8 @@ class WaterData(object):
         valid = self.valid_data[0]
         
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
         self.u_processed_mps[valid[0] == False] = np.nan
@@ -1457,8 +1513,8 @@ class WaterData(object):
         valid = self.valid_data[0]
         
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
         self.u_processed_mps[valid[0] == False] = np.nan
@@ -1488,8 +1544,8 @@ class WaterData(object):
         valid = self.valid_data[0]
         
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
         self.u_processed_mps[valid == False] = np.nan
@@ -1503,8 +1559,8 @@ class WaterData(object):
         valid = self.valid_data[0]
 
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
         self.u_processed_mps[valid == False] = np.nan
@@ -1524,18 +1580,18 @@ class WaterData(object):
 
         self.interpolate_ens = 'Linear'
          
-        valid = self.valid_data[0]
+        valid = self.valid_data[0, :, :]
 
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
         # self.u_processed_mps[valid[0] == False] = np.nan
         # self.v_processed_mps[valid[0] == False] = np.nan
                 
         # Determine ensembles with valid data
-        valid_ens = np.any(valid)
+        valid_ens = np.any(valid, 0)
         
         if np.sum(valid_ens) > 1:
             # Determine the number of ensembles
@@ -1567,11 +1623,11 @@ class WaterData(object):
                     # yyi = np.linspace(np.nanmin(track_array), np.nanmax(track_array), y_index)
                     # XI, YI = np.meshgrid(xyi,yyi)
                     # TODO Need to test, I would have assumed hstack
-                    u = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])),
+                    u = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])).T,
                                              self.u_processed_mps[valid_combined],
                                              (z, track_array))
                     
-                    v = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])),
+                    v = interpolate.griddata(np.vstack((z[valid_combined], track_array[valid_combined])).T,
                                              self.v_processed_mps[valid_combined],
                                              (z, track_array))
 
@@ -1599,8 +1655,8 @@ class WaterData(object):
         valid = self.valid_data[0]
 
         # Initialize processed velocity data variables
-        self.u_processed_mps = self.u_mps
-        self.v_processed_mps = self.v_mps
+        self.u_processed_mps = np.copy(self.u_mps)
+        self.v_processed_mps = np.copy(self.v_mps)
 
         # Set invalid data to nan in processed velocity data variables
         # self.u_processed_mps[valid[0] == False] = np.nan
@@ -1686,7 +1742,7 @@ class WaterData(object):
                 idx_middle = np.where(valid[idx_first:idx_last + 1, n] == False)[0]
 
                 # For invalid middle depth cells perform interpolation based on bottom method
-                if len(idx) > 0:
+                if len(idx_middle) > 0:
                     idx_middle = idx_middle + idx_first
                     z_adj[idx_middle, n] = z_all[idx_middle, n]
 
@@ -1695,8 +1751,9 @@ class WaterData(object):
                         # Compute interpolated u-velocities
                         z2 = z[:, n] - (0.5 * cell_size[:, n])
                         z2[z2 < 0] = np.nan
-                        coef = ((exponent + 1) * np.nansum(self.u_processed_mps[:, n] * cell_size[:, n])) / \
-                            np.nansum(((z[:, n] + 0.5 * cell_size[:, n]) ** (exponent + 1)) - (z2 ** (exponent + 1)))
+                        coef = ((exponent + 1) * np.nansum(self.u_processed_mps[:, n] * cell_size[:, n], 0)) / \
+                            np.nansum(((z[:, n] + 0.5 * cell_size[:, n]) ** (exponent + 1)) - (z2 ** (exponent + 1)), 0)
+
                         temp = coef * z_adj[:, n] ** exponent
                         self.u_processed_mps[idx_middle, n] = temp[idx_middle]
                         # Compute interpolated v-Velocities
@@ -1723,25 +1780,36 @@ class WaterData(object):
             Object of TransectData
         """
 
-        processed_valid_cells = self.valid_data[0]
-        valid_data_sum = np.nansum(processed_valid_cells)
+        processed_valid_cells = np.copy(self.valid_data[0])
+        valid_data_sum = np.nansum(processed_valid_cells, 0)
         invalid_ens_idx = np.where(valid_data_sum == 0)[0]
         n_invalid = len(invalid_ens_idx)
-
+        depth_cell_depth = transect.depths.bt_depths.depth_cell_depth_m
         for n in range(n_invalid):
 
             # Find nearest valid ensembles on either side of invalid ensemble
-            idx1 = np.where(valid_data_sum[:invalid_ens_idx[n]] > 0)[0][-1]
-            idx2 = np.where(valid_data_sum[invalid_ens_idx[n]:] > 0)[0][0]
-            idx2 = invalid_ens_idx[n] + idx2
+            idx1 = np.where(valid_data_sum[:invalid_ens_idx[n]] > 0)[0]
+            if len(idx1) > 0:
+                idx1=idx1[-1]
+                # Find the last cell in the neighboring valid ensembles
+                idx1_cell = np.where(processed_valid_cells[:, idx1] == True)[0][-1]
+                # Determine valid cells for invalid ensemble
+                idx1_cell_depth = depth_cell_depth[idx1_cell, idx1]
+            else:
+                idx1_cell_depth = 0
 
-            # Find the last cell in the neighboring valid ensembles
-            idx1_cell = np.where(processed_valid_cells[:, idx1] == True)[0][-1]
-            idx2_cell = np.where(processed_valid_cells[:, idx2] == True)[0][-1]
+            idx2 = np.where(valid_data_sum[invalid_ens_idx[n]:] > 0)[0]
+            if len(idx2) > 0:
+                idx2 = idx2[0]
+                idx2 = invalid_ens_idx[n] + idx2
+                # Find the last cell in the neighboring valid ensembles
+                idx2_cell = np.where(processed_valid_cells[:, idx2] == True)[0][-1]
+                # Determine valid cells for invalid ensemble
+                idx2_cell_depth = depth_cell_depth[idx2_cell, idx2]
+            else:
+                idx2_cell_depth = 0
 
-            # Determine valid cells for invalid ensemble
-            depth_cell_depth = transect.depths.bt_depths.depth_cell_depth_m
-            cutoff = np.nanmax([depth_cell_depth[idx1_cell, idx1], depth_cell_depth[idx2_cell, idx2]])
+            cutoff = np.nanmax([idx1_cell_depth, idx2_cell_depth])
             processed_valid_cells[depth_cell_depth[:, invalid_ens_idx[n]] < cutoff, invalid_ens_idx[n]] = True
 
             # Apply excluded distance

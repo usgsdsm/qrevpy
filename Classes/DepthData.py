@@ -172,7 +172,7 @@ class DepthData(object):
     def set_valid_data_method(self, setting):
         self.valid_data_method = setting
         
-    def compute_avg_BT_depth(self, kargs=None):
+    def compute_avg_BT_depth(self, method=None):
         """Computes average depth for BT_Depths
         
         kargs: averaging method (Simple or IDW)
@@ -180,8 +180,8 @@ class DepthData(object):
         
         if self.depth_source == 'BT':
             
-            if kargs is not None:
-                self.avg_method = kargs[0]
+            if method is not None:
+                self.avg_method = method
             
             #Get valid depths
             depth = self.depth_beams_m
@@ -232,35 +232,37 @@ class DepthData(object):
             self.depth_processed_m = np.array(self.depth_beams_m)
             self.depth_processed_m[np.squeeze(self.valid_data) == 0] = np.nan
             
-    def apply_interpolation(self, transect, kargs=None):
+    def apply_interpolation(self, transect, method=None):
         """Coordinates application of interpolations
-        
-        transect: object of TransectData
-        kargs: interpolation setting
+
+        Parameters
+        ----------
+        transect: object
+            Object of TransectData
+        method: str
+            Type of interpolation to apply (None, HoldLast, Smooth, Linear)
         """
         
-        #Determine filters to apply
-        if kargs is not None:
-            setting = kargs[0]
-        else:
-            setting = self.interp_type
+        # Determine filters to apply
+        if method is None:
+            method = self.interp_type
             
-        #Apply selected interpolation
+        # Apply selected interpolation
         
-        #No filtering
-        if setting == 'None':
+        # No filtering
+        if method == 'None':
             self.interpolate_none()
-        #Hold last valid depth indefinitely
-        elif setting == 'HoldLast':
+        # Hold last valid depth indefinitely
+        elif method == 'HoldLast':
             self.interpolate_hold_last()
-        #Use values form a Loess smooth
-        elif setting == 'Smooth':
+        # Use values form a Loess smooth
+        elif method == 'Smooth':
             self.interpolate_smooth()
-        #Linear interpolation
+        # Linear interpolation
         else:
-            self.interpolate_linear(transect)
+            self.interpolate_linear(transect=transect)
             
-        #Identify ensembles with interpolated depths
+        # Identify ensembles with interpolated depths
         idx = np.where(self.valid_data[:] == False)
         if len(idx) > 0:
             idx = idx[0]
@@ -296,10 +298,10 @@ class DepthData(object):
         # Correct unprocessed depths
         self.depth_beams_m = self.draft_use_m+np.multiply(self.depth_beams_m-self.draft_use_m,ratio)
         
-        #Correct processed depths
+        # Correct processed depths
         self.depth_processed_m = self.draft_use_m+np.multiply(self.depth_processed_m-self.draft_use_m,ratio)
         
-        #Correct cell size and location
+        # Correct cell size and location
         self.depth_cell_size = np.multiply(self.depth_cell_size_m,ratio)
         self.depth_cell_depth_m = self.draft_use_m + np.multiply(self.depth_cell_depth_m - self.draft_use_m, ratio)
         
@@ -410,13 +412,16 @@ class DepthData(object):
             for j in range(n_beams):
                 # At least 50% of the data in a beam must be valid to apply the smooth
                 if np.nansum((np.isnan(depth_filtered[j]) == False) / depth_filtered.shape[0]) > .5:
-                    # Compute residuals based on robust loess smooth
+                    # Compute residuals based on lowess smooth
                     if len(x) > 1:
                         # depth_smooth[j] = lowess(x,depth_filtered[j],3/len(depth_filtered[j]),1)
                         # Leading nan reduces the length of the output from Lowess requiring this double statement
                         # to keep depth_smooth at the proper length
-                        smooth_fit = smoothers_lowess.lowess(depth_filtered[j, :], x, 10 / len(depth_filtered[j]))
-                        depth_smooth[j, smooth_fit[:, 0].astype(int)] = smooth_fit[:, 1]
+                        smooth_fit = smoothers_lowess.lowess(endog=depth_filtered[j, :],
+                                                             exog=x,
+                                                             frac=10 / len(depth_filtered[j]),
+                                                             return_sorted=False)
+                        depth_smooth[j, :] = smooth_fit
                     else:
                         depth_smooth[j] = depth_filtered[j]
                     
@@ -575,7 +580,7 @@ class DepthData(object):
 #             interpolation.   Only the interpolated data for invalid depths are added
 #             to the valid depth data to create depth_new
         
-        depth_mono = self.depth_beams_m
+        depth_mono = np.copy(self.depth_beams_m)
         x_mono = x
         
         idx0=np.where(np.diff(x) == 0)
@@ -593,28 +598,32 @@ class DepthData(object):
                 depth_mono[:,indices[2:]] = np.nan
                 x[indices[2:]] = np.nan
                 
-            #Interpolate each beam
-            depth_new = self.depth_beams_m
-            for n in range(n_beams):
-                valid_depth_mono = not np.isnan(depth_mono[n])
-                valid_x_mono = self.valid_beams[n]
-                valid_data = self.valid_beams
-                
-                valid = np.vstack([valid_depth_mono, valid_x_mono, valid_data])
-                valid = np.sum(valid.T, axis=1)
-                valid = np.where(valid == 3)[0]
-                
-                if len(valid) > 1:
-                    #compute interpolation function from all valid data
-                    depth_int = np.interp(x_mono[valid], depth_mono[valid], x_mono)
-                    depth_new[n, not self.valid_beams[n]] = depth_int(n,not self.valid_beams[n])
-                
-                else:
-                    #No valid data
-                    depth_int[n] = repmat([np.nan],1,len(valid))
-                    
-                if self.depth_source == 'BT':
-                    self.depth_processed_m = self.average_depth(depth_new,self.draft_use_m, self.avg_method)
+        # Interpolate each beam
+        depth_new = np.copy(self.depth_beams_m)
+        for n in range(n_beams):
+            # Determine ensembles with valid depth data
+            valid_depth_mono = np.logical_not(np.isnan(depth_mono[n]))
+            valid_x_mono = np.logical_not(np.isnan(x_mono))
+            valid_data = np.copy(self.valid_beams[n])
+            valid = np.vstack([valid_depth_mono, valid_x_mono, valid_data])
+            valid = np.all(valid, 0)
+
+            if np.sum(valid) > 1:
+                # Compute interpolation function from all valid data
+                depth_int = np.interp(x_mono, x_mono[valid], depth_mono[n, valid])
+                # Fill in invalid data with interpolated data
+                depth_new[n, np.logical_not(self.valid_beams[n])] = depth_int[np.logical_not(self.valid_beams[n])]
+
+            else:
+                # No valid data
+                depth_int[n] = repmat([np.nan],1,len(valid))
+
+        if self.depth_source == 'BT':
+            # Bottom track depths
+            self.depth_processed_m = self.average_depth(depth_new,self.draft_use_m, self.avg_method)
+        else:
+            # Vertical beam or depth sounder depths
+            self.depth_processed_m = np.copy(depth_new)
 
     def filter_butter(self, transect):
         """Filters depth of every beam using a Butterworth filter at a specified order and cutoff frequency"""

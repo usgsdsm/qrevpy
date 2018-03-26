@@ -28,7 +28,7 @@ class EdgeData(object):
     
     def __init__(self):
         
-        self.edge_type = None       # Shape of edge: 'Triangular', 'Rectangular', 'Custom, 'User Q'
+        self.type = None       # Shape of edge: 'Triangular', 'Rectangular', 'Custom, 'User Q'
         self.distance_m = None          # Distance to shore
         self.cust_coeff = None     # Custom coefficient provided by user
         self.number_ensembles = None   # Number of ensembles to average for depth and velocities

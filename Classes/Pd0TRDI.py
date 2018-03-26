@@ -552,7 +552,7 @@ class Pd0TRDI(object):
                         
                         self.end_reading(f, file_loc, i_data_types, i_ens, bytes_per_ens)
                         
-                        
+                    # TODO Fix UTC
                     elif leader_id == '0x2022':
                         i2022 += 1
                         i_data_types += 1
@@ -687,7 +687,7 @@ class Pd0TRDI(object):
                                 self.Gps2.d_gps_age[:,j100] = np.nan
                                 self.Gps2.ref_stat_id[:,j100] = np.nan
                                 
-                            self.Gps2.lat_deg[i_ens,j100] = delta_time
+                            self.Gps2.gga_delta_time[i_ens,j100] = delta_time
                             self.Gps2.gga_header[i_ens] = ''.join([chr(x) for x in f.read(7)])
                             try:
                                 temp = ''.join([chr(x) for x in f.read(10)])

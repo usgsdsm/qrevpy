@@ -159,13 +159,13 @@ class QComp(object):
         self.int_cells, self.int_ens = QComp.discharge_interpolated(self.top_ens, self.middle_cells, self.bottom_ens, data_in)
         
         # Compute right edge discharge
-        if data_in.edges.right.edge_type != 'User Q':
+        if data_in.edges.right.type != 'User Q':
             self.right = QComp.discharge_edge('right', data_in, top_method, bot_method, exponent)
         else:
             self.right = data_in.edges.right.user_discharge_cms
             
         # Compute left edge discharge
-        if data_in.edges.left.edge_type != 'User Q':
+        if data_in.edges.left.type != 'User Q':
             self.left = QComp.discharge_edge('left', data_in, top_method, bot_method, exponent)
         else:
             self.left = data_in.edges.left.user_discharge_cms
@@ -769,17 +769,17 @@ class QComp(object):
 
         # Assign number of ensembles in edge to local variable
         edge_select = getattr(transect.edges, edge_loc)
-        num_edge_ens = edge_select.number_ensembles
+        num_edge_ens = int(edge_select.number_ensembles)
 
         # TRDI method
         if transect.adcp.manufacturer == 'TRDI':
             # Determine the indices of the edge ensembles which contain
             # the specified number of valid ensembles
             valid_ens = QComp.valid_edge_ens(transect)
-            if edge_loc == transect.start_edge:
-                edge_idx = np.where(valid_ens == True)[0][0]
+            if edge_loc.lower() == transect.start_edge.lower():
+                edge_idx = np.where(valid_ens == True)[0][0:num_edge_ens]
             else:
-                edge_idx = np.where(valid_ens == True)[0][-1]
+                edge_idx = np.where(valid_ens == True)[0][-num_edge_ens::]
 
         # Sontek Method
         else:

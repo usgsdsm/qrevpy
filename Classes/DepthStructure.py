@@ -220,8 +220,7 @@ class DepthStructure(object):
             selected_data.apply_interpolation(transect)
             comp_depth = selected_data.depth_processed_m
             selected_data.apply_composite(comp_depth, comp_source)
-            
-            
+
     def set_draft(self, target, draft):
         """This function will change the ref_depth draft/  The associated
         depth object will also be updated because DepthData is a handle class.
@@ -245,16 +244,16 @@ class DepthStructure(object):
         if self.ds_depths is not None:
             self.ds_depths.apply_filter(transect, filter_method)
             
-    def depth_interpolation(self, transect, kargs):
+    def depth_interpolation(self, transect, method=None):
         """Method to apply interpolation to all available depth sources, so
         that all sources have the same filter applied """
         
         if self.bt_depths is not None:
-            self.bt_depths.apply_interpolation(transect, kargs)
+            self.bt_depths.apply_interpolation(transect, method)
         if self.vb_depths is not None:
-            self.vb_depths.apply_interpolation(transect, kargs)
+            self.vb_depths.apply_interpolation(transect, method)
         if self.ds_depths is not None:
-            self.vb_depths.apply_interpolation(transect, kargs)
+            self.vb_depths.apply_interpolation(transect, method)
             
     def sos_correction(self, ratio):
         """Correct depths for change in speed of sound"""

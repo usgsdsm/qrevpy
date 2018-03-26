@@ -1,6 +1,6 @@
 class Transect(object):
     """Class to hold properties of MMT transect dictionary attributes"""
-
+    # TODO consider calling this MMT_Transect
     def __init__(self, trans, mbt = False):
         """Constructor immediately begins extraction of data"""
         

@@ -131,20 +131,27 @@ class Measurement(object):
         #-------------------------------REFACTORED from thresholds_TRDI
         
         threshold_settings = {}
+        threshold_settings['wt_settings'] = {}
+        threshold_settings['bt_settings'] = {}
+        threshold_settings['depth_settings'] = {}
         #WT filter threshold setting
-        threshold_settings['num_beam_WT'] = self.set_3_beam_WT_threshold_TRDI(mmt.transects[0])
-        threshold_settings['diff_vel_threshold_WT'] = self.set_diff_vel_threshold_WT_TRDI(mmt.transects[0])
-        threshold_settings['vert_vel_threshold_WT'] = self.set_vert_vel_threshold_WT_TRDI(mmt.transects[0])
-        
+        threshold_settings['wt_settings']['beam'] = self.set_3_beam_WT_threshold_TRDI(mmt.transects[0])
+        threshold_settings['wt_settings']['difference'] = 'Manual'
+        threshold_settings['wt_settings']['difference_threshold'] = self.set_diff_vel_threshold_WT_TRDI(mmt.transects[0])
+        threshold_settings['wt_settings']['vertical'] = 'Manual'
+        threshold_settings['wt_settings']['vertical_threshold'] = self.set_vert_vel_threshold_WT_TRDI(mmt.transects[0])
+
         #BT filter threshold settings
-        threshold_settings['num_beam_BT'] = self.set_3_beam_BT_threshold_TRDI(mmt.transects[0])
-        threshold_settings['diff_vel_threshold_BT'] = self.set_diff_vel_threshold_BT_TRDI(mmt.transects[0])
-        threshold_settings['vert_vel_threshold_BT'] = self.set_depth_screening_TRDI(mmt.transects[0])
-        
+        threshold_settings['bt_settings']['beam'] = self.set_3_beam_BT_threshold_TRDI(mmt.transects[0])
+        threshold_settings['bt_settings']['difference'] = 'Manual'
+        threshold_settings['bt_settings']['difference_threshold'] = self.set_diff_vel_threshold_BT_TRDI(mmt.transects[0])
+        threshold_settings['bt_settings']['vertical'] = 'Manual'
+        threshold_settings['bt_settings']['vertical_threshold'] =  self.set_vert_vel_threshold_BT_TRDI(mmt.transects[0])
+
         #Depth filter and averaging settings
-        threshold_settings['depth_weighting'] = self.set_depth_weighting_TRDI(mmt.transects[0])
-        threshold_settings['depth_valid_method'] = 'TRDI'
-        threshold_settings['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
+        threshold_settings['depth_settings']['depth_weighting'] = self.set_depth_weighting_TRDI(mmt.transects[0])
+        threshold_settings['depth_settings']['depth_valid_method'] = 'TRDI'
+        threshold_settings['depth_settings']['depth_screening'] = self.set_depth_screening_TRDI(mmt.transects[0])
         
         #--------------------------------------------DONE REFACTOR
         multi_threaded = False
@@ -215,16 +222,18 @@ class Measurement(object):
                 # Update water data for changes in boat velocity
                 transect.update_water()
                 # Filter water data
-                transect.wt_filters({'wt_depth': 'On'})
+                transect.wt_filters(wt_depth=True)
                 # Interpolate water data
-                transect.wt_interpolations({'target': 'Ensembles', 'interp_type': 'None'})
+                transect.wt_interpolations(target='Ensembles', interp_type='None')
                 # Apply speed of sound computations as required
-                mmt_sos_method = mmt.transects[idx].active_config['Proc_Speed_of_Sound_Correction']
+                mmt_sos_method = mmt.transects[transect_idx].active_config['Proc_Speed_of_Sound_Correction']
+                # Speed of sound computed based on user supplied values
                 if mmt_sos_method == 1:
-                    transect.change_sos( 'salinity', 'user')
-                    transect.change_sos( 'sosSrc',' Computed', [])
+                    transect.change_sos(parameter='salinity')
+                # Speed of sound set by user
                 elif mmt_sos_method == 2:
-                    transect.change_sos( 'sosSrc', 'user', mmt_sos_method)
+                    speed = mmt.transects[transect_idx].active_config['Proc_Fixed_Speed_of_Sound']
+                    transect.change_sos(parameter='sosSrc', selected='user', speed=speed)
                 transect_idx += 1
 
     def qaqc_trdi(self, mmt):
@@ -295,20 +304,16 @@ class Measurement(object):
         """
 
         # Apply WT settings
-        wt_settings = ['Beam', settings['num_beam_WT'], 'Manual', settings['diff_vel_threshold_WT'],
-                       'Vertical', 'Manual', settings['vert_vel_threshold_WT']]
-
-        transect.w_vel.apply_filter(transect, kargs=wt_settings)
+        transect.w_vel.apply_filter(transect, **settings['wt_settings'])
 
         # Apply BT settings
-        bt_settings = ['Beam', settings['num_beam_BT'], 'Manual', settings['diff_vel_threshold_BT'],
-                       'Vertical', 'Manual', settings['vert_vel_threshold_BT']]
-        transect.boat_vel.bt_vel.apply_filter(transect, kargs=bt_settings)
+        transect.boat_vel.bt_vel.apply_filter(transect, **settings['bt_settings'])
 
         # Apply depth settings
-        transect.depths.set_valid_data_method(settings['depth_valid_method'])
-        transect.depths.depth_filter(transect, settings['depth_screening'])
-        transect.depths.bt_depths.compute_avg_BT_depth(settings['depth_weighting'])
+        transect.depths.set_valid_data_method(setting=settings['depth_settings']['depth_valid_method'])
+        transect.depths.depth_filter(transect=transect, filter_method=settings['depth_settings']['depth_screening'])
+        transect.depths.bt_depths.compute_avg_BT_depth(method=settings['depth_settings']['depth_weighting'])
+        # Apply composite depths as per setting stored in transect from TransectData.trdi
         transect.depths.composite_depths(transect)
 
     def load_sontek(self, fullnames):
@@ -493,6 +498,27 @@ class Measurement(object):
             num_beam_WT_out = 3
             
         return num_beam_WT_out
+
+    def set_3_beam_BT_threshold_TRDI(self, mmt_transect):
+        """Get 3-beam processing for WT from mmt file
+
+        Input:
+        mmt_transect: object of Transect
+
+        Output:
+        num_3_beam_WT_Out
+        """
+
+        #check consistency
+        use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_BT']
+
+        #Use setting from 1st transect for all transects
+        if use_3_beam_BT == 0:
+            num_beam_BT_out = 4
+        else:
+            num_beam_BT_out = 3
+
+        return num_beam_BT_out
     
     def set_vert_vel_threshold_WT_TRDI(self, mmt_transect):
         """Get the vertical celocity threshold for WT from mmt
@@ -514,26 +540,25 @@ class Measurement(object):
         else:
             return vert_vel_threshold_WT[0]
 
-    def set_3_beam_BT_threshold_TRDI(self, mmt_transect):
-        """Get 3-beam processing for WT from mmt file
-        
+    def set_vert_vel_threshold_BT_TRDI(self, mmt_transect):
+        """Get the vertical velocity threshold for BT from mmt
+
         Input:
         mmt_transect: object of Transect
-        
+
         Output:
-        num_3_beam_WT_Out
+        vert_vel_threshold_WT[0]: vertical celocity threshold (m/s)
         """
-        
-        #check consistency
-        use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_BT']
-        
-        #Use setting from 1st transect for all transects
-        if use_3_beam_BT == 0:
-            num_beam_BT_out = 4
+
+        # Check consistency of vertical velocity threshold (m/s)
+        vert_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Up_Velocity_Threshold']
+
+        # Use setting from 1st transect for all transects
+        # Use setting from 1st transect for all transects
+        if isinstance(vert_vel_threshold_BT, float):
+            return vert_vel_threshold_BT
         else:
-            num_beam_BT_out = 3
-            
-        return num_beam_BT_out
+            return vert_vel_threshold_BT[0]
     
     def set_diff_vel_threshold_WT_TRDI(self, mmt_transect):
         """Get difference (error) velocity threshold for WT from mmt
@@ -766,6 +791,7 @@ class Measurement(object):
             else:
                 wt_kwargs['vertical'] = settings['WTwFilter']
 
+            wt_kwargs['beam'] = settings['WTbeamFilter']
             wt_kwargs['other'] = settings['WTsmoothFilter']
             wt_kwargs['snr'] = settings['WTsnrFilter']
             wt_kwargs['wt_depth'] = settings['WTwDepthFilter']
@@ -815,7 +841,6 @@ class Measurement(object):
         # TODO add uncertainty
         # TODO add quality assurance
 
-# TODO Need to finish apply settings method!!
     def apply_settings2(self, trans_data, s, kargs=None):
         """Refactored so that the previous calculations can be multithreaded
         #Extrap Q Sensitivity the way it is now will not allow this so in this

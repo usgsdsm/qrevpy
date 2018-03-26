@@ -480,9 +480,9 @@ class GPSData(object):
             v_setting = self.vtg_velocity_method
 
         # Use only valid data
-        vtg_speed_mps = self.raw_vtg_speed_mps
-        vtg_course_deg = self.raw_vtg_course_deg
-        vtg_delta_time = self.raw_vtg_delta_time
+        vtg_speed_mps = np.copy(self.raw_vtg_speed_mps)
+        vtg_course_deg = np.copy(self.raw_vtg_course_deg)
+        vtg_delta_time = np.copy(self.raw_vtg_delta_time)
         # VTG mode indicator is a letter but is coming in as the ASCII value. 78 is the value for N.
         idx = np.where(self.raw_vtg_mode_indicator == 78)[0]
         vtg_speed_mps[idx] = np.nan
@@ -540,6 +540,7 @@ class GPSData(object):
         # Use the velocity with the minimum delta time for the ensemble velocity
         elif v_setting == 'Mindt':
             d_time = np.abs(vtg_delta_time)
+            # d_time[d_time==0] = np.nan
             d_time_min = np.nanmin(d_time.T, 0).T
             
             use = []

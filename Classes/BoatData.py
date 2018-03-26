@@ -585,6 +585,24 @@ class BoatData(object):
         self.processed_source[composite_source == 4] = 'INT'
         self.processed_source[composite_source == 5] = 'INV'
 
+    def sos_correction(self, transect, ratio):
+        """Correct boat velocity for a change in speed of sound.
+
+        Parameters
+        ----------
+        transect: object
+            Object of TransectData
+        ratio: float
+            Ratio of new and old speed of sound
+        """
+
+        # Correct velocities
+        self.u_mps = self.u_mps * ratio
+        self.v_mps = self.v_mps * ratio
+
+        # Apply filters to corrected velocities
+        self.apply_filter(transect=transect)
+
     def interpolate_hold_9(self):
         """This function applies Sontek's approach to maintaining the last valid boat speed for up to 9 invalid samples.
         """
@@ -622,7 +640,7 @@ class BoatData(object):
         """This function holds the last valid value until the next valid data point."""
 
         # Initialize variables
-        n_ensembles = self.u_mps.shape[1]
+        n_ensembles = len(self.u_mps)
 
         # Get data from object
         self.u_processed_mps = np.copy(self.u_mps)
@@ -635,8 +653,8 @@ class BoatData(object):
         for n in range(1, n_ensembles):
             # Check if ensemble is invalid and number of consecutive invalids is less than 9
             if (self.valid_data[0, n] == False) and (n_invalid < 9):
-                self.u_processed_mps = self.u_processed_mps[n - 1]
-                self.v_processed_mps = self.v_processed_mps[n - 1]
+                self.u_processed_mps[n] = self.u_processed_mps[n - 1]
+                self.v_processed_mps[n] = self.v_processed_mps[n - 1]
 
     def interpolate_next(self):
         """This function uses the next valid data to back fill for invalid"""

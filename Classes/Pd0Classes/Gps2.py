@@ -15,46 +15,46 @@ class Gps2(object):
         """
         Constructor
         """
-        self.gga_delta_time =  np.empty([n_ensembles, 20])
+        self.gga_delta_time =  np.full([n_ensembles, 20], np.nan)
         self.gga_header = [['']*20 for k in range(n_ensembles)]
         self.gga_sentence = [['']*20 for k in range(n_ensembles)]
-        self.utc =   np.empty([n_ensembles, 20])
+        self.utc =   np.full([n_ensembles, 20], np.nan)
         self.lat_deg =   np.zeros([n_ensembles, 20])
         self.lat_ref =  [['']*20 for k in range(n_ensembles)]
         self.lon_deg =   np.zeros([n_ensembles, 20])
         self.lon_ref =  [['']*20 for k in range(n_ensembles)]
-        self.corr_qual =   np.empty([n_ensembles, 20])
-        self.num_sats =   np.empty([n_ensembles, 20])
-        self.hdop =   np.empty([n_ensembles, 20])
-        self.alt =   np.empty([n_ensembles, 20])
+        self.corr_qual =   np.full([n_ensembles, 20], np.nan)
+        self.num_sats =   np.full([n_ensembles, 20], np.nan)
+        self.hdop =   np.full([n_ensembles, 20], np.nan)
+        self.alt =   np.full([n_ensembles, 20], np.nan)
         self.alt_unit =  [['']*20 for k in range(n_ensembles)]
-        self.geoid =   np.empty([n_ensembles, 20])
+        self.geoid =   np.full([n_ensembles, 20], np.nan)
         self.geoid_unit = [['']*20 for k in range(n_ensembles)]
-        self.d_gps_age =   np.empty([n_ensembles, 20])
-        self.ref_stat_id =   np.empty([n_ensembles, 20])
-        self.vtg_delta_time =   np.empty([n_ensembles, 20])
+        self.d_gps_age =   np.full([n_ensembles, 20], np.nan)
+        self.ref_stat_id =   np.full([n_ensembles, 20], np.nan)
+        self.vtg_delta_time =   np.full([n_ensembles, 20], np.nan)
         self.vtg_header =  [['']*20 for k in range(n_ensembles)]
         self.vtg_sentence = [['']*20 for k in range(n_ensembles)]
-        self.course_true =   np.empty([n_ensembles, 20])
+        self.course_true =   np.full([n_ensembles, 20], np.nan)
         self.true_indicator = [['']*20 for k in range(n_ensembles)]
-        self.course_mag =   np.empty([n_ensembles, 20])
+        self.course_mag =   np.full([n_ensembles, 20], np.nan)
         self.mag_indicator =  [['']*20 for k in range(n_ensembles)]
-        self.speed_knots =  np.empty([n_ensembles, 20])
+        self.speed_knots =  np.full([n_ensembles, 20], np.nan)
         self.knots_indicator =  [['']*20 for k in range(n_ensembles)]
         self.speed_k_mph =   np.zeros([n_ensembles, 20])
         self.kmph_indicator = [['']*20 for k in range(n_ensembles)]
         self.mode_indicator =  [['']*20 for k in range(n_ensembles)]
-        self.dbt_delta_time =   np.empty([n_ensembles, 20])
+        self.dbt_delta_time =   np.full([n_ensembles, 20], np.nan)
         self.dbt_header = [['']*20 for k in range(n_ensembles)]
-        self.depth_ft = np.empty([n_ensembles, 20])
+        self.depth_ft = np.full([n_ensembles, 20], np.nan)
         self.ft_indicator = [['']*20 for k in range(n_ensembles)]
         self.depth_m = np.zeros([n_ensembles,20])
         self.m_indicator = [['']*20 for k in range(n_ensembles)]
-        self.depth_fath = np.empty([n_ensembles, 20])
+        self.depth_fath = np.full([n_ensembles, 20], np.nan)
         self.fath_indicator = [['']*20 for k in range(n_ensembles)]
-        self.hdt_delta_time = np.empty([n_ensembles, 20])
+        self.hdt_delta_time = np.full([n_ensembles, 20], np.nan)
         self.hdt_header = [['']*20 for k in range(n_ensembles)]
-        self.heading_deg = np.empty([n_ensembles, 20])
+        self.heading_deg = np.full([n_ensembles, 20], np.nan)
         self.h_true_indicator =  [['']*20 for k in range(n_ensembles)]
         
         if wr2 == 1:

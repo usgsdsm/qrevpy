@@ -82,9 +82,12 @@ class TransectData(object):
 
         Parameters
         ----------
-        mmt_transect:
-        pd0_data:
-        mmt:
+        mmt_transect: object
+            Object of Transect (from mmt)
+        pd0_data: object
+            Object of PD0TRDI
+        mmt: object
+            Object of MMT_TRDI
         mbt_idx: I DON"T THINK THIS SHOULD BE NEEDED
         kargs: NEED TO ELIMINATE THIS
         """
@@ -92,7 +95,7 @@ class TransectData(object):
         # self.mbt = mbt_idx
         # This starts at line 148 from the Matlab code. Matlab code handled creating PD0 object
         pd0 = pd0_data
-        
+        self.file_name = mmt_transect.Files[0].File
         # Get the configuration property of the mmt_transect
         mmt_config = getattr(mmt_transect, self.active_config)
         if pd0_data.Wt is not None:
@@ -301,7 +304,6 @@ class TransectData(object):
             
             # Compute velocities from GPS Data
             # ------------------------------------
-            # Stopped here 2/27/2018
             # Raw Data
             raw_gga_utc = pd0.Gps2.utc
             raw_gga_lat = pd0.Gps2.lat_deg
@@ -403,12 +405,12 @@ class TransectData(object):
             
             # Determine left and right edge distances
             if mmt_config['Edge_Begin_Left_Bank']:
-                dist_left = mmt_config['Edge_Begin_Shore_Distance']
-                dist_right = mmt_config['Edge_End_Shore_Distance']
+                dist_left = float(mmt_config['Edge_Begin_Shore_Distance'])
+                dist_right = float(mmt_config['Edge_End_Shore_Distance'])
                 self.start_edge = 'Left'
             else:
-                dist_left = mmt_config['Edge_End_Shore_Distance']
-                dist_right = mmt_config['Edge_Begin_Shore_Distance']
+                dist_left = float(mmt_config['Edge_End_Shore_Distance'])
+                dist_right = float(mmt_config['Edge_Begin_Shore_Distance'])
                 self.start_edge = 'Right'
                 
             # Create left edge
@@ -475,7 +477,7 @@ class TransectData(object):
                                                             align=mmt_config['Ext_Heading_Offset'])
 
             # External Heading
-            ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg))
+            ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg) == False)
             if len(ext_heading_check[0]) <= 0:
                 self.sensors.heading_deg.selected = 'internal'
             else:
@@ -1298,23 +1300,23 @@ class TransectData(object):
         """
         
      
-        #Compute minimum depths for each ensemble
-        min_depths = np.nanmin(depths,0)
+        # Compute minimum depths for each ensemble
+        min_depths = np.nanmin(depths, 0)
         
-        #Compute range from transducer
+        # Compute range from transducer
         range_from_xducer = min_depths - draft
         
-        #Adjust fro transducter angle
+        # Adjust for transducter angle
         if type == 'Percent':
             coeff = value
         elif type == 'Angle':
             coeff = np.cos(np.deg2rad(value))
         
-        #Compute sidelobe cutoff to centerline    
-        cutoff = np.array(range_from_xducer * coeff - sl_lag_effect+draft)
+        # Compute sidelobe cutoff to centerline
+        cutoff = np.array(range_from_xducer * coeff - sl_lag_effect + draft)
         
-        #Compute boolean side lobe cutoff matrix
-        cells_above_sl = (cell_depth - cutoff) < 0
+        # Compute boolean side lobe cutoff matrix
+        cells_above_sl = np.less(cell_depth, cutoff)
         return cells_above_sl
         
     def boat_interpolations(self, update, target, method=None):
@@ -1472,12 +1474,12 @@ class TransectData(object):
         if valid_method is None:
             valid_method = self.depths.bt_depths.valid_data_method
 
-        self.depths.set_valid_data_method(valid_method)
-        self.depths.bt_depths.set_avg_method(avg_method)
-        self.depths.depth_filter(self, filter_method)
-        self.depths.depth_interpolation(self, interpolation_method)
-        self.depths.composite_depths(self, composite_setting)
-        self.w_vel.adjust_side_lobe(self)
+        self.depths.set_valid_data_method(setting=valid_method)
+        self.depths.bt_depths.set_avg_method(setting=avg_method)
+        self.depths.depth_filter(transect=self, filter_method=filter_method)
+        self.depths.depth_interpolation(transect=self, method=interpolation_method)
+        self.depths.composite_depths(transect=self, setting=composite_setting)
+        self.w_vel.adjust_side_lobe(transect=self)
         
         if update:
             self.update_water()
@@ -1502,15 +1504,17 @@ class TransectData(object):
         self.sensorsdata.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
         self.sensorsdata.set_selected('salinity_ppt', 'internal')
 
-    def change_sos(self, parameter=None, salinity=None, selected=None, speed=None):
+    def change_sos(self, parameter=None, salinity=None, temperature=None, selected=None, speed=None):
         """Coordinates changing the speed of sounc.
 
         Parameters
         ----------
         parameter: str
-            Speed of sound parameter to be changed ('temperatureSrc', 'temperature', 'salinity', 'sosSrc', 'sos')
+            Speed of sound parameter to be changed ('temperatureSrc', 'temperature', 'salinity', 'sosSrc')
         salinity: float
             Salinity in ppt
+        temperature: float
+            Temperature in deg C
         selected: str
             Selected speed of sound ('internal', 'computed', 'user') or temperature ('internal', 'user')
         speed: float
@@ -1528,15 +1532,38 @@ class TransectData(object):
             # Set the temperature data to the selected source
             self.sensors.temperature_deg_c.set_selected(selected_name=selected)
             # Update the speed of sound
-
+            self.update_sos()
 
         elif parameter == 'temperature':
+            adcp_temp = self.sensors.temperature_deg_c.internal.populate_data
+            new_user_temperature = np.tile(temperature, adcp_temp.shape)
+            self.sensors.temperature_deg_c.user.change_data(data_in=new_user_temperature)
+            self.sensors.temperature_deg_c.user.set_source(source_in='Manual Input')
+            # Set the temperature data to the selected source
+            self.sensors.temperature_deg_c.set_selected(selected_name='user')
+            # Update the speed of sound
+            self.update_sos()
 
         elif parameter == 'salinity':
+            if salinity is not None:
+                self.sensors.salinity_ppt.user.change_data(data_in=salinity)
+                if self.sensors.salinity_ppt.user.data == self.sensors.salinity_ppt.internal.data:
+                    self.sensors.salinity_ppt.set_selected(selected_name='internal')
+                else:
+                    self.sensors.salinity_ppt.set_selected(selected_name='user')
+                self.update_sos()
 
         elif parameter == 'sosSrc':
+            if selected == 'internal':
+                self.sensors.speed_of_sound_mps.set_selected(selected_name=selected)
+            elif selected == 'user':
+                if self.sensors.speed_of_sound_mps.user is not None:
+                    self.sensors.speed_of_sound_mps.set_selected(selected_name=selected)
+                    self.update_sos()
+                else:
+                    self.sensors.speed_of_sound_mps.set_selected(selected_name=selected)
+                    self.update_sos(speed=speed)
 
-        elif parameter == 'sos':
 
     def update_sos(self, selected=None, source=None, speed=None ):
         """Sets a new specified speed of sound.
@@ -1609,11 +1636,33 @@ class TransectData(object):
                 new_sos = Sensors.speed_of_sound(temperature=temperature, salinity=salinity)
                 self.sensors.speed_of_sound_mps.internal.change_data(data_in=new_sos)
         else:
-            new_sos = np.tile(speed, len(self.sensors.speed_of_sound_mps.internal.data_orig))
-            self.sensors.speed_of_sound_mps.user.change_data(data_in=new_sos)
+            if speed is not None:
+                new_sos = np.tile(speed, len(self.sensors.speed_of_sound_mps.internal.data_orig))
+                self.sensors.speed_of_sound_mps.user.change_data(data_in=new_sos)
 
-        return old_sos, new_sos
 
+        self.apply_sos_change(old_sos=old_sos, new_sos=new_sos)
+
+    def apply_sos_change(self,old_sos, new_sos):
+        """Computes the ratio and calls methods in WaterData and BoatData to apply change.
+
+        Parameters
+        ----------
+        old_sos: float
+            Speed of sound on which the current data are based, in m/s
+        new_sos: float
+            Speed of sound on which the data need to be based, in m/s
+        """
+
+        ratio = new_sos / old_sos
+
+        # RiverRay horizontal velocities are not affected by changes in speed of sound
+        if self.adcp.model != 'RiverRay':
+            # Apply speed of sound change to water and boat data
+            self.w_vel.sos_correction(transect=self, ratio=ratio)
+            self.boat_vel.bt_vel.sos_correction(transect=self, ratio=ratio)
+        # Correct depths
+        self.depths.sos_corrections(ratio=ratio)
 
     def sos_user(self, kargs = None):
         """Compute new speed of sound from temperature and salinity
