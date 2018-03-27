@@ -462,13 +462,13 @@ class Measurement(object):
             # Measurement has discharge data from only one transect
             bottom = meas_struct.discharge.bottom
             q=QComp()
-            q.populate_from_QRev_mat(meas_struct.discharge)
+            q.populate_from_qrev_mat(meas_struct.discharge)
             self.discharge.append(q)
         else:
             # Measurement has discharge data from multiple transects
             for q_data in meas_struct.discharge:
                 q=QComp()
-                q.populate_from_QRev_mat(q_data)
+                q.populate_from_qrev_mat(q_data)
                 self.discharge.append(q)
 
         self.uncertainty = None
@@ -946,8 +946,7 @@ class Measurement(object):
                 if 'GPSSmoothFilter' not in settings.keys():
                     settings['GPSSmoothFilter'] = 'Off'
                     
-        # if transect.boat_vel.vtg_vel is not None:
-        #     if len(transect.boat_vel.vtg_vel) > 0:
+        if transect.boat_vel.vtg_vel is not None:
             settings['GPSHDOPFilter'] = transect.boat_vel.vtg_vel.gps_HDOP_filter
             settings['GPSHDOPFilterMax'] = transect.boat_vel.vtg_vel.gps_HDOP_filter_max
             settings['GPSHDOPFilterChange'] = transect.boat_vel.vtg_vel.gps_HDOP_filter_change
@@ -999,7 +998,8 @@ class Measurement(object):
         settings['CompTracks'] = False
 
         # Water track filter settings
-        settings['WTbeamFilter'] = -1
+        # TODO change to -1 after testing
+        settings['WTbeamFilter'] = 3
         settings['WTdFilter'] = 'Auto'
         settings['WTdFilterThreshold'] = np.nan
         settings['WTwFilter'] = 'Auto'

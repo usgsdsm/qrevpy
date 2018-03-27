@@ -1,12 +1,6 @@
-"""
-Created on Sep 26, 2017
-
-@author: gpetrochenkov
-"""
 from Classes.TransectData import TransectData
 import numpy as np
 from MiscLibs.convenience import cart2pol, pol2cart
-
 
 
 class QComp(object):
@@ -156,7 +150,8 @@ class QComp(object):
         
         # Compute interpolated cell and ensemble discharge from computed
         # measured discharge
-        self.int_cells, self.int_ens = QComp.discharge_interpolated(self.top_ens, self.middle_cells, self.bottom_ens, data_in)
+        self.int_cells, self.int_ens = QComp.discharge_interpolated(self.top_ens, self.middle_cells,
+                                                                    self.bottom_ens, data_in)
         
         # Compute right edge discharge
         if data_in.edges.right.type != 'User Q':
@@ -180,7 +175,7 @@ class QComp(object):
         # Moving-bed corrections are only applied to bottom track referenced computations
         if data_in.boat_vel.selected == 'bt_vel':
             if moving_bed_data is not None:
-
+                # TODO check with multiple moving-bed tests this is using a list and should be referencing an object
                 # Determine if any of the moving-bed tests indicated a moving bed
                 mb_valid = moving_bed_data.selected
                 if moving_bed_data[mb_valid].moving_bed == 'Yes':
@@ -194,9 +189,14 @@ class QComp(object):
                         if data_in.boat_vel.composite == 'Off':
                             # Apply appropriate moving-bed test correction method
                             if np.sum(moving_bed_data[use_2_correct].type == 'Stationary') > 0:
-                                self.correction_factor = self.stationary_correction(self.top, self.middle, self.bottom, data_in, moving_bed_data, delta_t)
+                                self.correction_factor = self.stationary_correction_factor(self.top, self.middle,
+                                                                                           self.bottom, data_in,
+                                                                                           moving_bed_data, delta_t)
                             else:
-                                self.correction_factor = self.loop_correction(self.top, self.middle, self.bottom, data_in, moving_bed_data[use_2_correct], delta_t)
+                                self.correction_factor = self.loop_correction_factor(self.top, self.middle,
+                                                                                     self.bottom, data_in,
+                                                                                     moving_bed_data[use_2_correct],
+                                                                                     delta_t)
                         else:
                             # Set a flag to generate a warning
                             raise ReferenceError('To apply moving-bed correction composite tracks must be turned off.')
@@ -211,7 +211,7 @@ class QComp(object):
         else:
             self.total = self.left + self.right + (self.middle + self.bottom + self.top) * self.correction_factor
 
-    def populate_from_QRev_mat(self, q_in):
+    def populate_from_qrev_mat(self, q_in):
         """Populated QComp instance variables with data from QRev Matlab file.
 
         Parameters
@@ -388,15 +388,15 @@ class QComp(object):
 
         # Compute top discharge
         q_top = QComp.discharge_top(top_method, exponent, idx_top, idx_top3, top_rng,
-                                     xprod[:,in_transect_idx], cell_size, cell_depth,
-                                     depth_ens, delta_t, z)
+                                    xprod[:, in_transect_idx], cell_size, cell_depth,
+                                    depth_ens, delta_t, z)
 
         return q_top
 
     @staticmethod
     def discharge_top(top_method, exponent, idx_top, idx_top_3, top_rng,
-                        component, cell_size, cell_depth,
-                        depth_ens, delta_t, z):
+                      component, cell_size, cell_depth,
+                      depth_ens, delta_t, z):
         """Computes the top extrapolated value of the provided component.
 
         Parameters
@@ -429,6 +429,9 @@ class QComp(object):
         top_value: total for the specified component integrated over the top range
         """
 
+        # Initialize return
+        top_value = 0
+
         # Top power extrapolation
         if top_method == 'Power':
             coef = ((exponent + 1) * np.nansum(component * cell_size, 0)) / \
@@ -440,7 +443,7 @@ class QComp(object):
         # Top constant extrapolation
         elif top_method == 'Constant':
             n_ensembles = len(delta_t)
-            top_value = np.tile([np.nan], (n_ensembles))
+            top_value = np.tile([np.nan], n_ensembles)
             for j in range(n_ensembles):
                 if idx_top[j] != np.nan:
                     top_value[j] = delta_t[j] * component[idx_top[j], j] * top_rng[j]
@@ -453,7 +456,7 @@ class QComp(object):
             # Determine number of ensembles
             n_ensembles = len(delta_t)
             # Preallocate qtop vector
-            top_value = np.tile([np.nan], (n_ensembles))
+            top_value = np.tile([np.nan], n_ensembles)
 
             for j in range(n_ensembles):
 
@@ -509,7 +512,7 @@ class QComp(object):
         n_ensembles = valid_data.shape[1]
         idx_top = np.tile(np.nan, valid_data.shape[1]).astype(int)
         idx_top_3 = np.tile(np.nan, (3, valid_data.shape[1])).astype(int)
-        top_rng = np.tile([np.nan], (n_ensembles))
+        top_rng = np.tile([np.nan], n_ensembles)
 
         # Loop through ensembles
         for n in range(n_ensembles):
@@ -550,12 +553,12 @@ class QComp(object):
             Bottom extrpaolated discharge for each ensemble
         """
 
-        #Determine extrapolation methods and exponent
+        # Determine extrapolation methods and exponent
         if bot_method is None:
             bot_method = transect.extrap.bot_method
             exponent = transect.extrap.exponent
 
-        # Get index for ensembles in mocing-boat portion of transect
+        # Get index for ensembles in moving-boat portion of transect
         in_transect_idx = transect.in_transect_idx
         xprod = xprod[:, in_transect_idx]
 
@@ -577,13 +580,13 @@ class QComp(object):
         cell_depth[valid_data == False] = np.nan
         # Compute bottom discharge
         q_bot = QComp.discharge_bot(bot_method, exponent, idx_bot, bot_rng, xprod,
-                                         cell_size, cell_depth, depth_ens, delta_t, z)
+                                    cell_size, cell_depth, depth_ens, delta_t, z)
 
         return q_bot
 
     @staticmethod
     def discharge_bot(bot_method, exponent, idx_bot, bot_rng, component,
-                  cell_size, cell_depth, depth_ens, delta_t, z):
+                      cell_size, cell_depth, depth_ens, delta_t, z):
         """Computes the bottom extrapolated value of the provided component.
 
         Parameters
@@ -614,6 +617,9 @@ class QComp(object):
         bot_value: np.array(float)
             Total for the specified component integrated over the bottom range for each ensemble
         """
+
+        # Initialize
+        coef = 0
 
         # Bottom power extrapolation
         if bot_method == 'Power':
@@ -683,7 +689,7 @@ class QComp(object):
         # Preallocate variables
         n_ensembles = valid_data.shape[1]
         idx_bot = np.zeros((valid_data.shape[1])).astype(int)
-        bot_rng = np.tile([np.nan], (n_ensembles))
+        bot_rng = np.tile([np.nan], n_ensembles)
 
         for n in range(n_ensembles):
             # Identifying bottom most valid cell
@@ -775,6 +781,7 @@ class QComp(object):
         if transect.adcp.manufacturer == 'TRDI':
             # Determine the indices of the edge ensembles which contain
             # the specified number of valid ensembles
+            # noinspection PyTypeChecker
             valid_ens = QComp.valid_edge_ens(transect)
             if edge_loc.lower() == transect.start_edge.lower():
                 edge_idx = np.where(valid_ens == True)[0][0:num_edge_ens]
@@ -821,6 +828,10 @@ class QComp(object):
             Sign of edge velocity (discharge)
         """
 
+        # Set default return
+        edge_vel_sign = 1
+        edge_vel_mag = 0
+
         # Check to make sure there is edge data
         if len(edge_idx) > 0:
 
@@ -837,11 +848,6 @@ class QComp(object):
             # USGS proposed method
             elif transect.edges.vel_method == 'Profile':
                 edge_vel_mag, edge_vel_sign = QComp.edge_velocity_profile(edge_idx, transect)
-
-        # If no data set edge velocity to 0
-        else:
-            edge_vel_sign = 1
-            edge_vel_mag = 0
 
         return edge_vel_sign, edge_vel_mag
 
@@ -977,7 +983,7 @@ class QComp(object):
         # has the same cell size and cell start as the first sample.
         transect_depths_select = getattr(transect.depths, transect.depths.selected)
         cell_size = transect_depths_select.depth_cell_size_m[:, edge_idx]
-        cell_depth = transect_depths_select.depth_cell_depth_m[:,edge_idx]
+        cell_depth = transect_depths_select.depth_cell_depth_m[:, edge_idx]
 
         # Find first valid edge ensemble
         idx = np.where(valid_vel_ens > 0)[0]
@@ -1040,6 +1046,7 @@ class QComp(object):
                 # Compute the number of cells above the side lobe cutoff
                 remaining_depth = sl_depth - cell_depth_edge[idx_first_valid_cell]
                 idx = np.where(np.isnan(cell_size) == False)[0]
+                # TODO this is not consistent with Matlab code
                 n_cells = 0
                 if len(idx) > 0:
                     n_cells = idx

@@ -1038,7 +1038,14 @@ class WaterData(object):
                 # # est_u=temp.u_mps
                 n = 0
                 for col in cols_3b:
-                    if np.isnan(valid[n+1, col]):
+                    # If the cell has data above and below it linearly interpolate using data in that ensemble. If not,
+                    # use other means of interpolation.
+                    if rows_3b[n]+1 < valid.shape[0]:
+                        last_cell = False
+                    else:
+                        last_cell = True
+
+                    if np.isnan(valid[rows_3b[n]+1, col]) or last_cell:
                         est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
                         est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
                     else:
