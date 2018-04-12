@@ -244,28 +244,31 @@ class Measurement(object):
         
         """
         #ADCP Test
-        if 'RG_Test_TimeStamp' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['RG_Test'])):
+        if 'RG_Test' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['RG_Test']['TestResult'])):
                 p_m = PreMeasurement()
-                p_m.populate_data(mmt.qaqc['RG_Test_TimeStamp'][n], mmt.qaqc['RG_Test'][n],'TST')
+                p_m.populate_data(mmt.qaqc['RG_Test']['TestResult'][n]['TimeStamp'],
+                                  mmt.qaqc['RG_Test']['TestResult'][n]['Text'],'TST')
                 self.system_test.append(p_m)
         else:
             self.system_test.append(PreMeasurement())
-            
+
         #Compass calibration
-        if 'Compass_Cal_Timestamp' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['Compass_Cal_Test'])):
-                p_m =  PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Cal_Timestamp'], mmt.qaqc['Compass_Cal_Test'], 'TCC')
+        if 'Compass_Calibration' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['Compass_Calibration']['TestResult'])):
+                p_m = PreMeasurement()
+                p_m.populate_data(mmt.qaqc['Compass_Calibration']['TestResult'][n]['TimeStamp'],
+                                  mmt.qaqc['Compass_Calibration']['TestResult'][n]['Text'], 'TCC')
                 self.compass_cal.append(p_m)
         else:
             self.compass_cal.append(PreMeasurement())
             
         #Compass evaluation
-        if 'Compass_Eval_Timestamp' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['Compass_Eval_Test'])):
+        if 'Compass_Evaluation' in mmt.qaqc:
+            for n in range(len(mmt.qaqc['Compass_Evaluation']['TestResult'])):
                 p_m =  PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Eval_Timestamp'], mmt.qaqc['Compass_Eval_Test'], 'TCC')
+                p_m.populate_data(mmt.qaqc['Compass_Evaluation']['TestResult'][n]['TimeStamp'],
+                                  mmt.qaqc['Compass_Evaluation']['TestResult'][n]['Text'], 'TCC')
                 self.compass_eval.append(p_m)
         else:
             self.compass_eval.append(PreMeasurement())
@@ -381,7 +384,7 @@ class Measurement(object):
                 with open(os.path.join(compass_cal_folder, file)) as f:
                     cal_data = f.read()
                     cal = CompassCal()
-                    cal.populate_data(time_stamp, cal_data)
+                    cal.populate_data(time_stamp, cal_data, 'SSC')
                     self.compass_cal.append(cal)
 
         # System Test
@@ -395,7 +398,7 @@ class Measurement(object):
                         test_data = test_data.replace('\x00','')
                     time_stamp = file[18:20] + ':' + file[20:22] + ':' + file[22:24]
                     sys_test = SystemTest()
-                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data)
+                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data, data_type='SST')
                     self.system_test.append(sys_test)
 
         # Moving-bed tests

@@ -59,14 +59,14 @@ class PreMeasurement(object):
         self.time_stamp = time_stamp
         self.data = data_in
         if data_type == 'TCC':
-            self.result = compass_read(data_in)
+            self.result = {'compass': PreMeasurement.compass_read(data_in)}
         elif data_type == 'TCE':
-            self.result = compass_read(data_in)
+            self.result = {'compass': PreMeasurement.compass_read(data_in)}
         elif data_type == 'TST':
             self.sys_test_read(self.data)
             self.pt3_data(self.data)
         elif data_type == 'SCC':
-            self.result = compass_read(data_in)
+            self.result = {'compass': PreMeasurement.compass_read(data_in)}
         elif data_type == 'SST':
             self.sys_test_read(self.data)
 
@@ -88,15 +88,17 @@ class PreMeasurement(object):
         # elif data_type == 'SST':
         #     self.sys_test_read(self.data)
             
-    def compass_read(self, data):
+    @staticmethod
+    def compass_read( data):
         """Method for getting compass evaluation data"""
         # TODO modified to work for Sontek. Need to check for TRDI
         #match regex for compass evaluation error:
         splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', data)
         if len(splits) > 1:
-            self.error = re.search('\d+\.*\d*',splits[2])[0]
+            error = re.search('\d+\.*\d*',splits[2])[0]
         else:
-            self.error = 'N/A'
+            error = 'N/A'
+        return {'error': error}
             
     def sys_test_read(self, data):
         """Method for getting the system test data"""
