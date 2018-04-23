@@ -265,7 +265,7 @@ class WaterData(object):
         # ============================
         # DSM need to check this for correctness
         # Set object properties that depend on the presence or absence of surface cells
-        if surface_num_cells_in:
+        if np.sum(surface_num_cells_in) > 0:
             surface_num_cells_in[np.isnan(surface_num_cells_in)] = 0
             max_cells = cells_above_sl_in.shape[0]
             num_ens = cells_above_sl_in.shape[1]

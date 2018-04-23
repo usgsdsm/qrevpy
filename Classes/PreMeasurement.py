@@ -45,85 +45,62 @@ class PreMeasurement(object):
     def __init__(self):
         self.time_stamp = None
         self.data = None
-        self.result = None
-        # self.compass = None
-        # self.sys_test = None
-        # self.pt3 = None
-        # self.error = None
-        # self.n_tests = None
-        # self.n_failed = None
-        
+        self.result = {}
         
     def populate_data(self, time_stamp, data_in, data_type):
-        
+
+        # Store time stamp and data
         self.time_stamp = time_stamp
         self.data = data_in
-        if data_type == 'TCC':
-            self.result = {'compass': PreMeasurement.compass_read(data_in)}
-        elif data_type == 'TCE':
-            self.result = {'compass': PreMeasurement.compass_read(data_in)}
-        elif data_type == 'TST':
-            self.sys_test_read(self.data)
-            self.pt3_data(self.data)
-        elif data_type == 'SCC':
-            self.result = {'compass': PreMeasurement.compass_read(data_in)}
-        elif data_type == 'SST':
-            self.sys_test_read(self.data)
 
-    #     self.result = self.read_result(data_type)
-    #
-    #
-    # def read_result(self, data_type):
-    #     """Function to aprse the data from the tests"""
-        
-        # if data_type == 'TCC':
-        #     self.compass_read(self.data)
+        # Process data depending on data type and store result
+        if data_type[1] == 'C':
+            self.compass_read()
         # elif data_type == 'TCE':
-        #     self.compass_read(self.data)
-        # elif data_type == 'TST':
-        #     self.sys_test_read(self.data)
-        #     self.pt3_data(self.data)
+        #     self.compass_read()
+        elif data_type == 'TST':
+            self.sys_test_read()
+            self.pt3_data()
         # elif data_type == 'SCC':
-        #     self.compass_read(self.data)
-        # elif data_type == 'SST':
-        #     self.sys_test_read(self.data)
-            
-    @staticmethod
-    def compass_read( data):
+        #     self.compass_read()
+        elif data_type == 'SST':
+            self.sys_test_read()
+
+    def compass_read(self):
         """Method for getting compass evaluation data"""
-        # TODO modified to work for Sontek. Need to check for TRDI
-        #match regex for compass evaluation error:
-        splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', data)
+
+        # Match regex for compass evaluation error:
+        splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', self.data)
         if len(splits) > 1:
             error = re.search('\d+\.*\d*',splits[2])[0]
         else:
             error = 'N/A'
-        return {'error': error}
+        self.result['compass'] = {'error': error}
             
-    def sys_test_read(self, data):
-        """Method for getting the system test data"""
+    def sys_test_read(self):
+        """Method for reading the system test data"""
         
-        #match regex for number of tests and number of failures
-        num_tests = re.findall('(Fail|FAIL|F A I L|Pass|PASS|NOT DETECTED|P A S S)', data)
-        num_fails = re.findall('(Fail|FAIL|F A I L)', data)
+        # Match regex for number of tests and number of failures
+        num_tests = re.findall('(Fail|FAIL|F A I L|Pass|PASS|NOT DETECTED|P A S S)', self.data)
+        num_fails = re.findall('(Fail|FAIL|F A I L)', self.data)
         
-        #read in the numbers as doubles
-        self.n_tests = len(num_tests)
-        self.n_failed = len(num_fails)
+        # Store results
+        self.result['n_tests'] = len(num_tests)
+        self.result['n_failed'] = len(num_fails)
         
-    def pt3_data(self, data):
-        """Method for getting the data for the correlation matrices"""
+    def pt3_data(self):
+        """Method for processing the data in the correlation matrices."""
         
-        #match regex for correlation tables
-        match = re.findall('Lag.*?0', data)
-        
-        #count the number or correlation tables to read in
+        # Match regex for correlation tables
+        matches = re.findall('Lag.*?0', self.data, re.DOTALL)
+
+        # Count the number or correlation tables to process
         correl_count = 0
-        for x in range(len(match)):
-            match2 = re.findall('Bm1', match[x])
-            correl_count += len(match2)
+        for match in matches:
+            bm1_matches = re.findall('Bm1', match)
+            correl_count += len(bm1_matches)
             
-        #Initialize correlation matricces
+        # Initialize correlation matrices
         corr_hlimit_hgain_wband = None
         corr_hlimit_lgain_wband = None
         corr_hlimit_hgain_nband = None
@@ -133,29 +110,19 @@ class PreMeasurement(object):
         corr_linear_hgain_nband = None
         corr_linear_lgain_nband = None
         
-        #get matching string for correlation tables
-        lag_match = re.findall('Lag.*?(High|H-Gain|Sin)', data)
+        # Get matching string for correlation tables
+        lag_match = re.findall('Lag.*?High|H-Gain|Sin', self.data, re.DOTALL)
         
-        #Read depending on the number of correlation tables computed
-        #at the beginning of the function
+        # Read depending on the number of correlation tables found
         if correl_count == 1:
             
-            #Get strings to parse numbers from
-            num_match = re.findall('0.*?(High|H-Gain|Sin)', lag_match[0])
+            # Get strings to parse numbers from
+            num_match = re.findall('0.*?High|H-Gain|Sin', lag_match[0], re.DOTALL)
             
-            #get all numbers from matches
-            numbers = re.findall('\d+\.*\d*', ''.join(num_match))
-            
-            #convert all numbers to double and add them to an array
-            nums = []
-            for x in range(len(numbers)):
-                if x % 5 != 0:
-                    nums.append(float(numbers[x]))
-                    
-        
-            nums = np.array(nums)
-            corr_hlimit_hgain_wband = nums.reshape([4,8]).T
-            
+            # Parse correlations and create array
+            numbers = re.findall('\d+\.*\d*', ''.join(num_match), re.DOTALL)
+            corr_hlimit_hgain_wband = np.array(numbers).reshape([8, 5])[:, 1::]
+    # DSM STOPPED HERE
         elif correl_count == 4:    
         
             #For all string in the correlation regular expression
@@ -276,7 +243,7 @@ class PreMeasurement(object):
                         
                         
         #Get all string for the noise floor data
-        rssi_match = re.findall('(High Gain RSSI|RSSI Noise Floor \(counts\)|RSSI \(counts\)).*?(Low|>)', data)
+        rssi_match = re.findall('(High Gain RSSI|RSSI Noise Floor \(counts\)|RSSI \(counts\)).*?(Low|>)', self.data)
         rssi_nums = []
         
         #Read in noise floor strings as doubles
@@ -286,7 +253,7 @@ class PreMeasurement(object):
                 rssi_nums.append(float(numbers[y]))
                 
         #Get all strings for the sin duty cycle data
-        sin_match = re.findall('(SIN Duty Cycle|Sin Duty Cycle \(percent\)|Sin Duty\(%\)).*?(COS|Cos)', data)
+        sin_match = re.findall('(SIN Duty Cycle|Sin Duty Cycle \(percent\)|Sin Duty\(%\)).*?(COS|Cos)', self.data)
         sin_nums = []
         
         #read in sdc strings as doubles

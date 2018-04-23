@@ -545,7 +545,7 @@ class DepthData(object):
         """Apply linear interpolation"""
         
         # Set interpolation type
-        self.interp_type='Linear'
+        self.interp_type = 'Linear'
 
         select = getattr(transect.boat_vel, transect.boat_vel.selected)
         # Create position array
@@ -555,21 +555,21 @@ class DepthData(object):
             track_x = boat_vel_x * transect.date_time.ens_duration_sec
             track_y = boat_vel_y * transect.date_time.ens_duration_sec
         else:
-            sizeu = transect.boat_vel[transect.boat_vel.selected].u_processed_mps.shape
-            sizev = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
-            track_x = repmat([np.nan], sizeu[0], sizeu[1])
-            track_y = repmat([np.nan], sizev[0], sizev[1])
+            size_u = transect.boat_vel[transect.boat_vel.selected].u_processed_mps.shape
+            size_v = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
+            track_x = repmat([np.nan], size_u[0], size_u[1])
+            track_y = repmat([np.nan], size_v[0], size_v[1])
               
         idx = np.where(np.isnan(track_x[1:]))
         
-            #If the navigation reference has no gaps use it for interpolation, if not use time 
+        # If the navigation reference has no gaps use it for interpolation, if not use time
         if len(idx[0]) < 1:
             x = np.nancumsum(np.sqrt(track_x**2 + track_y**2))
         else:
-            #Compute accumulated time
+            # Compute accumulated time
             x = np.nancumsum(transect.date_time.ens_duration_sec)
             
-        #Determine number of beams
+        # Determine number of beams
         n_beams = self.depth_beams_m.shape[0]
         
 #             Create strict monotonic arrays for depth and track by idnetifying duplicate
@@ -583,9 +583,10 @@ class DepthData(object):
         depth_mono = np.copy(self.depth_beams_m)
         x_mono = x
         
-        idx0=np.where(np.diff(x) == 0)
+        idx0 = np.where(np.diff(x) == 0)
         if len(idx0[0]) > 0:
             #split array in to subarrays in proper sequence e.g [[2,3,4],[7,8,9]] etc.
+            idx_groups = np.where(np.diff(idx0) != 0)
             idx1 = np.add(np.where(np.diff(idx0) != 1)[0], 1)
             group = np.split(idx0[0], idx1[0])
             n_group = len(group)
@@ -593,7 +594,7 @@ class DepthData(object):
                 indices = group[k]
                 indices = np.append(indices, indices[-1] + 1)
                 first_idx = indices[0]
-                depth_avg = np.nanmean(depth_mono[:,indices], axis=2) #maybe axis = 1
+                depth_avg = np.nanmean(depth_mono[:,indices], axis=1) #maybe axis = 1
                 depth_mono[:,indices[0]] = depth_avg
                 depth_mono[:,indices[2:]] = np.nan
                 x[indices[2:]] = np.nan

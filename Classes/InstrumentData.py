@@ -51,50 +51,52 @@ class InstrumentData(object):
         self.t_matrix = None  # object of TransformationMatrix
         self.configuration_commands = None  # configuration commands sent to ADCP
         
-    def populate_data(self, manufacturer, kargs = None):
+    def populate_data(self, manufacturer, raw_data, type=None, mmt_transect=None, mmt=None):
         """Manages method calls for different manufacturers.
 
         Parameters
         ----------
         manufacturer: str
             Name of manufacturer.
-        kargs:
-            Variable list of data
-            mmt_transect:
-            pd0:
-            mmt:
+        raw_data: object
+            Object of Pd0TRDI for TRDI or Object of MatSonTek for SonTek
+        type: str
+            Type of transect (Q or MB) for TRDI
+        mmt_transect: object
+            Object of Transect (mmt object)
+        mmt: object
+            Object of MMT_TRDI
         """
+
+        # Process based on manufacturer
         if manufacturer == 'TRDI':
             self.manufacturer = manufacturer
-            self.TRDI(kargs)
+            self.TRDI(raw_data=raw_data, type=type, mmt_transect=mmt_transect, mmt=mmt)
         elif manufacturer == 'SonTek':
             self.manufacturer = manufacturer
-            self.SonTek(kargs)
+            self.SonTek(rs=raw_data)
 
-    def TRDI(self, kargs):
+    def TRDI(self, raw_data, type, mmt_transect, mmt):
         """Populates the variables with data from TRDI ADCPs."""
         # Assign data passed through kargs
-        mmt_transect = kargs[0]
-        pd0 = kargs[1]
-        mmt = kargs[2]
+        pd0 = raw_data
 
         # Identify proper configuration to use
         config = 'field_config'
-        if len(kargs) > 2:
-            if kargs[2] == 'MB':
-                config = 'mbt_field_config'
+        if type == 'MB':
+           config = 'mbt_field_config'
 
-        #Instrument frequency
+        # Instrument frequency
         self.frequency_kHz = pd0.Inst.freq[0]
 
-        #Firmware
+        # Firmware
         self.firmware = pd0.Inst.firm_ver[0]
 
-        #Instrument beam angle and pattern
+        # Instrument beam angle and pattern
         self.beam_angle_deg = pd0.Inst.beam_ang[0]
         self.beam_pattern = pd0.Inst.pat[0]
 
-        #Instrument characteristics
+        # Instrument characteristics
         mmt_site = getattr(mmt, 'site_info')
         mmt_config = getattr(mmt_transect, config)
 
@@ -181,8 +183,8 @@ class InstrumentData(object):
                 self.t_matrix = TransformationMatrix()
                 self.t_matrix.populate_data('TRDI', kargs=[self.model, 'Nominal'])
 
-    def SonTek(self, kargs):
-        rs = kargs
+    def SonTek(self, rs):
+
         self.serial_num = rs.System.SerialNumber
         self.frequency_kHz = rs.Transformation_Matrices.Frequency
         if self.frequency_kHz[2]>0:

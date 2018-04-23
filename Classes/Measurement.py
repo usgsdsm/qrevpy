@@ -86,26 +86,30 @@ class Measurement(object):
 
     # DSM change 1/23/2018 def load_trdi(self, mmt, **kargs):
     def load_trdi(self, mmt_file, type='Q', checked=False):
-        """method to load trdi MMT file"""
+        """Method to load TRDI data.
 
-        #read in the MMT file
-        # self.trdi = MMT_TRDI(mmt)
-        # mmt = self.trdi
+        Parameters
+        ----------
+        mmt_file: str
+            Full pathname to mmt file.
+        type: str
+            Type of data (Q: discharge, MB: moving-bed test
+        checked: bool
+            Determines if all files are loaded (False) or only checked (True)
+        """
+
         mmt = MMT_TRDI(mmt_file)
 
-        #Get properties if they exist, otherwise set them as blank strings
-        # self.station_name = str(self.trdi.site_info['Name'])
-        # self.station_number = str(self.trdi.site_info['Number'])
+        # Get properties if they exist, otherwise set them as blank strings
         self.station_name = str(mmt.site_info['Name'])
         self.station_number = str(mmt.site_info['Number'])
 
         # DSM Not sure this is needed 1/19/2018
         self.processing = 'WR2'
 
+        # Create transect objects for  TRDI data
+        self.transects = allocate_transects(mmt=mmt, type=type, checked=checked)
 
-        # DSM change 1/23/2018 self.transects = allocate_transects('TRDI', mmt, kargs=['Q', kargs['checked']])
-        self.transects = allocate_transects('TRDI', mmt, type, checked)
-            
         #-------------------------Done Refactor----------------------------------------------
         #Create object for pre-measurement tests
         if isinstance(mmt.qaqc, dict) or isinstance(mmt.mbt_transects):
@@ -124,7 +128,7 @@ class Measurement(object):
                 note = 'Transect: ' + t + ' File: ' + x + ' ' + notes[x].NoteDate + ': ' + notes[x].NoteText
                 self.comments.append(note)
                 
-        #Get externam temperature
+        #Get external temperature
         self.ext_temp_chk['User'] = mmt.site_info['Water_Temperature']
         
         

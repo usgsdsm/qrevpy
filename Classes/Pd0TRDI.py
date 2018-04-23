@@ -587,7 +587,7 @@ class Pd0TRDI(object):
                             self.Gps2.gga_header[i_ens][j100]=''.join([chr(x) for x in f.read(10)])
                             temp = re.match('[0-9]+\.[0-9]+', ''.join(chr(x) for x in f.read(10)))
                             try:
-                                self.Gps2.utc[i_ens,j100] = float(temp.group(0))
+                                self.Gps2.utc[i_ens,j100] = float(re.match('[0-9]+\.[0-9]', temp).string.rstrip('\x00'))
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                                 
@@ -691,7 +691,7 @@ class Pd0TRDI(object):
                             self.Gps2.gga_header[i_ens] = ''.join([chr(x) for x in f.read(7)])
                             try:
                                 temp = ''.join([chr(x) for x in f.read(10)])
-                                self.Gps2.utc[i_ens,j100] = float(re.match('[0-9]+\.[0-9]+', temp))
+                                self.Gps2.utc[i_ens,j100] = float(re.match('[0-9]+\.[0-9]', temp).string.rstrip('\x00'))
                             except:
                                 self.Gps2.utc[i_ens,j100] = np.nan
                             self.Gps2.lat_deg[i_ens,j100] = np.fromfile(f, np.float64, count=1)[0]

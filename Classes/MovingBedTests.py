@@ -513,77 +513,78 @@ class MovingBedTests(object):
         moving_bed_tests: list
             List of MovingBedTests objects.
         """
-        
-        # Initialize variables
-        lidx_user = []
-        lidx_no_errors = []
-        test_type = []
-        lidx_stationary = []
-        lidx_loop = []
-        flow_speed = []
-        for test in moving_bed_tests:
-            test.use_2_correct = False
-            test.selected = False
-            # Valid test according to user
-            lidx_user.append(test.user_valid == True)
-            # Valid test according to quality assessment
-            lidx_no_errors.append(test.test_quality == 'Errors')
-            # Identify type of test
-            test_type.append(test.type)
-            lidx_stationary.append(test_type == 'Stationary')
-            lidx_loop.append(test_type == 'Loop')
-            flow_speed.append(test.flow_spd_mps)
 
-        # Combine
-        lidx_valid_loop = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_loop)))
-        lidx_valid_stationary = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_stationary)))
-        
-        # Check flow speed
-        lidx_flow_speed = np.array(flow_speed) > 0.25
-        
-        # Determine if there are valid loop tests
-        if np.any(lidx_valid_loop) and np.any(lidx_flow_speed):
-            lidx_loops_2_select = np.all(np.vstack((lidx_flow_speed, lidx_valid_loop)), 0)
-
-            # Select last loop
-            idx_select = np.where(lidx_loops_2_select == True)[0]
-            if len(idx_select) > 0:
-                idx = np.where(lidx_loop == True)[0]
-                idx_select = idx(idx_select[-1])
-            else:
-                idx_select = len(moving_bed_tests)
-            test_select = moving_bed_tests[idx_select]
-            test_select.selected = True
-            
-            if test_select.moving_bed == 'Yes':
-                test_select.use_2_correct = True
-                
-        # If there are no valid loop loof for valid stationary tests
-        elif np.any(lidx_valid_stationary):
-            for lidx in lidx_valid_stationary:
-                if lidx:
-                    moving_bed_tests[lidx].selected = True
-                    # Determine if any stationary test resulted in a moving bed
-                    if moving_bed_tests[lidx].moving_bed == 'Yes':
-                        moving_bed_tests[lidx].use_2_correct = True
-
-        elif lidx_valid_loop:
-            # Select last loop
-            idx_select = np.where(lidx_valid_loop)[0][0]
-            moving_bed_tests[idx_select].selected = True
-            if moving_bed_tests[idx_select].moving_bed == 'Yes':
-                moving_bed_tests[idx_select].use_2_correct = True
-        
-        # If the navigation reference for discharge computations is set
-        # GPS then none of test should be used for correction. The
-        # selected test should be used to determine if there is a valid
-        # moving-bed and a moving-bed condition. 
-        if boat_ref is None:
-            ref = 'BT'
-        else:
-            ref = boat_ref
-
-        if ref != 'BT':
+        if len(moving_bed_tests) != 0:
+            # Initialize variables
+            lidx_user = []
+            lidx_no_errors = []
+            test_type = []
+            lidx_stationary = []
+            lidx_loop = []
+            flow_speed = []
             for test in moving_bed_tests:
                 test.use_2_correct = False
+                test.selected = False
+                # Valid test according to user
+                lidx_user.append(test.user_valid == True)
+                # Valid test according to quality assessment
+                lidx_no_errors.append(test.test_quality == 'Errors')
+                # Identify type of test
+                test_type.append(test.type)
+                lidx_stationary.append(test_type == 'Stationary')
+                lidx_loop.append(test_type == 'Loop')
+                flow_speed.append(test.flow_spd_mps)
+
+            # Combine
+            lidx_valid_loop = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_loop)))
+            lidx_valid_stationary = np.all(np.vstack((lidx_user, lidx_no_errors, lidx_stationary)))
+
+            # Check flow speed
+            lidx_flow_speed = np.array(flow_speed) > 0.25
+
+            # Determine if there are valid loop tests
+            if np.any(lidx_valid_loop) and np.any(lidx_flow_speed):
+                lidx_loops_2_select = np.all(np.vstack((lidx_flow_speed, lidx_valid_loop)), 0)
+
+                # Select last loop
+                idx_select = np.where(lidx_loops_2_select == True)[0]
+                if len(idx_select) > 0:
+                    idx = np.where(lidx_loop == True)[0]
+                    idx_select = idx(idx_select[-1])
+                else:
+                    idx_select = len(moving_bed_tests)
+                test_select = moving_bed_tests[idx_select]
+                test_select.selected = True
+
+                if test_select.moving_bed == 'Yes':
+                    test_select.use_2_correct = True
+
+            # If there are no valid loop look for valid stationary tests
+            elif np.any(lidx_valid_stationary):
+                for lidx in lidx_valid_stationary:
+                    if lidx:
+                        moving_bed_tests[lidx].selected = True
+                        # Determine if any stationary test resulted in a moving bed
+                        if moving_bed_tests[lidx].moving_bed == 'Yes':
+                            moving_bed_tests[lidx].use_2_correct = True
+
+            elif lidx_valid_loop:
+                # Select last loop
+                idx_select = np.where(lidx_valid_loop)[0][0]
+                moving_bed_tests[idx_select].selected = True
+                if moving_bed_tests[idx_select].moving_bed == 'Yes':
+                    moving_bed_tests[idx_select].use_2_correct = True
+
+            # If the navigation reference for discharge computations is set
+            # GPS then none of test should be used for correction. The
+            # selected test should be used to determine if there is a valid
+            # moving-bed and a moving-bed condition.
+            if boat_ref is None:
+                ref = 'BT'
+            else:
+                ref = boat_ref
+
+            if ref != 'BT':
+                for test in moving_bed_tests:
+                    test.use_2_correct = False
         return moving_bed_tests
