@@ -496,6 +496,38 @@ class MovingBedTests(object):
             self.test_quality = 'Errors'
             self.moving_bed = 'Unknown'
 
+    def near_bed_velocity(self, u, v, depth, bin_depth):
+        '''Compute near bed velocities'''
+        # Compute z near bed as 10% of depth
+        z_near_bed = depth * 0.1
+
+        # Begin computing near-bed velocities
+
+        n_ensembles = u.shape[1]
+        nb_U = np.tile([np.nan], (1, n_ensembles))
+        nb_V = np.tile([np.nan], (1, n_ensembles))
+        unit_NBU = np.tile([np.nan], (1, n_ensembles))
+        unit_NBV = np.tile([np.nan], (1, n_ensembles))
+        z_depth = np.tile([np.nan], (1, n_ensembles))
+        u_mean = np.tile([np.nan], (1, n_ensembles))
+        v_mean = np.tile([np.nan], (1, n_ensembles))
+        speed_near_bed = np.tile([np.nan], (1, n_ensembles))
+        for n in range(n_ensembles):
+            idx = np.where(np.isnan(u[:, n]) == False)
+            if len(idx) > 0:
+                idx = idx[1][-1]
+                # compute near-bed velocity
+                z_depth[n] = depth[n] - np.nanmean(bin_depth[idx, n])
+                u_mean[n] = np.nanmean(u[idx, n])
+                v_mean[n] = np.nanmean(v[idx, n])
+                nb_U[n] = (u_mean[n] / z_depth[n] ** (1. / 6.)) * (z_near_bed[n] ** (1. / 6.))
+                nb_V[n] = (v_mean[n] / z_depth[n] ** (1. / 6.)) * (z_near_bed[n] ** (1. / 6.))
+                speed_near_bed[n] = np.sqrt(nb_U ** 2 + nb_V[n] ** 2)
+                unit_NBU[n] = nb_U[n] / speed_near_bed[n]
+                unit_NBV[n] = nb_V[n] / speed_near_bed[n]
+
+        return (nb_U, nb_V, unit_NBU, unit_NBV)
+
     @staticmethod
     def auto_use_2_correct(moving_bed_tests, boat_ref=None):
         """Apply logic to determine which moving-bed tests should be used

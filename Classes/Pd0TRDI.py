@@ -2,18 +2,8 @@ import numpy as np
 import struct
 import os
 import re
-
-from Classes.Pd0Classes.Inst import Inst
-from Classes.Pd0Classes.Cfg import Cfg
-from Classes.Pd0Classes.Sensor import Sensor
-from Classes.Pd0Classes.Wt import Wt
-from Classes.Pd0Classes.Bt import Bt
-from Classes.Pd0Classes.Gps import Gps
-from Classes.Pd0Classes.Gps2 import Gps2
-from Classes.Pd0Classes.Surface import Surface
-from Classes.Pd0Classes.AutoMode import AutoMode
-from Classes.Pd0Classes.Nmea import Nmea
 from MiscLibs.convenience import pol2cart
+
 
 class Pd0TRDI(object):
     """Class to read data from PD0 files
@@ -143,7 +133,7 @@ class Pd0TRDI(object):
                 n_bins = np.fromfile(f, np.uint8, count=1)[0]
 
                 # Determine number of ensembles in the file to allow pre-allocation of arrays
-                n_ensembles = self.number_of_ensembles(f, file_info)
+                n_ensembles = Pd0TRDI.number_of_ensembles(f, file_info)
 
                 # Create objects and pre-allocate arrays
                 self.create_objects(n_ensembles=n_ensembles,
@@ -160,6 +150,7 @@ class Pd0TRDI(object):
                 n_data_types = 1
                 file_loc = 0
                 i2022 = 0
+                j100, j101, j102, j103 = -1, -1, -1, -1
                 rr_bt_depth_correction = np.tile(np.nan, (n_beams, n_ensembles))
 
                 # Reset position in file
@@ -767,8 +758,8 @@ class Pd0TRDI(object):
                                 self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:, j101] = np.nan
                                 self.Gps2.knots_indicator[:][j101] = ''
-                                self.Gps2.speed_k_mph[:, j101] = np.nan
-                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.speed_kph[:, j101] = np.nan
+                                self.Gps2.kph_indicator[:][j101] = ''
                                 self.Gps2.mode_indicator[:][j101] = ''
                             
                             self.Gps2.vtg_delta_time[i_ens, j101] = delta_time
@@ -778,7 +769,7 @@ class Pd0TRDI(object):
                             self.Gps2.course_mag[i_ens, j101] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.mag_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens, j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens][j101] = chr(f.read(1)[0])
+                            self.Gps2.kph_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.mode_indicator[i_ens][j101] = chr(f.read(1)[0])
 
                         # Depth sounder
@@ -876,8 +867,8 @@ class Pd0TRDI(object):
                                 self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:, j101] = np.nan
                                 self.Gps2.knots_indicator[:][j101] = ''
-                                self.Gps2.speed_k_mph[:, j101] = np.nan
-                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.speed_kph[:, j101] = np.nan
+                                self.Gps2.kph_indicator[:][j101] = ''
                                 self.Gps2.mode_indicator[:][j101] = ''
                                 
                             self.Gps2.vtg_delta_time[i_ens, j101] = delta_time
@@ -888,8 +879,8 @@ class Pd0TRDI(object):
                             self.Gps2.mag_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.speed_knots[i_ens, j101] = np.fromfile(f, np.float32, count=1)[0]
                             self.Gps2.knots_indicator[i_ens][j101] = chr(f.read(1)[0])
-                            self.Gps2.speed_k_mph[i_ens, j101] = np.fromfile(f, np.float32, count=1)[0]
-                            self.Gps2.kmph_indicator[i_ens][j101] = chr(f.read(1)[0])
+                            self.Gps2.speed_kph[i_ens, j101] = np.fromfile(f, np.float32, count=1)[0]
+                            self.Gps2.kph_indicator[i_ens][j101] = chr(f.read(1)[0])
                             self.Gps2.mode_indicator[i_ens][j101] = chr(f.read(1)[0])
 
                         # Depth sounder
@@ -981,14 +972,14 @@ class Pd0TRDI(object):
                                 idx_star = temp_array[14].find('*')
                                 self.Gps2.ref_stat_id[i_ens, j100] = float(temp_array[15][:idx_star])
                                 
-                            except:
+                            except (ValueError, EOFError, IndexError):
                                 pass
 
                         # VTG
                         elif specific_id == 205:
                             j101 += 1
                             
-                            if j101>20:
+                            if j101 > 20:
                                 self.Gps2.vtg_delta_time[:, j101] = np.nan
                                 self.Gps2.vtg_header[:][j101] = ''
                                 self.Gps2.course_true[:, j101] = np.nan
@@ -997,8 +988,8 @@ class Pd0TRDI(object):
                                 self.Gps2.mag_indicator[:][j101] = ''
                                 self.Gps2.speed_knots[:, j101] = np.nan
                                 self.Gps2.knots_indicator[:][j101] = ''
-                                self.Gps2.speed_k_mph[:, j101] = np.nan
-                                self.Gps2.kmph_indicator[:][j101] = ''
+                                self.Gps2.speed_kph[:, j101] = np.nan
+                                self.Gps2.kph_indicator[:][j101] = ''
                                 self.Gps2.mode_indicator[:][j101] = ''
                                 
                             temp = ''.join([chr(x) for x in f.read(msg_size)])
@@ -1007,7 +998,7 @@ class Pd0TRDI(object):
                             temp_array[temp_array == '999.9'] = ''
                             
                             try:
-                                self.Gps2.vtg_delta_time[i_ens ,j101] = delta_time
+                                self.Gps2.vtg_delta_time[i_ens, j101] = delta_time
                                 self.Gps2.vtg_header[i_ens][j101] = temp_array[0]
                                 self.Gps2.course_true[i_ens, j101] = float(temp_array[1])
                                 self.Gps2.true_indicator[i_ens][j101] = temp_array[2]
@@ -1015,12 +1006,12 @@ class Pd0TRDI(object):
                                 self.Gps2.mag_indicator[i_ens][j101] = temp_array[4]
                                 self.Gps2.speed_knots[i_ens, j101] = float(temp_array[5])
                                 self.Gps2.knots_indicator[i_ens][j101] = temp_array[6]
-                                self.Gps2.speed_k_mph[i_ens, j101] = float(temp_array[7])
-                                self.Gps2.kmph_indicator[i_ens][j101] = temp_array[8]
+                                self.Gps2.speed_kph[i_ens, j101] = float(temp_array[7])
+                                self.Gps2.kph_indicator[i_ens][j101] = temp_array[8]
                                 idx_star = temp_array[9].find('*')
                                 self.Gps2.mode_indicator[i_ens][j101] = temp_array[9][:idx_star]
                                 
-                            except:
+                            except (ValueError, EOFError, IndexError):
                                 pass
 
                         # Depth sounder
@@ -1052,7 +1043,7 @@ class Pd0TRDI(object):
                                 idx_star = temp.find('*')
                                 self.Gps2.fath_indicator[i_ens][j102] = temp_array[6][:idx_star]
                                 
-                            except:
+                            except (ValueError, EOFError, IndexError):
                                 pass
 
                         # External heading
@@ -1076,7 +1067,7 @@ class Pd0TRDI(object):
                                 idx_star = temp.find('*')
                                 self.Gps2.h_true_indicator[i_ens][j103] = temp_array[2][:idx_star]
                                 
-                            except:
+                            except (ValueError, EOFError, IndexError):
                                 pass
 
                         # Check if more data types need to be read and position the pointer
@@ -1370,8 +1361,9 @@ class Pd0TRDI(object):
                             
                             try:
                                 self.Inst.res_RDI = np.fromfile(f, np.uint16, count=1)[0]
-                                checksum = np.fromfile(f, np.uint16, count=1)[0]
-                            except:
+                                # Read checksum but not used
+                                _ = np.fromfile(f, np.uint16, count=1)[0]
+                            except (ValueError, EOFError):
                                 pass
                     else:
                         end_file_check = end_file
@@ -1422,7 +1414,7 @@ class Pd0TRDI(object):
                             idx = np.where(vtg_delta_time == vtg_min)[0][0]
                             self.Gps2.vtg_velE_mps[i], self.Gps2.vtg_velN_mps[i] = \
                                 pol2cart((90 - self.Gps2.course_true[i, idx])*np.pi/180,
-                                         self.Gps2.speed_k_mph[i, idx] * 0.2777778)
+                                         self.Gps2.speed_kph[i, idx] * 0.2777778)
                             
                     if self.Gps2.gga_header[0, 0] == '$':
 
@@ -1453,7 +1445,8 @@ class Pd0TRDI(object):
                                 self.Gps2.gga_velE_mps = np.nan
                                 self.Gps2.gga_velN_mps = np.nan
 
-    def number_of_ensembles(self, f, f_size):
+    @staticmethod
+    def number_of_ensembles(f, f_size):
         """Determines the number of ensembles in the data file.
 
         Parameters
@@ -1479,7 +1472,7 @@ class Pd0TRDI(object):
             leader_id = hex(np.fromfile(f, np.uint16, count=1)[0])
 
         # Call find_ens_no to get the first ensemble number
-        first_num = self.find_ens_no(f)
+        first_num = Pd0TRDI.find_ens_no(f)
 
         # Find last ensemble
         i = 0
@@ -1490,14 +1483,13 @@ class Pd0TRDI(object):
             while leader_id != '0x7f7f' and i < f_size:
                 i = i + 1
                 f.seek(-i, 2)
-                # TODO not sure about this try
-                # try:
-                leader_id = hex(np.fromfile(f, np.uint16, count=1)[0])
-                # except:
-                #     continue
 
-            last_num = self.find_ens_no(f)
-            # TODO I don't see how last_num could be None
+                try:
+                    leader_id = hex(np.fromfile(f, np.uint16, count=1)[0])
+                except (ValueError, EOFError, IndexError):
+                    continue
+
+            last_num = Pd0TRDI.find_ens_no(f)
             if last_num is None or np.isnan(last_num):
                 last_num = -1
             
@@ -1505,8 +1497,9 @@ class Pd0TRDI(object):
         n_ensembles = last_num-first_num+1
 
         return n_ensembles
-    
-    def find_ens_no(self, f):
+
+    @staticmethod
+    def find_ens_no(f):
         """This function assumes the current position of the file pointer is just
             after '7F7F'. The function then reads the ensemble header and
             works through the data offsets until the 00800 data type is found. The
@@ -1522,11 +1515,12 @@ class Pd0TRDI(object):
         ensemble_num
         """
 
+        ensemble_num = np.nan
         try:
             fileloc = f.tell() - 2
 
             # Check check sum
-            if self.check_sum(f, fileloc):
+            if Pd0TRDI.check_sum(f, fileloc):
 
                 # Read header information
                 f.seek(fileloc+5, 0)
@@ -1552,49 +1546,64 @@ class Pd0TRDI(object):
 
             else:
                 ensemble_num = -1
-        except:
+        except (EOFError, ValueError):
             ensemble_num = np.nan
 
         return ensemble_num
 
-    def check_sum(self, f, fileloc, bytes_per_ens=None):
-        #get file locatuion and number of bytes in an ensemble
-          
+    @staticmethod
+    def check_sum(f, fileloc, bytes_per_ens=None):
+        """Compute and verify checksum values.
+
+        Parameters
+        ----------
+        f: object
+            File object
+        fileloc: int
+            Location within file
+        bytes_per_ens: int
+            Number of bytes in ensemble
+
+        Returns
+        -------
+        bool
+        """
+
         try:
              
             if bytes_per_ens is None:
                 bytes_per_ens = np.fromfile(f, np.uint16, count=1)[0] 
-            #go to file location from the beginning of file
-            f.seek(fileloc,0)
+            # Go to file location from the beginning of file
+            f.seek(fileloc, 0)
               
-            # read in the values for all of the bytes an get a check sum
-            Testb = []
+            # Read in the values for all of the bytes an get a check sum
+            test_b = []
             x = f.read(bytes_per_ens)
             for y in x:
-                Testb.append(y)
+                test_b.append(y)
                   
-            check_sum = sum(Testb)
+            check_sum = sum(test_b)
             check_h = hex(check_sum)[2:]
               
-            #we want a hex that is greater than 4 (including L indicator at the end)
-            if len(check_h)>4:
+            # Check for a hex that is greater than 4 (including L indicator at the end)
+            if len(check_h) > 4:
                   
-                #seek to locati_hon of check sum and compared to computed
+                # Seek to location of check sum and compared to computed
                 if check_h[-1] == 'L':
                     check_h = check_h[:-1]
                       
-                f.seek(fileloc+bytes_per_ens,0)
+                f.seek(fileloc+bytes_per_ens, 0)
                 check_sum = np.fromfile(f, np.uint16, count=1)[0]  
                 if int('0x'+check_h[1:], 16) == check_sum:
                     return True
                 else:
                     return False
-            elif len(check_h)>3:
-                #seek to locati_hon of check sum and compared to computed
+            elif len(check_h) > 3:
+                # Seek to location of check sum and compared to computed
                 if check_h[-1] == 'L':
                     check_h = check_h[:-1]
                       
-                f.seek(fileloc+bytes_per_ens,0)
+                f.seek(fileloc+bytes_per_ens, 0)
                 check_sum = np.fromfile(f, np.uint16, count=1)[0]  
                 if int('0x'+check_h, 16) == check_sum:
                     return True
@@ -1604,56 +1613,79 @@ class Pd0TRDI(object):
                 return False
         except:  
             return False
-        
-    def bad_check_sum(self, f, file_loc):
-        
-#         print 'Bad Checksum New Code'
-        search_id='    '
+
+    @staticmethod
+    def bad_check_sum(f, file_loc):
+        """Searches for next ensemble.
+
+        Parameters
+        ----------
+        f: object
+            File object
+        file_loc: int
+            Location in file
+        """
+
+        search_id = '    '
         search_loc = file_loc+2
         while search_id != '0x7f7f':
-            f.seek(search_loc,0)
+            f.seek(search_loc, 0)
             search_loc += 1
-              
             try:
-                search_id= hex(np.fromfile(f, np.uint16, count=1)[0])
-            except:
+                search_id = hex(np.fromfile(f, np.uint16, count=1)[0])
+            except (ValueError, EOFError):
                 continue
-        f.seek(search_loc,0)
-#         print 'Done with bad check sum'
+        f.seek(search_loc, 0)
         
     def end_reading(self, f, file_loc, i_data_types, i_ens, bytes_per_ens):
+        """Checks if more data types need to be read and position file pointer.
+
+        Parameters
+        ----------
+        f: object
+            File object
+        file_loc: int
+            Location in file
+        i_data_types: int
+            Number of data types
+        i_ens: int
+            Ensemble counter
+        bytes_per_ens: int
+            Number of bytes in the ensemble
+
+        """
         if i_data_types + 1 <= self.Hdr.n_data_types[i_ens]:
-                            f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types])+file_loc,0)
+            f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types])+file_loc, 0)
         else:
-            f.seek(file_loc+bytes_per_ens-2,0) 
+            f.seek(file_loc+bytes_per_ens-2, 0)
             
        
 # -------------------------------------------------thus far testing individual pd0 file extraction until comfortable  
 if __name__ == '__main__':
-#     
-    files = [r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_000.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_001.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_002.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_003.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_004.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_005.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14_LBT.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_001_14-04-14.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_002_14-04-14.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_003_14-04-14.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000_LBT.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_001.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RR_Multi_Cal\05LC004_20140812.AQ1_0_001.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000_LBT.PD0',
-             r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_001.PD0'
+
+    files = [
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_000.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_001.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_002.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_003.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_004.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_005.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14_LBT.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_001_14-04-14.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_002_14-04-14.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_003_14-04-14.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000_LBT.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_001.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RR_Multi_Cal\05LC004_20140812.AQ1_0_001.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000_LBT.PD0',
+        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_001.PD0'
             ]
       
-    c = [Pd0TRDI(x) for x in files]
+    c = [Pd0TRDI(file) for file in files]
     
-
 
 class Hdr(object):
     """Class to hold header variables.
@@ -1661,9 +1693,13 @@ class Hdr(object):
     Attributes
     ----------
     bytes_per_ens: int
+        Number of bytes in ensemble
     data_offsets: int
+        File offset to start of ensemble
     n_data_types: int
+        Number of data types in ensemble
     data_ok: int
+
     invalid: str
         Leader ID that was not recognized
     """
@@ -1683,9 +1719,791 @@ class Hdr(object):
         self.n_data_types = np.empty(n_ensembles)
         self.data_ok = np.empty(n_ensembles)
         self.invalid = [''] * n_ensembles
-                
-    
-            
-        
-        
-            
+
+
+class Inst(object):
+    """Class to hold information about the instrument.
+
+    Attributes
+    ----------
+    beam_ang: np.array(int)
+        Angle of transducers in degrees
+    beams: np.array(int)
+        Number of beams used for velocity
+    data_type: np.array(str)
+        Data type
+    firm_ver: np.array(str)
+        Firmware version
+    freq: np.array(int)
+        Frequency of ADCP in kHz
+    pat = np.array(str)
+        Beam pattern
+    res_RDI:
+        Reserved for TRDI
+    sensor_CFG: np.array(int)
+        Sensor configuration
+    xducer: np.array(str)
+        Indicates if transducer is attached
+    t_matrix: np.array(float)
+        Transformation matrix
+    demod: np.array(int)
+        Demodulation code
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+        self.beam_ang = np.empty(n_ensembles)
+        self.beams = np.empty(n_ensembles)
+        self.data_type = np.empty([n_ensembles, 4], dtype=np.str)
+        self.firm_ver = np.empty(n_ensembles)
+        self.freq = np.empty(n_ensembles)
+        self.pat = np.empty(n_ensembles, dtype=np.str)
+        self.res_RDI = 0
+        self.sensor_CFG = np.empty(n_ensembles)
+        self.xducer = np.empty(n_ensembles, dtype=np.str)
+        self.t_matrix = np.tile([np.nan], [4, 4])
+        self.demod = np.empty(n_ensembles)
+
+
+class AutoMode(object):
+    """Class to hold auto configuration mode settings for each beam.
+
+    Attributes
+    ----------
+    beam_count: np.array(int)
+        Number of beams
+    Beam1: object
+        Object of class Beam
+    Beam2: object
+        Object of class Beam
+    Beam3: object
+        Object of class Beam
+    Beam4: object
+        Object of class Beam
+    Reserved: np.array
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+        self.beam_count = np.empty(n_ensembles)
+        self.Beam1 = Beam(n_ensembles)
+        self.Beam2 = Beam(n_ensembles)
+        self.Beam3 = Beam(n_ensembles)
+        self.Beam4 = Beam(n_ensembles)
+        self.Reserved = np.empty(n_ensembles)
+
+
+class Beam(object):
+    """Class to hold auto configuration settings for a beam.
+
+    Attributes
+    ----------
+    mode: np.array(int)
+        Water mode
+    depth_cm: np.array(int)
+        Depth in cm
+    ping_count: np.array(int)
+        Number of pings
+    ping_type: np.array(int)
+        Type of pings
+    cell_count: np.array(int)
+        Number of cells
+    cell_size_cm: np.array(int)
+        Cell size in cm
+    cell_mid_cm: np.array(int)
+        Distance to center of cell 1 in cm
+    code_repeat: np.array(int)
+        Number of code repeats
+    trans_length_cm: np.array(int)
+        Transmit length in cm
+    lag_length_cm: np.array(int)
+        Lag length in cm
+    transmit_bw: np.array(int)
+        Transmit bandwidth
+    receive_bw: np.array(int)
+        Receive bandwidth
+    ping_interval_ms: np.array(int)
+        Time between pings in ms
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+
+        self.mode = np.empty(n_ensembles)
+        self.depth_cm = np.empty(n_ensembles)
+        self.ping_count = np.empty(n_ensembles)
+        self.ping_type = np.empty(n_ensembles)
+        self.cell_count = np.empty(n_ensembles)
+        self.cell_size_cm = np.empty(n_ensembles)
+        self.cell_mid_cm = np.empty(n_ensembles)
+        self.code_repeat = np.empty(n_ensembles)
+        self.trans_length_cm = np.empty(n_ensembles)
+        self.lag_length_cm = np.empty(n_ensembles)
+        self.transmit_bw = np.empty(n_ensembles)
+        self.receive_bw = np.empty(n_ensembles)
+        self.ping_interval_ms = np.empty(n_ensembles)
+
+
+class Bt(object):
+    """Class to hold bottom track data.
+
+    Attributes
+    ----------
+    corr: np.array(int)
+        Correlation for each beam
+    depth_m: np.array(float)
+        Depth for each beam
+    eval_amp: np.array(int)
+        Return amplitude for each beam
+    ext_depth_cm: np.array(int)
+        External depth in cm
+    pergd: np.array(int)
+        Percent good
+    rssi: np.array(int)
+        Return signal strength indicator in counts for each beam
+    vel_mps: np.array(float)
+        Velocity in m/s, rows depend on coordinate system
+    """
+
+    def __init__(self, n_ensembles, n_velocities):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        n_velocities: int
+            Number of velocity beams
+        """
+
+        self.corr = np.empty([n_velocities, n_ensembles])
+        self.depth_m = np.empty([n_velocities, n_ensembles])
+        self.eval_amp = np.empty([n_velocities, n_ensembles])
+        self.ext_depth_cm = np.empty(n_ensembles)
+        self.pergd = np.empty([n_velocities, n_ensembles])
+        self.rssi = np.empty([n_velocities, n_ensembles])
+        self.vel_mps = np.empty([n_velocities, n_ensembles])
+
+
+class Cfg(object):
+    """Class to hold configuration settings.
+
+    Attributes
+    ----------
+    ba: np.array(int)
+        Bottom track amplitude threshold
+    bc: np.array(int)
+        Bottom track correlation threshold
+    be_mmps: np.array(int)
+        Bottom track error velocity threshold
+    bg: np.array(int)
+        Bottom track percent good threshold
+    bm: np.array(int)
+        Bottom mode
+    bp: np.array(int)
+        Number of bottom pings
+    bx_dm: np.array(int)
+        Maximum tracking depth in decimeters
+    code_reps: np.array(int)
+        Number of code repetitions
+    coord_sys: np.array(str)
+        Coordinate system
+    cpu_ser_no: np.array(int)
+        CPU serial number
+    cq: np.array(int)
+        Transmit power
+    cx: np.array(int)
+        Low latency trigger
+    dist_bin1_cm: np.array(int)
+        Distance to center of bin 1 from transducer
+    ea_deg: np.array(int)
+        Heading alignment
+    eb_deg: np.array(int)
+        Heading bias
+    sensor_avail: np.array(str)
+        Sensor availability codes
+    ex: np.array(str)
+        Coordinate transformation codes
+    ez: np.array(str)
+        Sensor codes
+    head_src: np.array(str)
+        Heading source
+    lag_cm: np.array(int)
+        Lag
+    map_bins: np.array(str)
+        Bin mapping
+    n_beams: np.array(int)
+        Number of velocity beams
+    pitch_src: np.array(str)
+        Source of pitch data
+    ref_lay_end_cell: np.array(int)
+        Reference layer end
+    ref_lay_str_cell: np.array(int)
+        Reference layer start
+    roll_src: np.array(str)
+        Roll source
+    sal_src: np.array(str)
+        Salinity source
+    wm: np.array(int)
+        Water mode
+    sos_src: np.array(str)
+        Speed of sound source
+    temp_src: np.array(str)
+        Temperature source
+    tp_sec: np.array(int)
+        Time between pings
+    use_3beam: np.array(str)
+        Setting on whether to use 3-beam solutions or not
+    use_pr =: np.array(str)
+        Setting to use pitch and roll or not
+    wa: np.array(int)
+        Water track amplitude threshold
+    wb: np.array(int)
+        Water track bandwidth control
+    wc: np.array(int)
+        Water track correlation threshold
+    we_mmps: np.array(int)
+        Water track error velocity threshold
+    wf_cm: np.array(int)
+        Blank after transmit
+    wg_per: np.array(int)
+        Water track percent good threshold
+    wj: np.array(int)
+        Receiver gain setting
+    wn: np.array(int)
+        Number of depth cells (bins)
+    wp: np.array(int)
+        Number of water pings
+    ws_cm: np.array(int)
+        Bin size
+    xdcr_dep_srs: np.array(str)
+        Salinity source
+    xmit_pulse_cm: np.array(int)
+        Transmit pulse length
+    lag_near_bottom: np.array(int)
+        Lag near bottom setting
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+
+        self.ba = np.empty(n_ensembles)
+        self.bc = np.empty(n_ensembles)
+        self.be_mmps = np.empty(n_ensembles)
+        self.bg = np.empty(n_ensembles)
+        self.bm = np.empty(n_ensembles)
+        self.bp = np.empty(n_ensembles)
+        self.bx_dm = np.empty(n_ensembles)
+        self.code_reps = np.empty(n_ensembles)
+        self.coord_sys = [''] * n_ensembles
+        self.cpu_ser_no = np.empty([n_ensembles, 8])
+        self.cq = np.empty(n_ensembles)
+        self.cx = np.empty(n_ensembles)
+        self.dist_bin1_cm = np.empty(n_ensembles)
+        self.ea_deg = np.empty(n_ensembles)
+        self.eb_deg = np.empty(n_ensembles)
+        self.sensor_avail = [''] * n_ensembles
+        self.ex = [''] * n_ensembles
+        self.ez = [''] * n_ensembles
+        self.head_src = [''] * n_ensembles
+        self.lag_cm = np.empty(n_ensembles)
+        self.map_bins = [''] * n_ensembles
+        self.n_beams = np.empty(n_ensembles)
+        self.pitch_src = [''] * n_ensembles
+        self.ref_lay_end_cell = np.empty(n_ensembles)
+        self.ref_lay_str_cell = np.empty(n_ensembles)
+        self.roll_src = [''] * n_ensembles
+        self.sal_src = [''] * n_ensembles
+        self.wm = np.empty(n_ensembles)
+        self.sos_src = [''] * n_ensembles
+        self.temp_src = [''] * n_ensembles
+        self.tp_sec = np.empty(n_ensembles)
+        self.use_3beam = [''] * n_ensembles
+        self.use_pr = [''] * n_ensembles
+        self.wa = np.empty(n_ensembles)
+        self.wb = np.empty(n_ensembles)
+        self.wc = np.empty(n_ensembles)
+        self.we_mmps = np.empty(n_ensembles)
+        self.wf_cm = np.empty(n_ensembles)
+        self.wg_per = np.empty(n_ensembles)
+        self.wj = np.empty(n_ensembles)
+        self.wn = np.empty(n_ensembles)
+        self.wp = np.empty(n_ensembles)
+        self.ws_cm = np.empty(n_ensembles)
+        self.xdcr_dep_srs = [''] * n_ensembles
+        self.xmit_pulse_cm = np.empty(n_ensembles)
+        self.lag_near_bottom = np.empty(n_ensembles)
+
+
+class Gps(object):
+    """Class to hold GPS data from WinRiver.
+
+    Attributes
+    ----------
+    alt_m: np.array(float)
+        Altitude in meters
+    gga_diff: np.array(int)
+        Differential correction indicator
+    gga_hdop: np.array(float)
+        Horizontal dilution of precision
+    gga_n_stats: np.array(int)
+        Number of satellites
+    gga_vel_e_mps: np.array(float)
+        Velocity in east direction from GGA data
+    gga_vel_n_mps: np.array(float)
+        Velocity in north directio from GGA data
+    gsa_p_dop: np.array(int)
+        Position dilution of precision
+    gsa_sat: np.array(int)
+        Satellites
+    gsa_v_dop: np.array(float)
+        Vertical dilution of precision
+    lat_deg: np.array(float)
+        Latitude in degrees
+    long_deg: np.array(float)
+        Longitude in degrees
+    vtg_vel_e_mps: np.array(float)
+        Velocity in east direction from VTG data
+    vtg_vel_n_mps: np.array(float)
+        Velocity in north direction from VTG data
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+
+        self.alt_m = np.empty(n_ensembles)
+        self.gga_diff = np.empty(n_ensembles)
+        self.gga_hdop = np.empty(n_ensembles)
+        self.gga_n_stats = np.empty(n_ensembles)
+        self.gga_vel_e_mps = np.empty(n_ensembles)
+        self.gga_vel_n_mps = np.empty(n_ensembles)
+        self.gsa_p_dop = np.empty(n_ensembles)
+        self.gsa_sat = np.empty([n_ensembles, 6])
+        self.gsa_v_dop = np.empty(n_ensembles)
+        self.lat_deg = np.empty(n_ensembles)
+        self.long_deg = np.empty(n_ensembles)
+        self.vtg_vel_e_mps = np.empty(n_ensembles)
+        self.vtg_vel_n_mps = np.empty(n_ensembles)
+
+
+class Gps2(object):
+    """Class to hold GPS data for WinRiver II.
+
+    Attributes
+    ----------
+    gga_delta_time: np.array(float)
+        Time between ping and gga data
+    gga_header: list
+        GGA header
+    gga_sentence: list
+        GGA sentence
+    utc: np.array(float)
+        UTC time
+    lat_deg: np.array(float)
+        Latitude in degrees
+    lat_ref: list
+        Latitude reference
+    lon_deg: np.array(float)
+        Longitude in degrees
+    lon_ref: list
+        Longitude reference
+    corr_qual: np.array(float)
+        Differential quality indicator
+    num_sats: np.array(int)
+        Number of satellites
+    hdop: np.array(float)
+        Horizontal dilution of precision
+    alt: np.array(float)
+        Altitude
+    alt_unit: list
+        Units for altitude
+    geoid: np.array(float)
+        Geoid height
+    geoid_unit: list
+        Units for geoid height
+    d_gps_age: np.array(float)
+        Age of differential correction
+    ref_stat_id: np.array(float)
+        Reference station ID
+    vtg_delta_time: np.array(float)
+        Time between ping and VTG data
+    vtg_header: list
+        VTG header
+    vtg_sentence: list
+        VTG sentence
+    course_true: np.array(float)
+        Course relative to true north
+    true_indicator: list
+        True north indicator
+    course_mag: np.array(float)
+        Course relative to magnetic north
+    mag_indicator: list
+        Magnetic north indicator
+    speed_knots: np.array(float)
+        Speed in knots
+    knots_indicator: list
+        Knots indicator
+    speed_kph: np.array(float)
+        Speed in kilometers per hour
+    kph_indicator: list
+        Kilometers per hour indicator
+    mode_indicator: list
+        Mode indicator
+    dbt_delta_time: np.array(float)
+        Time between ping and echo sounder data
+    dbt_header: list
+        Echo sounder header
+    depth_ft: np.array(float)
+        Depth in ft from echo sounder
+    ft_indicator: list
+        Feet indicator
+    depth_m: np.array(float)
+        Depth in meters from echo sounder
+    m_indicator: list
+        Meters indicator
+    depth_fath: np.array(float)
+        Depth in fathoms from echo sounder
+    fath_indicator: list
+        Fathoms indicator
+    hdt_delta_time: np.array(float)
+        Time between ping and external heading data
+    hdt_header: list
+        External heading header
+    heading_deg: np.array(float)
+        Heading in degrees from external heading
+    h_true_indicator: list
+        Heading indicator to true north
+    gga_velE_mps: np.array(float)
+        Velocity in east direction in m/s from GGA for WR
+    gga_velN_mps: np.array(float)
+        Velocity in north direction in m/s from GGA for WR
+    vtg_velE_mps: np.array(float)
+        Velocity in east direction in m/s from VTG for WR
+    vtg_velN_mps: np.array(float)
+        Velocity in north direction in m/s from VTG for WR
+    """
+
+    def __init__(self, n_ensembles, wr2):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        wr2: bool
+            Setting of whether data is from WR or WR2
+        """
+
+        self.gga_delta_time = np.full([n_ensembles, 20], np.nan)
+        self.gga_header = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.gga_sentence = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.utc = np.full([n_ensembles, 20], np.nan)
+        self.lat_deg = np.zeros([n_ensembles, 20])
+        self.lat_ref = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.lon_deg = np.zeros([n_ensembles, 20])
+        self.lon_ref = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.corr_qual = np.full([n_ensembles, 20], np.nan)
+        self.num_sats = np.full([n_ensembles, 20], np.nan)
+        self.hdop = np.full([n_ensembles, 20], np.nan)
+        self.alt = np.full([n_ensembles, 20], np.nan)
+        self.alt_unit = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.geoid = np.full([n_ensembles, 20], np.nan)
+        self.geoid_unit = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.d_gps_age = np.full([n_ensembles, 20], np.nan)
+        self.ref_stat_id = np.full([n_ensembles, 20], np.nan)
+        self.vtg_delta_time = np.full([n_ensembles, 20], np.nan)
+        self.vtg_header = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.vtg_sentence = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.course_true = np.full([n_ensembles, 20], np.nan)
+        self.true_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.course_mag = np.full([n_ensembles, 20], np.nan)
+        self.mag_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.speed_knots = np.full([n_ensembles, 20], np.nan)
+        self.knots_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.speed_kph = np.zeros([n_ensembles, 20])
+        self.kph_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.mode_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.dbt_delta_time = np.full([n_ensembles, 20], np.nan)
+        self.dbt_header = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.depth_ft = np.full([n_ensembles, 20], np.nan)
+        self.ft_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.depth_m = np.zeros([n_ensembles, 20])
+        self.m_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.depth_fath = np.full([n_ensembles, 20], np.nan)
+        self.fath_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.hdt_delta_time = np.full([n_ensembles, 20], np.nan)
+        self.hdt_header = [x[:] for x in [[''] * 20] * n_ensembles]
+        self.heading_deg = np.full([n_ensembles, 20], np.nan)
+        self.h_true_indicator = [x[:] for x in [[''] * 20] * n_ensembles]
+
+        if wr2:
+            self.gga_velE_mps = np.empty(n_ensembles)
+            self.gga_velN_mps = np.empty(n_ensembles)
+            self.vtg_velE_mps = np.empty(n_ensembles)
+            self.vtg_velN_mps = np.empty(n_ensembles)
+
+
+class Nmea(object):
+    """Class to hold raw NMEA sentences.
+
+    Attributes
+    ----------
+    gga: list
+        List of GGA sentences
+    gsa: list
+        List of GSA sentences
+    vtg: list
+        List of VTG sentences
+    dbt: list
+        List of DBT sentences
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+        self.gga = ['']*n_ensembles
+        self.gsa = ['']*n_ensembles
+        self.vtg = ['']*n_ensembles
+        # self.raw = ['']*n_ensembles DSM: not sure this was used
+        self.dbt = ['']*n_ensembles
+
+
+class Sensor(object):
+    """Class to hold sensor data.
+
+    Attributes
+    ----------
+    ambient_temp: np.array(int)
+        ADC ambient temperature
+    attitude_temp: np.array(int)
+        ADC attitude temperature
+    attitude: np.array(int)
+        ADC attitude
+    bit_test: np.array(int)
+        Bit test results
+    contam_sensor: np.array(int)
+        ADC contamination sensor
+    date: np.array(int)
+        Date
+    date_y2k: np.array(int)
+        Y2K compatible date
+    date_not_y2k: np.array(int)
+        Date not Y2K compatible
+    error_status_word: np.array(int)
+        Error status codes
+    heading_deg: np.array(float)
+        Heading to magnetic north in degrees
+    heading_std_dev_deg: np.array(float)
+        Standard deviation of headings for an ensemble
+    mpt_msc: np.array(int)
+        Minimum time prior to ping
+    num: np.array(int)
+        Ensemble number
+    num_fact: np.array(int)
+        Number fraction
+    num_tot: np.array(int)
+        Number total
+    orient: list
+        Orientation of ADCP
+    pitch_std_dev_deg: np.array(float)
+        Standard deviation of pitch for an ensemble
+    pitch_deg: np.array(float)
+        Pitch in degrees
+    pressure_neg: np.array(int)
+        ADC pressure negative
+    pressure_pos: np.array(int)
+        ADC pressure positive
+    pressure_pascal: np.array(int)
+        Pressure at transducer face in deca-pascals
+    pressure_var_pascal: np.array(int)
+        Pressure variance in deca-pascals
+    roll_std_dev_deg: np.array(float)
+        Standard deviation of roll for an ensemble
+    roll_deg: np.array(float)
+        Roll in degrees
+    salinity_ppt: np.array(int)
+        Salinit in parts per thousand
+    sos_mps: np.array(int)
+        Speed of sound in m/s
+    temperature_deg_c: np.array(float)
+        Water temperatuer in degrees C
+    time: np.array(int)
+        Time
+    time_y2k: np.array(int)
+        Y2K compatible time
+    xdcr_depth_dm: np.array(int)
+        Transducer depth in decimeters
+    xmit_current: np.array(int)
+        Transmit current
+    self.xmit_voltage = np.empty(n_ensembles)
+        Transmit voltage
+    self.vert_beam_eval_amp: np.array(int)
+        Vertical beam amplitude
+    self.vert_beam_RSSI_amp: np.array(int)
+        Vertical beam return signal stength indicator
+    self.vert_beam_range_m: np.array(float)
+        Vertical beam range in m
+    self.vert_beam_gain: list
+        Vertical beam gain setting
+    self.vert_beam_status: np.array(int)
+        Vertical beam status code
+    """
+
+    def __init__(self, n_ensembles):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        """
+
+        self.ambient_temp = np.empty(n_ensembles)
+        self.attitude_temp = np.empty(n_ensembles)
+        self.attitude = np.empty(n_ensembles)
+        self.bit_test = np.empty(n_ensembles)
+        self.contam_sensor = np.empty(n_ensembles)
+        self.date = np.empty([n_ensembles, 3])
+        self.date_y2k = np.empty([n_ensembles, 4])
+        self.date_not_y2k = np.empty([n_ensembles, 3])
+        self.error_status_word = [''] * n_ensembles
+        self.heading_deg = np.empty(n_ensembles)
+        self.heading_std_dev_deg = np.empty(n_ensembles)
+        self.mpt_msc = np.empty([n_ensembles, 3])
+        self.num = np.empty(n_ensembles)
+        self.num_fact = np.empty(n_ensembles)
+        self.num_tot = np.empty(n_ensembles)
+        self.orient = [''] * n_ensembles
+        self.pitch_std_dev_deg = np.empty(n_ensembles)
+        self.pitch_deg = np.empty(n_ensembles)
+        self.pressure_neg = np.empty(n_ensembles)
+        self.pressure_pos = np.empty(n_ensembles)
+        self.pressure_pascal = np.empty(n_ensembles)
+        self.pressure_var_pascal = np.empty(n_ensembles)
+        self.roll_std_dev_deg = np.empty(n_ensembles)
+        self.roll_deg = np.empty(n_ensembles)
+        self.salinity_ppt = np.empty(n_ensembles)
+        self.sos_mps = np.empty(n_ensembles)
+        self.temperature_deg_c = np.empty(n_ensembles)
+        self.time = np.empty([n_ensembles, 4])
+        self.time_y2k = np.empty([n_ensembles, 4])
+        self.xdcr_depth_dm = np.empty(n_ensembles)
+        self.xmit_current = np.empty(n_ensembles)
+        self.xmit_voltage = np.empty(n_ensembles)
+        self.vert_beam_eval_amp = np.empty(n_ensembles)
+        self.vert_beam_RSSI_amp = np.empty(n_ensembles)
+        self.vert_beam_range_m = np.empty(n_ensembles)
+        self.vert_beam_gain = [''] * n_ensembles
+        self.vert_beam_status = np.zeros(n_ensembles)
+
+
+class Surface(object):
+    """Class to hold surface cell data.
+
+    Attributes
+    ----------
+    no_cells: np.array(int)
+        Number of surface cells in the ensemble
+    cell_size_cm: np.array(int)
+        Cell size in cm
+    dist_bin1_cm: np.array(int)
+        Distance to center of cell 1 in cm
+    vel_mps: np.array(float)
+        3D array of velocity data in each cell and ensemble
+    corr: np.array(int)
+        3D array of correlation data for each beam, cell, and ensemble
+    pergd: np.array(int)
+        3D array of percent good for each beam, cell, and ensemble
+    rssi: np.array(int)
+        3D array of return signal strength indicator for each beam, cell, and ensemble
+    """
+
+    def __init__(self, n_ensembles, n_velocities, max_surface_bins):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        n_velocities: int
+            Number of velocity beams
+        max_surface_bins: int
+            Maximum number of surface bins in an ensemble in the transect
+        """
+
+        self.no_cells = np.zeros(n_ensembles)
+        self.cell_size_cm = np.empty(n_ensembles)
+        self.dist_bin1_cm = np.empty(n_ensembles)
+        self.vel_mps = np.tile([np.nan], [n_velocities, max_surface_bins, n_ensembles])
+        self.corr = np.empty([n_velocities, max_surface_bins, n_ensembles])
+        self.pergd = np.empty([n_velocities, max_surface_bins, n_ensembles])
+        self.rssi = np.empty([n_velocities, max_surface_bins, n_ensembles])
+
+
+class Wt(object):
+    """Class to hold water track data.
+
+    Attributes
+    ----------
+    vel_mps: np.array(float)
+        3D array of velocity data in each cell and ensemble
+    corr: np.array(int)
+        3D array of correlation data for each beam, cell, and ensemble
+    pergd: np.array(int)
+        3D array of percent good for each beam, cell, and ensemble
+    rssi: np.array(int)
+        3D array of return signal strength indicator for each beam, cell, and ensemble
+    """
+
+    def __init__(self, n_bins, n_ensembles, n_velocities):
+        """Initialize instance variables.
+
+        Parameters
+        ----------
+        n_ensembles: int
+            Number of ensembles
+        n_velocities: int
+            Number of velocity beams
+        n_bins: int
+            Maximum number of bins in an ensemble in the transect
+        """
+
+        self.corr = np.empty([n_velocities, n_bins, n_ensembles])
+        self.pergd = np.empty([n_velocities, n_bins, n_ensembles])
+        self.rssi = np.empty([n_velocities, n_bins, n_ensembles])
+        self.vel_mps = np.empty([n_velocities, n_bins, n_ensembles])

@@ -84,7 +84,7 @@ class TransectData(object):
         """
 
         # This starts at line 148 from the Matlab code. Matlab code handled creating PD0 object
-        self.file_name = mmt_transect.Files[0].File
+        self.file_name = mmt_transect.Files[0]['File']
 
         # Get the configuration property of the mmt_transect
         # if type == 'Q':
@@ -283,7 +283,7 @@ class TransectData(object):
             # Initialize boat vel
             self.boat_vel = BoatStructure()
             # Apply 3-beam setting from mmt file
-            if mmt_config['Proc_Use_3_Beam_Solution_For_BT'] < 0.5:
+            if mmt_config['Proc_Use_3_Beam_BT'] < 0.5:
                 min_beams = 4
             else:
                 min_beams = 3
@@ -320,7 +320,7 @@ class TransectData(object):
             raw_gga_hdop = pd0_data.Gps2.hdop
             raw_gga_num_sats = pd0_data.Gps2.num_sats
             raw_vtg_course = pd0_data.Gps2.course_true
-            raw_vtg_speed = pd0_data.Gps2.speed_k_mph * 0.2777778
+            raw_vtg_speed = pd0_data.Gps2.speed_kph * 0.2777778
             raw_vtg_delta_time = pd0_data.Gps2.vtg_delta_time
             raw_vtg_mode_indicator = pd0_data.Gps2.mode_indicator
             raw_gga_delta_time = pd0_data.Gps2.gga_delta_time
@@ -1773,24 +1773,25 @@ def allocate_transects(mmt, type='Q', checked=False):
     if type == 'Q':
         # Identify discharge transect files to load
         if checked:
-            file_names = [attribute.Files[0].File for attribute in mmt.transects]
+            file_names = [transect.Files[0]['Path'] for transect in mmt.mbt_transects if transect.Checked == 1]
         else:
-            file_names = [attribute.Files[0].File for attribute in mmt.transects]
+            file_names = [transect.Files[0]['Path'] for transect in mmt.transects]
 
     elif type == 'MB':
         # Identify moving-bed transect files to load
         transects = 'mbt_transects'
         active_config = 'active_config'
-        file_names = [attribute.Files[0].File for attribute in mmt.mbt_transects if attribute.Checked == 1]
+        # file_names = [attribute.Files[0].File for attribute in mmt.mbt_transects if attribute.Checked == 1]
+        file_names = [transect.Files[0]['Path'] for transect in mmt.mbt_transects]
 
-    pathname = os.path.split(mmt.infile)[0]
+    # pathname = os.path.split(mmt)[0]
     
     # Determine if any files are missing
     valid_files = []
     for name in file_names:
-        fullname=os.path.join(pathname, name)
-        if os.path.exists(fullname):
-            valid_files.append(fullname)
+        # fullname=os.path.join(pathname, name)
+        if os.path.exists(name):
+            valid_files.append(name)
 
     # Multi-thread for Pd0 files
     # -------------------------
@@ -1853,7 +1854,7 @@ def allocate_transects(mmt, type='Q', checked=False):
             else:
                 transect = TransectData()
                 add_transect(transect=transect,
-                             mmt_transect=mmt.mbt_transect[k],
+                             mmt_transect=mmt.mbt_transects[k],
                              pd0_data=pd0_data[k],
                              mmt=mmt,
                              type=type)

@@ -249,30 +249,30 @@ class Measurement(object):
         """
         #ADCP Test
         if 'RG_Test' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['RG_Test']['TestResult'])):
+            for n in range(len(mmt.qaqc['RG_Test'])):
                 p_m = PreMeasurement()
-                p_m.populate_data(mmt.qaqc['RG_Test']['TestResult'][n]['TimeStamp'],
-                                  mmt.qaqc['RG_Test']['TestResult'][n]['Text'],'TST')
+                p_m.populate_data(mmt.qaqc['RG_Test_TimeStamp'][n],
+                                  mmt.qaqc['RG_Test'][n], 'TST')
                 self.system_test.append(p_m)
         else:
             self.system_test.append(PreMeasurement())
 
         #Compass calibration
         if 'Compass_Calibration' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['Compass_Calibration']['TestResult'])):
+            for n in range(len(mmt.qaqc['Compass_Calibration'])):
                 p_m = PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Calibration']['TestResult'][n]['TimeStamp'],
-                                  mmt.qaqc['Compass_Calibration']['TestResult'][n]['Text'], 'TCC')
+                p_m.populate_data(mmt.qaqc['Compass_Calibration_TimeStamp'][n],
+                                  mmt.qaqc['Compass_Calibration'][n], 'TCC')
                 self.compass_cal.append(p_m)
         else:
             self.compass_cal.append(PreMeasurement())
             
         #Compass evaluation
         if 'Compass_Evaluation' in mmt.qaqc:
-            for n in range(len(mmt.qaqc['Compass_Evaluation']['TestResult'])):
+            for n in range(len(mmt.qaqc['Compass_Evaluation'])):
                 p_m =  PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Evaluation']['TestResult'][n]['TimeStamp'],
-                                  mmt.qaqc['Compass_Evaluation']['TestResult'][n]['Text'], 'TCC')
+                p_m.populate_data(mmt.qaqc['Compass_Evaluation_TimeStamp'][n],
+                                  mmt.qaqc['Compass_Evaluation'][n], 'TCC')
                 self.compass_eval.append(p_m)
         else:
             self.compass_eval.append(PreMeasurement())
@@ -282,7 +282,7 @@ class Measurement(object):
         if len(mmt.mbt_transects) > 0:
             
             #Create transect object/s
-            transects= allocate_transects('TRDI', mmt, type='MB')
+            transects= allocate_transects(mmt, type='MB')
             if len(transects) > 0:
                 self.mb_tests = []
                 

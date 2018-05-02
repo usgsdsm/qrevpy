@@ -98,7 +98,7 @@ class InstrumentData(object):
 
         # Instrument characteristics
         mmt_site = getattr(mmt, 'site_info')
-        mmt_config = getattr(mmt_transect, config)
+        mmt_config = getattr(mmt_transect, 'active_config')
 
         self.serial_num = mmt_site['ADCPSerialNmb']
 
@@ -165,17 +165,17 @@ class InstrumentData(object):
                 if 'RG_Test' in mmt.qaqc.keys():
 
                     self.t_matrix = TransformationMatrix()
-                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['RG_Test']['TestResult'][0]['Text']])
+                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['RG_Test'][0]])
 
                 elif 'Compass_Calibration' in mmt.qaqc.keys():
 
                     self.t_matrix = TransformationMatrix()
-                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Calibration']['TestResult'][0]['Text']])
+                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Calibration'][0]])
 
                 elif 'Compass_Eval_Timestamp' in mmt.qaqc.keys():
 
                     self.t_matrix = TransformationMatrix()
-                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Evaluation']['TestResult'][0]['Text']])
+                    self.t_matrix.populate_data('TRDI', kargs=[self.model, mmt.qaqc['Compass_Evaluation'][0]])
 
                 else:
                     self.t_matrix.populate_data('TRDI', kargs=[self.model, 'Nominal'])

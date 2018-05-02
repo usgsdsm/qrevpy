@@ -206,7 +206,7 @@ class WaterData(object):
     def populate_data(self, vel_in, freq_in, coord_sys_in, nav_ref_in, rssi_in, rssi_units_in,
                       excluded_dist_in, cells_above_sl_in, sl_cutoff_per_in, sl_cutoff_num_in,
                       sl_cutoff_type_in, sl_lag_effect_in, wm_in, blank_in, corr_in=None,
-                      surface_vel_in=None, surface_rssi_in=None, surface_corr_in=None, surface_num_cells_in=None):
+                      surface_vel_in=None, surface_rssi_in=None, surface_corr_in=None, surface_num_cells_in=0):
         
         """Populates the variables with input, computed, or default values.
 
