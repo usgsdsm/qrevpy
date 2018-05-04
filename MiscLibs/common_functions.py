@@ -83,7 +83,6 @@ def nandiff(values):
         
     return np.array(final_values)
 
-
 def get_object_values(list_in, item, checked=None):
     if checked is not None:
         working_list = np.array(list_in)[checked]

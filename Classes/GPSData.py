@@ -6,7 +6,7 @@ Created on Sep 6, 2017
 
 import numpy as np
 import utm
-from MiscLibs.convenience import azdeg2rad, pol2cart
+from MiscLibs.common_functions import azdeg2rad, pol2cart
 
 
 class GPSData(object):

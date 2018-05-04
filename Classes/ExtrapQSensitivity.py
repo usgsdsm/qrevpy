@@ -1,6 +1,6 @@
 from Classes.QComp import QComp
 import numpy as np
-from MiscLibs.convenience import get_object_values
+from MiscLibs.common_functions import get_object_values
 
 class ExtrapQSensitivity(object):
     """Class to compute the sensitivity of the discharge to various extrapolation methods.

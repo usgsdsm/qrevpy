@@ -3,7 +3,7 @@ import time
 import os
 from Classes.Pd0TRDI import Pd0TRDI
 from Classes.DepthStructure import DepthStructure
-from MiscLibs.convenience import cosd, arctand, tand
+from MiscLibs.common_functions import cosd, arctand, tand
 from Classes.WaterData import WaterData
 from Classes.BoatStructure import BoatStructure
 from Classes.GPSData import GPSData
@@ -17,7 +17,7 @@ from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
 import matplotlib.dates as mdates
 from datetime import datetime
-from MiscLibs.convenience import nandiff, sontek_3d_arrange
+from MiscLibs.common_functions import nandiff, sontek_3d_arrange
 
 
 class TransectData(object):

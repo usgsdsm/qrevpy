@@ -5,7 +5,7 @@ Created on Sep 5, 2017
 """
 import numpy as np
 from numpy.matlib import repmat
-from MiscLibs.convenience import cosd, sind, cart2pol, pol2cart, iqr
+from MiscLibs.common_functions import cosd, sind, cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
 # TODO check if frequency is an array or single value for TRDI
 

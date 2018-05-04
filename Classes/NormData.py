@@ -1,5 +1,5 @@
 import numpy as np
-from MiscLibs.convenience import cart2pol, pol2cart
+from MiscLibs.common_functions import cart2pol, pol2cart
 
 
 class NormData(object):

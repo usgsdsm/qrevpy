@@ -18,7 +18,7 @@ Modified DSM 2/8/2018
 """
 import numpy as np
 from numpy.matlib import repmat
-from MiscLibs.convenience import cart2pol, pol2cart, iqr
+from MiscLibs.common_functions import cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
 from Classes.BoatData import BoatData
 from scipy import interpolate

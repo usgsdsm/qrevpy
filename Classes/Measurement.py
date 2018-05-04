@@ -3,7 +3,6 @@ import numpy as np
 import os
 import scipy.io as sio
 from Classes.TransectData import TransectData, allocate_transects
-from Classes.Pd0TRDI import Pd0TRDI
 from Classes.PreMeasurement import PreMeasurement
 from Classes.MovingBedTests import MovingBedTests
 from Classes.MultiThread import MultiThread
@@ -11,7 +10,6 @@ from Classes.QComp import QComp
 from Classes.MatSonTek import MatSonTek
 from Classes.CompassCal import CompassCal
 from Classes.SystemTest import SystemTest
-# from Classes.NormData import NormData
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 
@@ -50,6 +48,8 @@ class Measurement(object):
 
             elif source == 'SonTek':
                 self.load_sontek(in_file)
+
+        # For testing mmt, pd0, and Premeasurement stop here
 
             select = self.transects[0].boat_vel.selected
             if select == 'bt_vel':
@@ -260,20 +260,20 @@ class Measurement(object):
         #Compass calibration
         if 'Compass_Calibration' in mmt.qaqc:
             for n in range(len(mmt.qaqc['Compass_Calibration'])):
-                p_m = PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Calibration_TimeStamp'][n],
+                cc = PreMeasurement()
+                cc.populate_data(mmt.qaqc['Compass_Calibration_TimeStamp'][n],
                                   mmt.qaqc['Compass_Calibration'][n], 'TCC')
-                self.compass_cal.append(p_m)
+                self.compass_cal.append(cc)
         else:
             self.compass_cal.append(PreMeasurement())
             
         #Compass evaluation
         if 'Compass_Evaluation' in mmt.qaqc:
             for n in range(len(mmt.qaqc['Compass_Evaluation'])):
-                p_m =  PreMeasurement()
-                p_m.populate_data(mmt.qaqc['Compass_Evaluation_TimeStamp'][n],
+                ce = PreMeasurement()
+                ce.populate_data(mmt.qaqc['Compass_Evaluation_TimeStamp'][n],
                                   mmt.qaqc['Compass_Evaluation'][n], 'TCC')
-                self.compass_eval.append(p_m)
+                self.compass_eval.append(ce)
         else:
             self.compass_eval.append(PreMeasurement())
             
@@ -1099,3 +1099,6 @@ class Measurement(object):
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
+
+if __name__ == '__main__':
+    pass
