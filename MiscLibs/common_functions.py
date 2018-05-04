@@ -4,6 +4,7 @@ Created on Aug 1, 2017
 @author: gpetrochenkov
 """
 import numpy as np
+from scipy.interpolate import griddata
 
 def cosd(angle):
     
@@ -83,6 +84,7 @@ def nandiff(values):
         
     return np.array(final_values)
 
+<<<<<<< HEAD:MiscLibs/common_functions.py
 def get_object_values(list_in, item, checked=None):
     if checked is not None:
         working_list = np.array(list_in)[checked]
@@ -102,5 +104,18 @@ def sontek_3d_arrange(data_in):
     r4 = np.squeeze(data_in[:, 3, :])
     new_array = np.array([r1, r2, r3, r4])
     return new_array
+=======
+def scattered_interpolant(points, values):
+    
+    gridx, gridy = np.mgrid[np.min(points[0]):np.max(points[0]):, np.min(points[1]):np.max(points[1])]
+    
+    return griddata(points, values, (gridx, gridy), method='linear')
+    
+
+
+
+        
+
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20:MiscLibs/convenience.py
 
 

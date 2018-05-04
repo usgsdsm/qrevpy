@@ -153,7 +153,15 @@ class BoatStructure(object):
         if setting is None:
             setting = self.composite
         else:
+<<<<<<< HEAD
             # New Setting
+=======
+            #New Setting
+            if type(kargs) is str:
+                setting = kargs
+            else:
+                setting = kargs[0]
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             self.composite = setting
             
         # Composite depths turned on

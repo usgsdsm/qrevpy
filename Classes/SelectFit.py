@@ -2,6 +2,14 @@ import numpy as np
 import statsmodels.api as sm
 from Classes.FitData import FitData
 
+<<<<<<< HEAD
+=======
+@author: gpetrochenkov
+'''
+import numpy as np
+import statsmodels.api as sm
+from Classes.FitData import FitData
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
 
 class SelectFit(object):
     """Class automates the extrapolation method selection information.
@@ -59,6 +67,7 @@ class SelectFit(object):
     """
 
     def __init__(self):
+<<<<<<< HEAD
         """Intialize object and instance variables."""
 
         self.fit_method = None  # User selected method Automatic or Manual
@@ -199,6 +208,120 @@ class SelectFit(object):
 
             # A constant no slip fit condition is selected if:
             #
+=======
+        self.__fit_method = None #User selected method Automatic or Manual
+        self.__top_method = None
+        self.__bot_method = None
+        self.__exponent = None
+        self.__exp_method = None
+        self.__u = None
+        self.__u_auto = None
+        self.__z = None
+        self.__z_auto = None
+        self.__residuals = None
+        self.__coef = None
+        self.__bot_method_auto = None #Selected extrapolation for top
+        self.__top_method_auto = None #Selected extrapolation for bottom
+        self.__exponent_auto = None #Selected exponent
+        self.__top_fit_r2 = None #Top fit custom r^2
+        self.__top_max_diff = None #Maximum difference between power and 3-pt at top
+        self.__bot_diff = None #Difference between power and no slop at z = 0.1
+        self.__bot_r2 = None #Bottom fit r^2
+        self.__fit_r2 = None #Selected fit of selected power/no slip fit
+        self.__ns_exponent = None # No slip optimized exponent
+        self.__pp_exponent = None #Power Power optimized exponent
+        self.__top_r2 = None
+        self.__rsqr = None
+        self.__exponent_95_ci = None
+        
+    def populate_data(self, normalized, fit_method, kargs = None):
+        
+        valid_data = np.squeeze(normalized._NormData__valid_data)
+        
+        #Store data in properties to object
+        self.__fit_method = fit_method
+        
+        #Compute power fit with optimized exponent as reference to determine
+        #if constant no slip will be more appropriate
+        ppobj = FitData()
+        ppobj.populate_data(normalized, 'Power', 'Power', 'optimize')
+        
+        #Store results in obhect
+        self.__pp_exponent = ppobj._FitData__exponent
+        self.__residuals = ppobj._FitData__residuals
+        self.__rsqr = ppobj._FitData__r_squared
+        self.__exponent_95_ci = ppobj._FitData__exponent_95_ci
+        
+        #Begin automatic fit
+        
+        #More than 6 cells are required to compute an optimized fit.  For fewer
+        #than 7 cells the default power/power fit is selected due to lack of sufficient
+        #data for a good analysis
+        if len(self.__residuals) > 6:
+            #Compute the difference between the top two cells of data and the optimized power fit
+            top2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[-2:]] - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[-2:]]) ** ppobj._FitData__exponent
+                          
+            #Compute the difference between the bottom two cells of data and the optimized power fit
+            bot2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[:2]] \
+                          - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[:2]]) \
+                          ** ppobj._FitData__exponent
+                          
+            #Compute the difference between the middle two cells of data and the optimized power fit
+            mid1 = int(np.floor(len(np.isnan(valid_data) == False) / 2))
+            mid2 = np.nansum(normalized._NormData__unit_normalized_med[valid_data[mid1:mid1+2]] \
+                          - ppobj._FitData__coef * normalized._NormData__unit_normalized_z[valid_data[mid1:mid1+2]]) \
+                          ** ppobj._FitData__exponent
+                          
+            self.__top_method_auto = 'Power'
+            self.__bot_method_auto = 'Power'
+            
+            #Evaluate difference in data and power fit at water surface using a linear fit throught the top 4
+            #median cells and save results
+            x = normalized._NormData__unit_normalized_med[valid_data[:4]]
+#             x = sm.add_constant(x)
+            y = normalized._NormData__unit_normalized_z[valid_data[:4]]
+            lin_fit = sm.OLS(x,y)
+            result = lin_fit.fit()
+            dsmfitr2 = 1 - (np.sum(result.resid ** 2) / np.mean(np.abs(result.resid)))
+            self.__top_r2 = dsmfitr2
+            self.__top_r2 = result.rsquared
+            
+            #Evaluate overall fit
+            #If the optimized power fit does not have an r^2 better than 0.8 or if the optimized
+            #exponent if 0.1667 falls within the 95% confidence interval of the optimized fit,
+            #there is insufficient justification to change the exponent from 0.1667
+            if ppobj._FitData__rsqr < 0.8 or (0.1667 > self.__exponent_95_ci[0] and 0.1667 < self.__exponent_95_ci):
+                #If an optimized exponent cannot be justified the linear fit is used to determine if a constant
+                #fit at the top is a better alternative than a power fit.  If the power fit is the better
+                #alternative the exponent is set to the default 0.1667 and the data is refit
+                if np.abs(self.__top_fit_r2 < 0.8 or self.__top_r2 < 0.9):
+                    fd = FitData()
+                    ppobj = fd(normalized, 'Power', 'Power', 'Manual', 0.1667)
+                    
+            #Evaluate fit of top and bottom portions of the profile
+            #Set save selected exponent and associated fit statistics
+            self.__exponent_auto = ppobj._FitData__exponent
+            self.__fit_r2 = ppobj._FitData__r_squared
+            
+            #Compute the difference at the water surface between a linear fit of the top 4 measured cells
+            #and the best selected power fit of the whole profile
+            self.__top_max_diff = ppobj._FitData__u[-1] - np.sum(result.params)
+            
+            #Evaluate the difference at the bottom between power using the whole profile and power using
+            #only the bottom third
+            ns_fd = FitData()
+            ns_fd.populate_data(normalized, 'Constant', 'No Slip', 'Optimize')
+            self.__ns_exponent = ns_fd._FitData__exponent
+            self.__bot_r2 = ns_fd._FitData__r_squared
+            self.__bot_diff = ppobj._FitData__u[np.round(ppobj._FitData__z,2) == 0.1] \
+            - ns_fd._FitData__u[np.round(ns_fd._FitData__z, 2) == 0.1]
+            
+            #Begin automatic selection logic
+            #-----------------------------------
+            
+            # A constant no slip fit condition is selected if:
+            # 
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             # 1)The top of the power fit doesn't fit the data well.
             # This is determined to be the situation when
             # (a) the difference at the water surface between the
@@ -206,6 +329,7 @@ class SelectFit(object):
             # (b) the difference is either positive or the difference
             # of the top measured cell differs from the best
             # selected power fit by more than 5%.
+<<<<<<< HEAD
             top_condition = (np.abs(self.top_max_diff > 0.1) and ((self.top_max_diff > 0)
                              or np.abs(normalized.unit_normalized_med[valid_data[0]] - ppobj.u[-1]) > 0.05))
 
@@ -213,10 +337,16 @@ class SelectFit(object):
 
             # 2) The bottom of the power fit doesn't fit the data
             # well. This is determined to be the situation when (a)
+=======
+            # OR
+            # 2) The bottom of the power fit doesn't fit the data 
+            # well. This is determined to be the situation when (a)  
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             # the difference between and optimized no slip fit
             # and the selected best power fit of the whole profile
             # is greater than 10% and (b) the optimized on slip fit has
             # and r^2 greater than 0.6.
+<<<<<<< HEAD
             bottom_condition = ((np.abs(self.bot_diff) > 0.1) and self.bot_r2 > 0.6)
 
             # OR
@@ -228,6 +358,13 @@ class SelectFit(object):
                                        != np.sign(normalized.unit_normalized_med[valid_data[-1]]))
             # OR
 
+=======
+            # OR
+            # 3) Flow is bidirectional. The sign of the top of the
+            # profile is different from the sign of the bottom of
+            # the profile.
+            # OR
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             # 4) The profile is C-shaped. This is determined by
             # (a) the sign of the top and bottom difference from
             # the best selected power fit being different than the
@@ -235,6 +372,7 @@ class SelectFit(object):
             # power fit and (b) the combined difference of the top
             # and bottom difference from the best selected power
             # fit being greater than 10%.
+<<<<<<< HEAD
             c_shape_condition = (np.sign(bot2) * np.sign(top2) == np.sign(mid2) and np.abs(bot2 + top2) > 0.1)
 
             if top_condition or bottom_condition or bidirectional_condition or c_shape_condition:
@@ -313,3 +451,77 @@ class SelectFit(object):
         self.z = update_fd.z
         self.exp_method = update_fd.exp_method
         self.residuals = update_fd.residuals
+=======
+            
+            if (np.abs(self.__top_max_diff > 0.1) \
+                and (self.__top_max_diff > 0 or np.abs(normalized._NormData__unit_normalized_med[valid_data[0]] - ppobj._FitData__u[-1]) > 0.05) \
+                or (( np.abs(self.__bot_diff) > 0.1) and self.__bot_r2 > 0.6 ) \
+                or (np.sign(normalized._NormData__unit_normalized_med)[valid_data[0]] != np.sign(normalized._NormData__unit_normalized_med[valid_data[-1]]))) \
+                or np.sign(bot2) * np.sign(top2) == np.sign(mid2) and np.abs(bot2+top2) > 0.1:
+                
+                #Set the bottom to no slip
+                self.__bot_method_auto = 'No Slip'
+                #If the no slip fit with an optimized exponent does not have r^2 better than 0.8 use the default 0.1667 for the no slip exponent
+                if ns_fd._FitData__r_squared > 0.8:
+                    self.__exponent_auto = ns_fd._FitData__exponent
+                    self.__fit_r2 = ns_fd._FitData__rsquared
+                else:
+                    self.__exponent_auto = 0.1667
+                    self.__fit_r2 = np.nan
+                    
+                #Use the no slip 95% confidence intervals if they are available
+                if ns_fd._FitData__exponent_95_ci is not None and np.all(np.isnan(ns_fd._FitData__exponent_95_ci ) == False):
+                    self.__exponent_95_ci[0] = ns_fd._FitData__exponent_95_ci[0]
+                    self.__exponent_95_ci[1] = ns_fd._FitData__exponent_95_ci[1]
+                else:
+                    self.__exponent_95_ci[0] = np.nan
+                    self.__exponent_95_ci[1] = np.nan
+                    
+                #Set the top method to constant
+                self.__top_method_auto = 'Constant'
+                
+            else:
+                
+                #Leave the fit to power/power and set the best selected optimized exponent as the automatic fit exponent
+                self.__exponent_auto = ppobj._FitData__exponent
+                
+        else:
+            
+            #if the data are insufficient for a valid analysis use the power/power fit with the default 0.1667 exponent
+            self.__top_method_auto = 'Power'
+            self.__bot_method_auto = 'Power'
+            self.__exponent_auto = 0.1667
+            self.__ns_exponent = 0.1667
+            
+        #Update the fit uysing the automatically selected methods
+        update_fd = FitData()
+        update_fd.populate_data(normalized, self.__top_method_auto, self.__bot_method_auto, 'Manual', [self.__exponent_auto])
+        update_auto = update_fd
+        
+        if fit_method == 'Manual':
+            
+            if len(kargs) == 1:
+                trans_data = kargs[0]
+                update_fd = FitData()
+                update_fd.populate_data(normalized, trans_data.extrap._ExtrapData__top_method, trans_data.extrap._ExtrapData__bot_method, 'Manual', [trans_data.extrap._ExtrapData__exponent])
+            else:
+                update_fd = FitData()
+                update_fd.populate_data(normalized, kargs[1], kargs[2], 'Manual', kargs[3])
+                
+        #Store fit data in object
+        self.__top_method = update_fd._FitData__top_method
+        self.__bot_method = update_fd._FitData__bot_method
+        self.__exponent = update_fd._FitData__exponent
+        self.__coef = update_fd._FitData__coef
+        self.__u = update_fd._FitData__u
+        self.__u_auto = update_auto._FitData__u_auto
+        self.__z_auto = update_auto._FitData__z_auto
+        self.__z = update_fd._FitData__z
+        self.__exp_method = update_fd._FitData__exp_method
+        self.__residuals = update_fd._FitData__residuals
+                
+              
+            
+            
+        
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20

@@ -54,6 +54,7 @@ class TransectData(object):
     """
 
     def __init__(self):
+<<<<<<< HEAD
         self.adcp = None  # object of clsInstrument
         self.file_name = None  # filename of transect data file
         self.w_vel = None  # object of clsWaterData
@@ -93,6 +94,42 @@ class TransectData(object):
         #     config= 'mbt_active_config'
         mmt_config = getattr(mmt_transect, 'active_config')
 
+=======
+        self.adcp = None            # object of clsInstrument
+        self.file_name = None      # filename of transect data file
+        self.w_vel = None           # object of clsWaterData
+        self.boat_vel = None        # class for various boat velocity references
+                                    # (btVel, ggaVel, vtgVel)
+        self.gps = None             # object of clsGPSData
+        self.sensors = None         # object of clsSensors
+        self.depths = None      # object of clsDepthStructure for depth data including cell depths & ref depths
+                                    # (btDepths, vbDepths, dsDepths)
+        self.edges = None           # object of clsEdges
+                                    # (left and right object of clsEdgeData)
+        self.extrap = None          # object of clsExtrapData
+        self.start_edge = None      # starting edge of transect looking downstream (Left or Right)
+        self.datetime = None
+        self.checked = None         #transect was checked for use in mmt file assumed checked for SonTek
+        self.in_transect_idx = None # index of ensemble data associated with the moving-boat portion of the transect
+        self.active_config = None
+        self.transects = None
+        self.cells_above_sl = None
+        self.mbt = False
+
+    def get_data(self, source, in_file, pd0_data, mmt, mbt_idx):
+        
+        if source == 'TRDI':
+            self.TRDI(in_file, pd0_data, mmt, mbt_idx)
+            
+                                #files2load idx
+    def TRDI(self, mmt_transect, pd0_data, mmt, mbt_idx, kargs=None):
+       
+        self.mbt = mbt_idx
+        pd0 = pd0_data
+        
+        #get the configuration prooperty of the mmt_transect
+        mmt_config = getattr(mmt_transect, self.active_config)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         if pd0_data.Wt is not None:
             # Get and compute ensemble beam depths
             temp_depth = np.array(pd0_data.Bt.depth_m)
@@ -464,6 +501,7 @@ class TransectData(object):
             
             # Heading
             
+<<<<<<< HEAD
             # Internal Heading
             self.sensors.heading_deg.internal = HeadingData()
             self.sensors.heading_deg.internal.populate_data(data_in=pd0_data.Sensor.heading_deg.T,
@@ -473,6 +511,21 @@ class TransectData(object):
 
             # External Heading
             ext_heading_check = np.where(np.isnan(pd0_data.Gps2.heading_deg) == False)
+=======
+            #Internal Heading
+            heading = pd0.Sensor.heading_deg.T
+            heading_src = pd0.Cfg.head_src[0]
+            
+            #WR2 only has one set of magvar and heading offset
+            magvar = mmt_config['Offsets_Magnetic_Variation']
+            heading_offset = mmt_config['Ext_Heading_Offset']
+            
+            #Create internal heading sensor
+            self.sensors.add_sensor_data('heading_deg', 'internal', heading, heading_src, kargs=[magvar, heading_offset])
+            
+            #External Heading
+            ext_heading_check = np.where(np.isnan(pd0.Gps2.heading_deg) == False)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             if len(ext_heading_check[0]) <= 0:
                 self.sensors.heading_deg.selected = 'internal'
             else:
@@ -1425,6 +1478,7 @@ class TransectData(object):
         
         self.process_depths(False)
             
+<<<<<<< HEAD
     def process_depths(self, update=False, filter_method=None, interpolation_method=None, composite_setting=None,
                        avg_method=None, valid_method=None):
         """Method applies filter, composite, and interpolation settings to  depth objects
@@ -1471,6 +1525,51 @@ class TransectData(object):
         self.w_vel.adjust_side_lobe(transect=self)
         
         if update:
+=======
+            
+    def process_depths(self, update, kargs=None):
+        '''Method applies filter, composite, and interpolation settings to  depth objects
+        so that all are update using the same filter and interpolation settings
+        
+        Input:
+        kargs[0] process to be applied (Filter, Composite, Interpolate)
+        kargs[1]: setting for process
+        '''
+        
+        #Get current settings
+        filter = getattr(self.depths, self.depths.selected)
+        filter_setting = filter.filter_type
+        interp_setting = filter.interp_type
+        composite_setting = self.depths.composite
+        bt_avg_setting = self.depths.bt_depths.avg_method
+        valid_method_setting = self.depths.bt_depths.valid_data_method
+        
+        #if the process and setting are provided apply those settings
+        #if not simply reprocess the data using the data stored in the objects
+        if kargs is not None:
+            narg = len(kargs)
+            for n in np.arange(0,narg,2):
+                
+                if kargs[n] == 'Filter':
+                    filter_setting = kargs[n+1]
+                elif kargs[n] == 'Composite':
+                    composite_setting = kargs[n+1]
+                elif kargs[n] == 'Interpolate':
+                    interpolate_setting = kargs[n+1]
+                elif kargs[n] == 'AvgMethod':
+                    bt_avg_setting = kargs[n+1]
+                elif kargs[n] == 'ValidMethod':
+                    valid_method_setting = kargs[n+1]
+                    
+        self.depths.set_valid_data_method(valid_method_setting)
+        self.depths.bt_depths.set_avg_method(bt_avg_setting)
+        self.depths.depth_filter(self, filter_setting)
+        self.depths.depth_interpolation(self, interpolate_setting)
+        self.depths.composite_depths(self, composite_setting)
+        self.w_vel.adjust_side_lobe(self)
+        
+        if update == True:
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             self.update_water()
 
     def change_draft(self, input):
@@ -1490,6 +1589,7 @@ class TransectData(object):
         pd0_salinity_src = self.sensorsdata.salinity_ppt.user.source
         
         #Create slainity sensor
+<<<<<<< HEAD
         self.sensorsdata.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
         self.sensorsdata.set_selected('salinity_ppt', 'internal')
 
@@ -1675,6 +1775,96 @@ class TransectData(object):
             self.sensorsdata.speed_of_sound_mps.user.change_data(new_sos)
             self.sensorsdata.speed_of_sound_mps.user.set_source('Internal (ADCP)')
             self.sensorsdata.set_selected('speed_of_sound_mps', 'user')
+=======
+        self.sensors.add_sensor_data('salinity_ppt','internal',pd0_salinity,pd0_salinity_src)
+        self.sensors.set_selected('salinity_ppt', 'internal')
+        
+    
+    def sos_user(self, kargs = None):
+        '''Compute new speed of sound from temperature and salinity
+        
+        Output:
+        new_sos: newly computed speed of sound
+        old_sos: previously used speed of sound
+        '''
+        
+        #Assign selected temperature data to local variable
+        temp = getattr(self.sensors.temperature_deg_c, self.sensors.temperature_deg_c.selected)
+        temperature = temp.data
+        #Assign selected salinity to local variable
+        sal = getattr(self.sensors.salinity_ppt, self.sensors.salinity_ppt.selected)
+        salinity = sal.data
+        old = getattr(self.sensors.speed_of_sound_mps, self.sensors.speed_of_sound_mps.selected)
+        old_sos = old.data
+        
+        if self.sensors.temperature_deg_c.selected == 'internal':
+            new_sos = self.sensors.speed_of_sound_mps.user.data_orig
+            self.sensors.speed_of_sound_mps.user.change_data(new_sos)
+            self.sensors.speed_of_sound_mps.user.set_source('Internal (ADCP)')
+            self.sensors.set_selected('speed_of_sound_mps', 'user')
+        else:
+            #Compute new speed of sound
+            new_sos = Sensors().speed_of_sound(temperature, salinity)
+            
+            #Save new speed of sound to user sensor object with a source as computed
+            if self.sensors.speed_of_sound_mps.user is not None:
+                self.sensors.set_selected('speed_of_sound_mps', 'user')
+                self.sensors.speed_of_sound_mps.user.change_data(new_sos)
+                self.sensors.speed_of_sound_mps.user.set_source('Computed')
+            else:
+                self.sensors.add_sensor_data('speed_of_sound_mps', 'user'. new_sos, 'Computed')
+                self.sensors.set_selected('speed_of_sound_mps', 'user')
+                
+        return (old_sos, new_sos)
+    
+
+def valid_cells_ensembles(transect):
+    '''Assign index of moving-boat portion of transect to local variable'''
+    in_transect_idx = transect.in_transect_idx
+    
+    #Determine valid WT ensembles base on WT and navigation data for WT to be valid
+    #both WT and navigation data must be present
+    
+    boat_select = getattr(transect.boat_vel, transect.boat_vel.selected)
+    if boat_select is not None:
+        valid_nav = boat_select._BoatData__valid_data[0, in_transect_idx]
+    else:
+        valid_nav = np.zeros(boat_select._BoatData.bt_vel.valid_data[0, in_transect_idx].shape[0])
+    
+    valid_wt = transect.w_vel.valid_data[0, :, in_transect_idx]
+    valid_wt_ens = np.any(valid_wt)
+    
+    depth_select = getattr(transect.depths, transect.depths.selected)
+    #Determine valid depths
+    if transect.depths.composite == 'On':
+        idx_na = depth_select.depth_source_ens[in_transect_idx] == 'NA'
+        valid_depth = depth_select.depth_source_ens[in_transect_idx] != 'IN'
+        valid_depth[idx_na] = 0
+    else:
+        valid_depth = depth_select.valid_data[in_transect_idx]
+        idx = np.isnan(depth_select.depth_processed_m)[in_transect_idx]
+        valid_depth[idx] = 0
+        
+    #Determine valid ensembles based on all data
+    valid_ens = np.all(np.hstack([valid_nav, valid_wt_ens, valid_depth]))
+    
+    return valid_ens, valid_wt
+    
+def allocate_transects(source, mmt, kargs): 
+    
+    #DEBUG, set threaded to false to get manual serial commands
+    multi_threaded = False
+    
+    #Refactored from TransectData to iteratively create TransectData objects
+        #----------------------------------------------------------------
+    if kargs[0] == 'Q':
+        transects = 'transects'
+        active_config = 'active_config' 
+        
+        if kargs[1] == True:
+            files_to_load = np.array([x.Checked for x in mmt.transects], dtype=bool)
+            file_names = [x.Files for x in mmt.transects]
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         else:
             #Compute new speed of sound
             new_sos = Sensors().speed_of_sound(temperature, salinity)
@@ -1852,12 +2042,17 @@ def allocate_transects(mmt, type='Q', checked=False):
                 transect_threads.append(t_thread)
 
             else:
+<<<<<<< HEAD
                 transect = TransectData()
                 add_transect(transect=transect,
                              mmt_transect=mmt.mbt_transects[k],
                              pd0_data=pd0_data[k],
                              mmt=mmt,
                              type=type)
+=======
+                add_transect(transect, 'TRDI', mmt.mbt_transects[k], pd0_data[k], mmt, mbt_idx)
+                mbt_idx += 1
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             
         else:
             # Process discharge transects
@@ -1872,11 +2067,15 @@ def allocate_transects(mmt, type='Q', checked=False):
                 transect_threads.append(t_thread)
 
             else:
+<<<<<<< HEAD
                 add_transect(transect=transect,
                              mmt_transect=mmt.transects[k],
                              pd0_data=pd0_data[k],
                              mmt=mmt,
                              type=type)
+=======
+                add_transect(transect, 'TRDI', mmt.transects[k], pd0_data[k], mmt, False)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
     
     if multi_threaded:
         for x in transect_threads:

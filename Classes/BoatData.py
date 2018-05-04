@@ -7,8 +7,12 @@ import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.common_functions import cosd, sind, cart2pol, pol2cart, iqr
 from MiscLibs.lowess import lowess
+<<<<<<< HEAD
 # TODO check if frequency is an array or single value for TRDI
 
+=======
+from copy import copy
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
 
 class BoatData(object):
     """Class to process and store boat velocity data.
@@ -746,6 +750,7 @@ class BoatData(object):
 
         # Check for valid data
         if np.sum(valid) > 1:
+<<<<<<< HEAD
 
             # Compute ensTime
             ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
@@ -819,6 +824,63 @@ class BoatData(object):
             if other is not None:
                 self.filter_smooth(setting=other, transect=transect)
 
+=======
+            
+            #Compute ensTime
+            ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
+            
+            
+    def apply_filter(self, transect, kargs):
+        '''Function to apply filters to navigation data
+        
+        Input:
+        transect: object of TransectData
+        kargs: specified filter method(s) and associated thresholds
+        if different from that saved in object.  More than one filter
+        can be applied during a single call
+        '''
+        
+        if kargs is not None:
+            nargs = len(kargs)
+            n=0
+            while n < nargs:
+                
+                #Filter based on number of valid beams
+                if kargs[n] == 'Beam':
+                    n += 1
+                    beam_filter_setting = kargs[n]
+                    self.__filter_beam(beam_filter_setting)
+                
+                #Filter based on difference velocity
+                elif kargs[n] == 'Difference':
+                    n += 1 
+                    d_filter_setting = kargs[n]
+                    if d_filter_setting == 'Manual':
+                        n+=1
+                        self.__filter_diff_vel(d_filter_setting, [kargs[n]])
+                    else:
+                        self.__filter_diff_vel(d_filter_setting)
+                        
+                #Filter based on vertical velocity
+                elif kargs[n] == 'Vertical':
+                    n+=1
+                    w_filter_setting = kargs[n]
+                    if w_filter_setting == 'Manual':
+                        n+=1
+                        setting = kargs[n]
+                        if setting is not None:
+                            setting = self.__w_filter_threshold
+                        self.__filter_vert_vel(w_filter_setting, [setting])
+                    else:
+                        self.__filter_vert_vel(w_filter_setting)
+                        
+                #Filter based on lowess smooth
+                elif kargs[n] == 'Other':
+                    n += 1
+                    self.__filter_smooth(transect, [kargs[n]])
+                    
+                n += 1
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         else:
             self.filter_beam(setting=self.beam_filter)
             self.filter_diff_vel(setting=self.d_filter, threshold=self.d_filter_threshold)
@@ -864,6 +926,7 @@ class BoatData(object):
             # Determine how many beams transformed coordinates are valid
             valid_vel_sum = np.sum(valid_vel, 0)
             valid = np.ones(valid_vel_sum.shape)
+<<<<<<< HEAD
 
             # Compare number of valid beams or coordinates to filter value
             valid[valid_vel_sum < self.beam_filter] = False
@@ -882,6 +945,26 @@ class BoatData(object):
             temp3.filter_beam[3]
             valid_3_beams = temp3.valid_data[5, :] - temp.valid_data[5, :]
             n_ens = len(temp.valid_data[5, :])
+=======
+            
+            #Compare number of valid beams or coordinates to filter value
+            valid[valid_vel_sum < self.__beam_filter] = False
+            
+            #Save logical of valid data to object
+            self.__valid_data[5,:] = valid
+            
+        else:
+            
+            #Apply automatic filter
+            #----------------------
+            #Find all 3 beam solutions
+            temp = copy(self)
+            temp.__filter_beam(4)
+            temp3 = copy(temp)
+            temp3.__filter_beam(3)
+            valid_3_beams = temp3.__valid_data[5,:] - temp.__valid_data[5,:]
+            n_ens = len(temp.__valid_data[5,:])
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             idx = np.where(valid_3_beams == True)[0]
 
             # If 3 beam solutions exist evaluate there validity
@@ -938,6 +1021,7 @@ class BoatData(object):
         This filter is based on the assumption that the water error velocity
         should follow a gaussian distribution. Therefore, 5 iqr
         should encompass all of the valid data. The standard deviation and
+<<<<<<< HEAD
         limits (multiplier*standard deviation) are computed in an iterative
         process until filtering out additional data does not change the computed
         standard deviation.
@@ -955,6 +1039,25 @@ class BoatData(object):
             self.d_filter_threshold = threshold
 
         # Set filter characteristics
+=======
+        limits (multiplier*standard deviation) are computed in an iterative 
+        process until filtering out additional data does not change the computed 
+        standard deviation. 
+        
+        Input:
+        setting: difference velocity setting (Off, Manual, Auto)
+        kargs: if manual, the user specified threshold
+        '''
+        if type(setting) is str:
+            self.__d_filter = setting
+        else:
+            self.__d_filter = setting[0]
+        
+        if kargs is not None:
+            self.__d_filter_threshold = kargs[0]
+            
+        #Set multiplier
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         multiplier = 5
         minimum_window = 0.01
 
@@ -991,6 +1094,7 @@ class BoatData(object):
                 # Compute maximum and minimum thresholds
                 d_vel_max_ref = np.nanmedian(d_vel_filtered) + threshold_window
                 d_vel_min_ref = np.nanmedian(d_vel_filtered) - threshold_window
+<<<<<<< HEAD
 
                 # Identify valid and invalid data
                 d_vel_less_idx = np.where(d_vel_filtered <= d_vel_max_ref)[0]
@@ -1036,6 +1140,51 @@ class BoatData(object):
             self.w_filter_threshold = threshold
 
         # Set filter characteristics
+=======
+                
+                #Identify valid and invalid data
+                d_vel_bad_idx = np.where((d_vel_filtered > d_vel_max_ref) 
+                                         | (d_vel_filtered < d_vel_min_ref))
+                d_vel_good_idx = np.where((d_vel_filtered <= d_vel_max_ref)
+                                          & (d_vel_filtered >= d_vel_min_ref))
+                
+                #Update filtered data array
+                d_vel_filtered = d_vel_filtered[d_vel_good_idx]
+                #Determine differences due to last filter iteration
+                d_vel_std2 = iqr(d_vel_filtered)
+                std_diff[k] = d_vel_std2 - d_vel_std
+        
+        #Set valid data row 3 for difference velocity filter results
+        self.__valid_data[2,:] = False
+        self.__valid_data[2, (d_vel <= d_vel_max_ref) & (d_vel >= d_vel_min_ref)] = True
+        self.__valid_data[2, self.__valid_data[1,:] == False] = True
+        self.__valid_data[2, np.isnan(self.__d_mps)] = True
+        self.__d_filter_threshold = d_vel_max_ref
+        
+        #Combine all filter data to composite filter data
+        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
+        self.__num_invalid = np.sum(self.__valid_data[0,:] == False, 0)
+    
+    def __filter_vert_vel(self, setting, kargs=None):
+        '''Applies either manual or automatic filtering of the vertical
+        velocity.  Uses same assumptions as difference filter.
+        
+        Input:
+        setting: filter setting (Off, Manual, Auto)
+        kargs: if setting is manual, the user specified threshold
+        '''
+        
+        #Set vertical velocity filter properties
+        if type(setting) is str:
+            self.__w_filter = setting
+        else:
+            self.__w_filter = setting[0]
+            
+        if kargs is not None:
+            self.__w_filter_threshold = kargs[0]
+            
+        #Set multiplier
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         multiplier = 5
 
         # Get vertical velocity data from object
@@ -1067,6 +1216,7 @@ class BoatData(object):
                 # Compute maximum and minimum thresholds
                 w_vel_max_ref = np.nanmedian(w_vel_filtered) + multiplier * w_vel_std
                 w_vel_min_ref = np.nanmedian(w_vel_filtered) - multiplier * w_vel_std
+<<<<<<< HEAD
 
                 # Identify valid and invalid data
                 w_vel_less_idx = np.where(w_vel_filtered <= w_vel_max_ref)[0]
@@ -1078,6 +1228,19 @@ class BoatData(object):
 
                 # Determine differences due to last filter iteration
                 w_vel_std2 = iqr(w_vel_filtered)
+=======
+                
+                #Identify valid and invalid data
+                w_vel_bad_idx = np.where((w_vel_filtered > w_vel_max_ref)
+                                         | (w_vel_filtered < w_vel_min_ref))
+                w_vel_good_idx = np.where((w_vel_filtered <= w_vel_max_ref)
+                                          & (w_vel_filtered >= w_vel_min_ref))
+                
+                w_vel_filtered = w_vel_filtered[w_vel_good_idx]
+                
+                #Determine differences due to last filter iteration
+                w_vel_std2 = np.nanstd(w_vel_filtered)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
                 std_diff = w_vel_std2 - w_vel_std
 
         # Set valid data row 4 for difference velocity filter results
@@ -1115,6 +1278,7 @@ class BoatData(object):
 
         David S. Mueller, USGS, OSW
         9/8/2005
+<<<<<<< HEAD
 
         Parameters
         ----------
@@ -1138,6 +1302,28 @@ class BoatData(object):
             b_veln = np.copy(self.v_mps)
 
             # Set filter parameters
+=======
+        
+        Input:
+        transect: object of clsTransectData
+        setting: filter setting (On, Off)
+        '''
+        
+        #Set property
+        self.__smooth_filter = setting
+        
+        #Compute ens_time
+        ens_time = np.nancumsum(transect.datetime.ens_duration_sec)
+        
+        #Determine if smooth filter should be applied
+        if self.__smooth_filter == 'On':
+            
+            #Boat velocity components
+            b_vele = np.copy(self.__u_mps)
+            b_veln = np.copy(self.__v_mps)
+            
+            #Set filter parameters
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             filter_width = 10
             half_width = 10
             multiplier = 9
@@ -1233,6 +1419,7 @@ class BoatData(object):
             if other is not None:
                 self.filter_smooth(transect=transect, setting=other)
         else:
+<<<<<<< HEAD
             self.filter_diff_qual(gps_data=transect.gps)
             self.filter_altitude(gps_data=transect.gps)
             self.filter_hdop(gps_data=transect.gps)
@@ -1286,6 +1473,59 @@ class BoatData(object):
 
         Assuming the data are collected on the river the altitude should not
         change substantially during the transect. Since vertical resolution is
+=======
+            
+            #Not filter applied all data assumed valid
+            self.__valid_data[4,:] = True
+            self.__smooth_upper_limit = np.nan
+            self.__smooth_lower_limit = np.nan
+            self.__smooth_speed = np.nan
+            
+        #Combine all filter data to composite valid data
+        self.__valid_data[0,:] = np.all(self.__valid_data[1:,])
+        self.__num_invalid = np.sum(self.__valid_data[0,:] == False, 0)
+        
+    def __filter_diff_qual(self, gps_data, kargs = None):
+        '''Filters GPS data based on the minimum acceptable differential correction quality
+        
+        Input:
+        gps_data: object of GPSData
+        kargs: new setting for filter.
+        '''
+        
+        #New filter setting if provided
+        if kargs is not None:
+            self.__gps_diff_qual_filter = kargs[0]
+            
+        #Reset valid_data property
+        self.__valid_data[2,:] = True
+        self.__valid_data[5,:] = True
+        
+        #Determine and apply appropriate filter type
+        self.__valid_data[2, np.isnan(gps_data.diff_qual_ens)] = False
+        if self.__gps_diff_qual_filter is not None:
+            
+            if self.__gps_diff_qual_filter == 1: #autonomous
+                self.__valid_data[2, gps_data.diff_qual_ens < 1] = False
+            elif self.__gps_diff_qual_filter == 2: #differential correction
+                self.__valid_data[2, gps_data.diff_qual_ens < 2] = False
+            elif self.__gps_diff_qual_filter == 4: #RTK
+                self.__valid_data[2, gps_data.diff_qual_ens < 4] = False
+                
+            #If there is no indication of the quality assume 1 fot vtg
+            if self.__nav_ref == 'VTG':
+                self.__valid_data[2, np.isnan(gps_data.diff_qual_ens)] = True
+                
+        #Combine all filter data to composite valid data
+        self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
+        self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
+        
+        
+    def __filter_altitude(self, gps_data, kargs):
+        '''Filter GPS data based on a change in altitude. Assuming the data
+        are collected on the river the altitude should not change
+        substantially during the transect. Since vertical resolution is
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         about 3 x worse that horizontal resolution the automatic filter
         threshold is set to 3 m, which should ensure submeter horizontal
         accuracy.
@@ -1397,6 +1637,7 @@ class BoatData(object):
                     num_valid = np.sum(self.valid_data[5, :])
                     change = num_valid_old - num_valid
                     num_valid_old = num_valid
+<<<<<<< HEAD
 
         # Combine all filter data to composite data
         self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
@@ -1501,3 +1742,140 @@ class BoatData(object):
             filter_array.append(np.nanstd(sample[1:sample.shape[0] - 1]))
 
         return np.array(filter_array)
+=======
+                    
+            #combine all filter data to composite data
+            self.__valid_data[0,:] = np.all(self.__valid_data[1:,:])
+            self.__num_invalid = np.sum(self.__valid_data[0,:] == False)
+    
+    def apply_gps_filter(self, transect, kargs = None):
+        '''Applies filters to GPS referenced boat velocity
+        
+        INPUT:
+        transect: object of TransectData
+        kargs: specified filter method(s) and associated thresholds
+        if different from that saved in object.  More than on filter can be applied during a single call
+        '''
+        
+        #Determine filter methods to apply
+        if kargs is not None:
+            n_args = len(kargs)
+            n = 0
+            while n < n_args:
+                
+                #Filter based on minimum differential correction setting
+                if kargs[n] == 'Differential':
+                    n += 1
+                    #Use setting for GGA and 1 for VTG
+                    if self.__nav_ref == 'GGA':
+                        setting = kargs[n]
+                        self.__filter_diff_qual(transect.gps, [setting])
+                    else:
+                        self.__filter_diff_qual(transect.gps, [setting])
+                        
+                elif kargs[n] == 'Alititude':
+                    n += 1
+                    setting = kargs[n]
+                    if setting == 'Manual':
+                        n += 1
+                        
+                        #This filter only applies to GGA data
+                        if self.__nav_ref == 'GGA':
+                            self.__filter_altitude(transect.gps, [kargs[n]])
+                    else:
+                        #This filter only applies to GGA data
+                        if self.__nav_ref == 'GGA':
+                            self.__filter_altitude(transect.gps, [setting])
+                            
+                elif kargs[n] == 'HDOP':
+                    n += 1
+                    setting = kargs[n]
+                    if setting == 'Manual':
+                        n += 1
+                        max = kargs[n]
+                        n += 1
+                        change = kargs[n]
+                        self.__filter_HDOP(transect.gps, kargs = [setting, max, change])
+                    else:
+                        self.__filter_HDOP(transect.gps, [setting])
+                        
+                elif kargs[n] == 'Other':
+                    n += 1
+                    self.__filter_smooth(transect, [setting])
+        else:
+            
+            #If not new filter is specified apply all previously specified filters
+            self.__filter_diff_qual(transect.gps)
+            self.__filter_altitude(transect.gps)
+            self.__filter_HDOP(transect.gps)
+            self.__filter_smooth(transect, self.__smooth_filter)
+            
+            
+        self.apply_interpolation(transect)
+                
+def run_std_trim(half_width, my_data):
+    ''' The routine accepts a column vector as input. "halfWidth" number of data
+          points for computing the standard deviation are selected before and
+          after the target data point, but not including the target data point.
+          Near the ends of the series the number of points before or after are
+          reduced. nan in the data are counted as points. The selected subset of
+          points are sorted and the points with the highest and lowest values are
+          removed from the subset and the standard deviation computed on the
+          remaining points in the subset. The process occurs for each point in the
+          provided column vector. A column vector with the computed standard
+          deviation at each point is returned.
+          
+        Input:
+        half_width: number of ensembles on each side of target ensemble to used
+            for compuring trimmed standard deviation
+        my_data: data to be processed
+        
+        Output:
+        fill_array: column vector with computed standard
+    '''
+    #Determine number of points to process
+    n_pts = my_data.shape[0]
+    if n_pts < 20:
+        half_width = np.floor(n_pts/2)
+        
+    fill_array = []
+    #Compute standard deviation for each point
+    for i in range(n_pts):
+        
+        #Sample selection for 1st point
+        if i == 0:
+            sample = my_data[1:1+half_width]
+            
+        #Sample selection at end of data set
+        elif i+half_width > n_pts:
+            sample = np.hstack([my_data[i-half_width:i-1]], my_data[i+1:n_pts])
+            
+        #Sample selection at beginning of data set
+        elif half_width >= i:
+            sample = np.hstack([my_data[:i-1], my_data[i+1:i+half_width]])
+            
+        #Samples selection in body of data set
+        else:
+            sample = np.hstack([my_data[i-half_width:i-1], my_data[i+1:i+half_width]])
+            
+        #Sort and ompute trummed standard deviation
+        sample = np.sort(sample)
+        fill_array.append(np.nanstd(sample[1:sample.shape[0] - 1]))
+        
+    return np.array(fill_array)
+            
+            
+          
+            
+            
+    
+        
+            
+        
+            
+        
+            
+        
+                
+        
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20

@@ -191,6 +191,7 @@ class DepthData(object):
             self.depth_processed_m = DepthData.average_depth(depth, self.draft_use_m, self.avg_method)
             
             #Set depths to nan if depth are not valid beam depths
+<<<<<<< HEAD
             self.depth_processed_m[self.valid_data == False] = np.nan
 
     def apply_filter(self, transect, filter_type=[]):
@@ -213,6 +214,27 @@ class DepthData(object):
         # Compute selected filter
         if self.filter_type == 'None':
             # No filter
+=======
+            self.depth_processed_m[self.valid_data == 0] = np.nan
+            
+    
+                
+    def apply_filter(self, transect, kargs=None):
+        '''Coordinate the application of depth filters
+        
+        transect: object of TransectData
+        kargs filter type (None, Smooth, TRDI1, TRDI2)
+        '''
+        if kargs is not None:
+            if type(kargs) is str:
+                setting = kargs
+            else:
+                setting = kargs[0]
+        else:
+            setting = self.filter_type
+            
+        if setting == 'None':
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             self.filter_none()
         elif self.filter_type == 'Smooth':
             # Lowess smooth filter
@@ -232,6 +254,7 @@ class DepthData(object):
             self.depth_processed_m = np.array(self.depth_beams_m)
             self.depth_processed_m[np.squeeze(self.valid_data) == 0] = np.nan
             
+<<<<<<< HEAD
     def apply_interpolation(self, transect, method=None):
         """Coordinates application of interpolations
 
@@ -261,6 +284,35 @@ class DepthData(object):
         # Linear interpolation
         else:
             self.interpolate_linear(transect=transect)
+=======
+    def apply_interpolation(self, transect, kargs=None):
+        '''Coordinates application of interpolations
+        
+        transect: object of TransectData
+        kargs: interpolation setting
+        '''
+        
+        #Determine filters to apply
+        if kargs is not None:
+            setting = kargs[0]
+        else:
+            setting = self.interp_type
+            
+        #Apply selected interpolation
+        
+        #No filtering
+        if setting == 'None':
+            self.__interpolate_none()
+        #Hold last valid depth indefinitely
+        elif setting == 'HoldLast':
+            self.__interpolate_hold_last()
+        #Use values form a Loess smooth
+        elif setting == 'Smooth':
+            self.__interpolate_smooth()
+        #Linear interpolation
+        else:
+            self.__interpolate_linear(transect)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
             
         # Identify ensembles with interpolated depths
         idx = np.where(self.valid_data[:] == False)
@@ -544,6 +596,7 @@ class DepthData(object):
     def interpolate_linear(self, transect):
         """Apply linear interpolation"""
         
+<<<<<<< HEAD
         # Set interpolation type
         self.interp_type = 'Linear'
 
@@ -559,6 +612,22 @@ class DepthData(object):
             size_v = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
             track_x = repmat([np.nan], size_u[0], size_u[1])
             track_y = repmat([np.nan], size_v[0], size_v[1])
+=======
+        #Set interpolation type
+        self.interp_type='Linear'
+        
+        select = getattr(transect.boat_vel, transect.boat_vel.selected)
+        #Create position array
+        if select is not None:
+            boat_vel_x = select._BoatData__u_processed_mps
+            boat_vel_y = select._BoatData__v_processed_mps         
+            track_x = boat_vel_x * transect.datetime.ens_duration_sec
+            track_y = boat_vel_y * transect.datetime.ens_duration_sec
+        else:
+           
+            track_x = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__u_processed_mps.shape)
+            track_y = np.tile([np.nan], transect.boat_vel.bt_vel._BoatData__v_processed_mps.shape)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
               
         idx = np.where(np.isnan(track_x[1:]))
         

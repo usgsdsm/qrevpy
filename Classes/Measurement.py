@@ -11,7 +11,11 @@ from Classes.MatSonTek import MatSonTek
 from Classes.CompassCal import CompassCal
 from Classes.SystemTest import SystemTest
 from Classes.ComputeExtrap import ComputeExtrap
+<<<<<<< HEAD
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
+=======
+from Classes.QAData import QAData
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
 
 class Measurement(object):
     """Class to hold measurement details for use in the GUI
@@ -39,12 +43,61 @@ class Measurement(object):
         self.userRating = None
         self.comments = []
         self.ext_temp_chk = {}
+<<<<<<< HEAD
 
         if source == 'QRev':
             self.load_qrev_mat(fullname=in_file)
         else:
             if source == 'TRDI':
                 self.load_trdi(in_file, checked=checked)
+=======
+        if source == 'TRDI':
+            self.load_trdi(in_file, **{'type': 'Q', 'checked': False})
+            
+            if kargs is not None and len(kargs) > 2:
+                proc_type = kargs[2]
+            else:
+                proc_type= 'QRev'
+                
+        select = self.transects[0].boat_vel.selected
+        if select == 'bt_vel':
+            ref = 'BT'
+        elif select == 'gga_vel':
+            ref = 'GGA'
+        elif select == 'vtg_vel':
+            ref = 'VTG'
+            
+        if self.mb_tests is not None:
+            for x in self.mb_tests:
+                x.auto_use_2_correct()
+                
+        #update status "Save initial settings"
+        self.intitial_settings = self.current_settings()
+        
+        #Set processing
+        if proc_type == 'QRev':
+            #UpdateStatus "Apply Qrev default settings"
+            settings = self.QRevDefaultSettings()
+            settings['Processing'] = 'Qrev'
+            
+            for x in self.transects:
+                self.apply_settings(x, settings)
+                
+            self.apply_settings2(self.transects, settings)
+        
+        elif proc_type == 'None':
+            #UpdateStatus "Proicessing with no filters and interpolation
+            settings = self.NoFilterInterpSettings()
+            settings['Processing'] = 'None'
+            
+            for x in self.transects:
+                self.apply_settings(x, settings)
+                
+        else:
+            self.discharge.append(QComp())
+        
+        
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
 
             elif source == 'SonTek':
                 self.load_sontek(in_file)
@@ -684,8 +737,51 @@ class Measurement(object):
         #Check to see if transect number specified
         self.apply_settings(transect, s)
         
+<<<<<<< HEAD
     def apply_settings(self, settings, transect=None):
         """Applies reference, filter, and interpolation settings.
+=======
+    def apply_settings(self, transect, s, kargs = None):
+        '''Applies reference, filter, and interpolation settings
+        
+        Input:
+        s: data structure of reference, filter, and interpolation settings
+        kargs: transect number to apply settings to only 1 transect
+        '''
+        
+        #Moving-boat ensembles
+        if 'processing' in s.keys():
+            transect.change_q_ensembles(s['Processing'])
+            self.processing = s['Processing']
+        
+        #Navigation reference
+        if transect.boat_vel.selected != s['NavRef']:
+            transect.change_nav_reference(0, s['NavRef'])
+            if transect.mbt != False:
+                self.mb_tests[transect.mbt_idx].auto_use_2_correct(s['NavRef'])
+                
+        #Composite tracks
+        #Changing the nav reference applies the current setting for
+        #composite tracks, check to see if a change is needed
+        if transect.boat_vel.composite == s['CompTracks']:
+            transect.composite_tracks(0, s['CompTracks'])
+            
+        #Set difference velocity BT filter
+        if s['BTdFilter'] == 'Manual':
+            BTdFilter = [s['BTdFilter'], s['BTdFilterThreshold']]
+        else:
+            BTdFilter = [s['BTdFilter']]
+            
+        #Set vertical velocity BTfilter
+        if s['BTwFilter'] == 'Manual':
+            BTwFilter = [s['BTwFilter'], s['BTwFilterThreshold']]
+        else:
+            BTwFilter = [s['BTwFilter']]
+            
+        #Apply BT settings
+        bt_settings = ['Beam',s['BTbeamFilter'],'Difference',BTdFilter[:],'Vertical',BTwFilter[:],'Other',s['BTsmoothFilter']];
+        transect.boat_filters(0,bt_settings)
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         
         Parameters
         ----------
@@ -857,6 +953,7 @@ class Measurement(object):
         # NOTE: Extrapolations should be determined prior to WT
         # interpolations because the TRDI approach for power/power
         # using the power curve and exponent to estimate invalid cells.
+<<<<<<< HEAD
         if self.extrap_fit is None or self.extrap_fit.fit_method == 'Automatic':
             # self.extrapfit = ComputeExtrap()
             self.extrapfit.populate_data(trans_data, 0)
@@ -871,14 +968,32 @@ class Measurement(object):
                 s['extrapTop'] = self.extrap_fit.sel_fit.top_method
                 s['extrapBot'] = self.extrap_fit.sel_fit.bot_method
                 s['extrapExp'] = self.extrap_fit.sel_fit.exponent
-                
-            self.set_extrapolation(trans_data, s['extrapTop'], s['extrapBot'], s['extrapExp'])
+=======
+        if self.extrap_fit is None or self.extrap_fit.__fit_method == 'Automatic':
+            self.extrap_fit = ComputeExtrap()
+            self.extrap_fit.populate_data(trans_data, 0)
+            top = self.extrap_fit.sel_fit[0]._SelectFit__top_method
+            bot = self.extrap_fit.sel_fit[0]._SelectFit__bot_method
+            exp = self.extrap_fit.sel_fit[0]._SelectFit__exponent
+            
+            for n in trans_data:
+                n.set_extrapolation(top, bot, exp)
         
+        else:
+            if 'extrapTop' not in s:
+                s['extrapTop'] = self.extrap_fit.sel_fit[0]._SelectFit__top_method
+                s['extrapBot'] = self.extrap_fit.sel_fit[0]._SelectFit__bot_method
+                s['extrapExp'] = self.extrap_fit.sel_fit[0]._SelectFit__exponent
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
+                
+            for n in trans_data:
+                n.set_extrapolation(s['extrapTop'], s['extrapBot'], s['extrapExp'])
+           
             self.extrap_fit.change_fit_method(trans_data, 'Manual', 'All', s['extrapTop'], s['extrapBot'], s['extrapExp'])
             
         for n in trans_data:
-            n.wt_interpolations('Ensembles', s['WTEnsInterpolation'])
-            n.wt_interpolations('Cells', s['WTCellInterpolation'])
+            n.wt_interpolations(['Ensembles', s['WTEnsInterpolation']])
+            n.wt_interpolations(['Cells', s['WTCellInterpolation']])
             
         #Edge methods
         for n in trans_data:
@@ -887,7 +1002,26 @@ class Measurement(object):
             
         #Update sensitivities for water track interpolations
         self.extrap_fit.update_q_sensitivity(trans_data)
+<<<<<<< HEAD
 
+=======
+        
+        #Compute discharge
+        
+        for n in trans_data:
+            discharge = QComp()
+            discharge.populate_data(self, n)
+            self.discharge.append(discharge)
+        
+        #Assess measurement quality
+        self.qa = QAData()
+        self.qa.populate_data(self)
+        
+    
+            
+            
+        
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
     def current_settings(self):
         """Saves the current settings for a measurement. Since all settings
         in QRev are consistent among all transects in a measurement onlyt the
@@ -990,6 +1124,7 @@ class Measurement(object):
         #Edge Settings
         settings['edgeVelMethod'] = transect.edges.vel_method
         settings['edgeRecEdgeMethod'] = transect.edges.rec_edge_method
+<<<<<<< HEAD
         
         return settings
 
@@ -1076,11 +1211,99 @@ class Measurement(object):
         settings: data structure with reference, filter, and interpolation settings
         '''
 
+=======
+        
+        return settings
+    
+    def QRevDefaultSettings(self):
+        '''QRev default and filter settings for a measurement'''
+        
+        settings = {}
+        
+        #Naviagation reference (NEED LOGIC HERE)
+        settings['NavRef'] = self.transects[0].boat_vel.selected
+        
+        #Composite tracks
+        settings['CompTracks'] = 'Off'
+        
+        #Water track filter settings
+        settings['WTbeamFilter'] = -1
+        settings['WTdFilter'] = 'Auto'
+        settings['WTdFilterThreshold'] = np.nan
+        settings['WTwFilter'] = 'Auto'
+        settings['WTwFilterThreshold'] = np.nan
+        settings['WTsmoothFilter'] = 'Off'
+        if self.transects[0].adcp.manufacturer == 'TRDI':
+            settings['WTsnrFilter'] = 'Off'
+        else:
+            settings['WTsnrFilter'] = 'Auto'
+        temp = [x.w_vel for x in self.transects]
+        excluded_dist = np.nanmin([x.excluded_dist for x in temp])
+        if excluded_dist < 0.158 and self.transects[0].adcp.model == 'M9':
+            settings['WTExcludedDistance'] = 0.16
+        else:
+            settings['WTExcludedDistance'] = excluded_dist
+            
+        #Bottom track filter settings
+        settings['BTbeamFilter'] = -1
+        settings['BTdFilter'] = 'Auto'
+        settings['BTdFilterThreshold'] = np.nan
+        settings['BTwFilter'] = 'Auto'
+        settings['BTwFilterThreshold'] = np.nan
+        settings['BTsmoothFilter'] = 'Off'
+        
+        #GGA Filter settings
+        settings['ggaDiffQualFilter'] = 2
+        settings['ggaAltitudeFilter'] = 'Auto'
+        settings['ggaAltitudeFilterChange'] = np.nan
+        
+        #VTG filter settings
+        settings['vtgsmoothFilter'] = np.nan
+        
+        #GGA and VTG filter settings
+        settings['GPSHDOPFilter'] = 'Auto'
+        settings['GPSHDOPFilterMax'] = np.nan
+        settings['GPSHDOPFilterChange'] = np.nan
+        settings['GPSSmoothFilter'] = 'Off'
+        
+        #Depth Averaging
+        settings['depthAvgMethod'] = 'IDW'
+        settings['depthValidMethod'] = 'QRev'
+        
+        #Depth Reference
+        
+        #Default to 4 beam depth average
+        settings['depthReference'] = 'btDepths'
+        #Depth settings
+        settings['depthFilterType'] = 'smooth'            
+        settings['depthComposite'] = 'On'
+        
+        #Interpolation settings
+        settings = self.QRevDefaultInterp(settings)
+        
+        #Edge settings
+        settings['edgeVelMethod'] = 'MeasMag'
+        settings['edgeRecEdgeMethod'] = 'Fixed'
+        
+        return settings
+        
+    def QRevDefaultInterp(self, settings):
+        '''Adds QRev default interpolation settings to existing settings data structure
+        
+        INPUT:
+        settings: data structure of reference and filter settings
+        
+        OUTPUT:
+        settings: data structure with reference, filter, and interpolation settings
+        '''
+        
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
         settings['BTInterpolation'] = 'Linear'
         settings['WTEnsInterpolation'] = 'Linear'
         settings['WTCellInterpolation'] = 'TRDI'
         settings['GPSInterpolation'] = 'Linear'
         settings['depthInterpolation'] = 'Linear'
+<<<<<<< HEAD
         settings['WTwDepthFilter'] = True
 
         return settings
@@ -1102,3 +1325,11 @@ class Measurement(object):
 
 if __name__ == '__main__':
     pass
+=======
+        settings['WTwDepthFilter'] = 'On'
+        
+        return settings
+        
+        
+    
+>>>>>>> 6ca6c50c231afa610ed3a693864074d7104a5f20
