@@ -23,11 +23,11 @@ class BoatStructure(object):
     ----------
     selected: str
         Name of BoatData object to be used for discharge computations.
-    bt_vel: object
+    bt_vel: BoatData
         BoatData object for bottom track velocity
-    gga_vel: object
+    gga_vel: BoatData
         BoatData object for gga velocity
-    vtg_vel: object
+    vtg_vel: BoatData
         BoatData object for vtg velocity
     composite: bool
         Setting to use (True) or not (False) composite tracks.
@@ -99,7 +99,7 @@ class BoatStructure(object):
         ----------
         reference: str
             New navigation reference, BT, GGA, or VTG.
-        transect: object
+        transect: TransectData
             Object of TransectData.
         """
 
@@ -125,9 +125,9 @@ class BoatStructure(object):
         ----------
         new_coord_sys: str
             Specified new coordinate system.
-        sensors: object
+        sensors: Sensors
             Object of Sensors.
-        adcp: object
+        adcp: InstrumentData
             Object of InstrumentData.
         """
         
@@ -144,7 +144,7 @@ class BoatStructure(object):
         
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData.
         setting: bool
             New setting for composite tracks

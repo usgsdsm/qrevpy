@@ -1,4 +1,5 @@
 import xmltodict
+import os
 
 
 class MMT_TRDI(object):
@@ -18,6 +19,8 @@ class MMT_TRDI(object):
         Dictionary of premeasurement tests, calibrations, and evaluations
     mbt_transects: list
         List of Transect objects containing information for each moving-bed test transect
+    path: str
+        Path for mmt file and associated files
     """
 
     def __init__(self, mmt_file):
@@ -36,6 +39,7 @@ class MMT_TRDI(object):
         self.summary = {}
         self.qaqc = {}
         self.mbt_transects = []
+        self.path = None
 
         # Process mmt file
         self.process_mmt(mmt_file)
@@ -48,11 +52,13 @@ class MMT_TRDI(object):
         mmt_file: str
             Full filename including path of mmt file.
         """
-        
+
         # Open the file and convert to an ordered dictionary tree
         with open(mmt_file) as fd:
             win_river = xmltodict.parse(fd.read())
         win_river = win_river['WinRiver']
+
+        self.path = os.path.split(mmt_file)[0]
 
         # Process project settings
         self.project['Name'] = win_river['Project']['@Name']
@@ -139,26 +145,19 @@ class MMT_TRDI(object):
             transect = MMT_Transect(tsect)
 
             # Determine type of moving-bed test
-            type_available = False
-            if 'Moving_Bed_Test_Summary' in mb_data.keys():
-                if 'MB_Tests' in mb_data['Moving_Bed_Test_Summary']:
-                    type_available = True
-
-            if type_available and mb_data['Moving_Bed_Test_Summary']['MB_Tests'] is not None:
-                # Use summary to identify moving-bed test type
-                mv_type = mb_data['Moving_Bed_Test_Summary']['MB_Tests']['Index_%d' % tr_idx]['Type']
-                if mv_type == '0':
-                    transect.set_moving_bed_type('Loop')
-                elif mv_type == '1':
-                    transect.set_moving_bed_type('Stationary')
+            if '@MBTType' in tsect:
+                if tsect['@MBTType'] == '0':
+                    transect.moving_bed_type = 'Loop'
+                elif tsect['@MBTType'] == '1':
+                    transect.moving_bed_type = 'Stationary'
             else:
                 # Use the file name to determine the moving-bed test type
-                file_name = transect.Files[0]['Path']
+                file_name = transect.Files[0]
                 fidx = file_name.rfind('.')
-                if file_name[fidx+1:] == 'SBT':
-                    transect.set_moving_bed_type('Stationary')
-                elif file_name[fidx+1:] == 'LBT':
-                    transect.set_moving_bed_type('Loop')
+                if file_name[fidx-3:fidx] == 'SBT':
+                    transect.moving_bed_type = 'Stationary'
+                elif file_name[fidx-3:fidx] == 'LBT':
+                    transect.moving_bed_type = 'Loop'
                 else:
                     # TODO how to handle user input from here, assume need to call back to gui
                     print('question')
@@ -236,9 +235,9 @@ class MMT_Transect(object):
         # Create File classes for each file associated with transect
         if type(files) is list:
             for file in files:
-                self.Files.append(self.file_dict(file))
+                self.Files.append(file['#text'])
         else:
-            self.Files.append(self.file_dict(files))
+             self.Files.append(files['#text'])
 
         # Create Note classes for each file associated with transect
         if 'Note' in trans.keys():

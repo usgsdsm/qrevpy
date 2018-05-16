@@ -244,7 +244,8 @@ class Measurement(object):
         """Processes qaqc test, calibrations, and evaluations
         
         Input:
-        mmt: object of MMT_TRDI
+        mmt: MMT_TRDI
+            Object of MMT_TRDI
         
         """
         #ADCP Test
@@ -304,10 +305,14 @@ class Measurement(object):
     def thresholds_TRDI(self, transect, settings):
         """Retrieve and apply manual filter settings from mmt file
 
-        Input:
-        mmt: object of MMT_TRDI
-        transect: object of TransectData
-        settings: threshold settings computed before processing
+        Parameters
+        ----------
+        mmt: MMT_TRDI
+            Object of MMT_TRDI
+        transect: TransectData
+            Object of TransectData
+        settings: dict
+            Threshold settings computed before processing
         """
 
         # Apply WT settings
@@ -317,9 +322,9 @@ class Measurement(object):
         transect.boat_vel.bt_vel.apply_filter(transect, **settings['bt_settings'])
 
         # Apply depth settings
-        transect.depths.set_valid_data_method(setting=settings['depth_settings']['depth_valid_method'])
+        transect.depths.valid_data_method = settings['depth_settings']['depth_valid_method']
         transect.depths.depth_filter(transect=transect, filter_method=settings['depth_settings']['depth_screening'])
-        transect.depths.bt_depths.compute_avg_BT_depth(method=settings['depth_settings']['depth_weighting'])
+        transect.depths.bt_depths.compute_avg_bt_depth(method=settings['depth_settings']['depth_weighting'])
         # Apply composite depths as per setting stored in transect from TransectData.trdi
         transect.depths.composite_depths(transect)
 
@@ -339,7 +344,7 @@ class Measurement(object):
 
             # Create transect objects for each discharge transect
             self.transects.append(TransectData())
-            self.transects[-1].SonTek(rsdata ,file_name)
+            self.transects[-1].sontek(rsdata, file_name)
 
         # Site information pulled from last file
         if hasattr(rsdata, 'SiteInfo'):
@@ -427,13 +432,13 @@ class Measurement(object):
                     self.mb_tests.append(MovingBedTests())
                     self.mb_tests[-1].populate_data(source='SonTek',
                                                     file=os.path.join(pathname, file),
-                                                    type='Loop')
+                                                    test_type='Loop')
                 # Process Stationary test
                 elif file.lower().startswith('smba'):
                     self.mb_tests.append(MovingBedTests())
                     self.mb_tests[-1].populate_data(source='SonTek',
                                                     file=os.path.join(pathname, file),
-                                                    type='Stationary')
+                                                    test_type='Stationary')
 
     def load_qrev_mat(self, fullname):
         """Loads and coordinates the mapping of existing QRev Matlab files into Python instance variables.
@@ -488,16 +493,18 @@ class Measurement(object):
     def set_3_beam_WT_threshold_TRDI(self, mmt_transect):
         """Get 3-beam processing for WT from mmt file
         
-        Input:
-        mmt_transect: object of Transect
+        Parameters
+        ----------
+        mmt_transect: MMT_Transect
+            object of MMT_Transect
         
         Output:
         num_3_beam_WT_Out
         """
         
         #check consistency
-        use_3_beam_WT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_WT']
-        
+        # use_3_beam_WT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_WT']
+        use_3_beam_WT = mmt_transect.active_config['Proc_Use_3_Beam_WT']
         #Use setting from 1st transect for all transects
         if use_3_beam_WT == 0:
             num_beam_WT_out = 4
@@ -510,15 +517,16 @@ class Measurement(object):
         """Get 3-beam processing for WT from mmt file
 
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
 
         Output:
         num_3_beam_WT_Out
         """
 
         #check consistency
-        use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_BT']
-
+        # use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_Solution_For_BT']
+        use_3_beam_BT = mmt_transect.active_config['Proc_Use_3_Beam_BT']
         #Use setting from 1st transect for all transects
         if use_3_beam_BT == 0:
             num_beam_BT_out = 4
@@ -531,15 +539,16 @@ class Measurement(object):
         """Get the vertical celocity threshold for WT from mmt
         
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
         
         Output:
         vert_vel_threshold_WT[0]: vertical celocity threshold (m/s)
         """
         
         #Check consistency of vertical velocity threshold (m/s)
-        vert_vel_threshold_WT = mmt_transect.active_config['Proc_WT_Up_Velocity_Threshold']
-        
+        # vert_vel_threshold_WT = mmt_transect.active_config['Proc_WT_Up_Velocity_Threshold']
+        vert_vel_threshold_WT = mmt_transect.active_config['Proc_WT_Up_Vel_Threshold']
         #Use setting from 1st transect for all transects
         #Use setting from 1st transect for all transects
         if isinstance(vert_vel_threshold_WT, float):
@@ -551,15 +560,16 @@ class Measurement(object):
         """Get the vertical velocity threshold for BT from mmt
 
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
 
         Output:
         vert_vel_threshold_WT[0]: vertical celocity threshold (m/s)
         """
 
         # Check consistency of vertical velocity threshold (m/s)
-        vert_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Up_Velocity_Threshold']
-
+        # vert_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Up_Velocity_Threshold']
+        vert_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Up_Vel_Threshold']
         # Use setting from 1st transect for all transects
         # Use setting from 1st transect for all transects
         if isinstance(vert_vel_threshold_BT, float):
@@ -571,7 +581,8 @@ class Measurement(object):
         """Get difference (error) velocity threshold for WT from mmt
         
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
         
         Output:
         diff_vel_threshold_WT[0]: difference velocity threshold (m/s)
@@ -590,14 +601,15 @@ class Measurement(object):
         """Get difference (error) velocity threshold for BT from mmt
         
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
         
         Output:
         diff_vel_threshold_BT[0]: difference velocity threshold (m/s)
         """
         
         #Check consistency of difference (error) velocity for BT
-        diff_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Error_Velocity_Threshold']
+        diff_vel_threshold_BT = mmt_transect.active_config['Proc_BT_Error_Vel_Threshold']
         
         #Use setting from 1st transect for all transects
         if isinstance(diff_vel_threshold_BT, float):
@@ -609,7 +621,8 @@ class Measurement(object):
         """Get the average depth method from mmt
         
         Input:
-        mmt_transect: Object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
         
         Output:
         depth_weighting_setting: method for computing average depth
@@ -640,7 +653,8 @@ class Measurement(object):
         """Get the depth screening setting from mmt
         
         Input:
-        mmt_transect: object of Transect
+        mmt_transect: MMT_Transect
+            Object of MMT_Transect
         
         Output:
         depth_screening_setting: depth screening setting
@@ -689,7 +703,7 @@ class Measurement(object):
         
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         settings: dict
             Dictionary of reference, filter, and interpolation settings
@@ -975,7 +989,7 @@ class Measurement(object):
         settings['depthValidMethod'] = transect.depths.bt_depths.valid_data_method
         
         """Depth settings are always applied to all available depth sources.
-        Only those saved in the btDepths are used here but are applied to all sources"""
+        Only those saved in the bt_depths are used here but are applied to all sources"""
         settings['depthFilterType'] = transect.depths.bt_depths.filter_type
         settings['depthReference'] = transect.depths.selected
         settings['depthComposite'] = transect.depths.composite
@@ -1052,7 +1066,7 @@ class Measurement(object):
         # Depth Reference
 
         # Default to 4 beam depth average
-        settings['depthReference'] = 'btDepths'
+        settings['depthReference'] = 'bt_depths'
         # Depth settings
         settings['depthFilterType'] = 'Smooth'
         settings['depthComposite'] = True

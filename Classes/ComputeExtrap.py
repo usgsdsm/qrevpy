@@ -36,7 +36,7 @@ class ComputeExtrap(object):
 
         Parameters
         ----------
-        transects: object
+        transects: TransectData
             Object of TransectData
         data_type: str
             Type of data processing (q or v)

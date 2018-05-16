@@ -12,27 +12,27 @@ class Pd0TRDI(object):
     ----------
     file_name: str
         Full name including path of pd0 file to be read
-    Hdr: object
+    Hdr: Hdr
         Object of Hdr for heading information
-    Inst: object
+    Inst: Inst
         Object of Inst to hold instrument information
-    Cfg: object
+    Cfg: Cfg
         Object of Cfg to hold configuration information
-    Sensor: object
+    Sensor: Sensor
         Object of Sensor to hold sensor data
-    Wt: object
+    Wt: Wt
         Object of Wt to hold water track data
-    Bt: object
+    Bt: Bt
         Object of Bt to hold bottom track data
-    Gps: object
+    Gps: Gps
         Object of Gps to hold GPS data from previous versions of WR
-    Gps2: object
+    Gps2: Gps2
         Object of Gps2 to hold GPS data from WR2
-    Surface: object
+    Surface: Surface
         Object of Surface to hold surface cell data
-    AutoMode: object
+    AutoMode: AutoMode
         Object of AutoMode to hold auto configuration settings
-    Nmea: object
+    Nmea: Nmea
         Object of Nmea to hold Nmea data
     """
     
@@ -1778,13 +1778,13 @@ class AutoMode(object):
     ----------
     beam_count: np.array(int)
         Number of beams
-    Beam1: object
+    Beam1: Beam
         Object of class Beam
-    Beam2: object
+    Beam2: Beam
         Object of class Beam
-    Beam3: object
+    Beam3: Beam
         Object of class Beam
-    Beam4: object
+    Beam4: Beam
         Object of class Beam
     Reserved: np.array
     """

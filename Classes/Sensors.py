@@ -19,17 +19,17 @@ class Sensors(object):
 
     Attributes
     ----------
-    heading_deg: object
+    heading_deg: HeadingData
         Object of HeadingData.
-    pitch_deg: object
+    pitch_deg: SensorStructure
         Pitch data, object of SensorStructure
-    roll_deg: object
+    roll_deg: SensorStructure
         Roll data, object of SensorStructure
-    temperature_deg_c: object
+    temperature_deg_c: SensorStructure
         Temperature data, object of SensorStructure
-    salinity_ppt: object
+    salinity_ppt: SensorStructure
         Salinity data, object of SensorStructure
-    speed_of_sound_mps: object
+    speed_of_sound_mps: SensorStructure
         Speed of sound, object of SensorStructure
     """
 

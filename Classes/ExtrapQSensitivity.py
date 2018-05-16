@@ -77,7 +77,7 @@ class ExtrapQSensitivity(object):
         ----------
         transects: list
             List of objects of TransectData
-        extrap_fits: object
+        extrap_fits: SelectFit
             Object of SelectFit
         """
         q_pp = []
@@ -130,7 +130,7 @@ class ExtrapQSensitivity(object):
 
         Parameters
         ----------
-        extrap_fits: object
+        extrap_fits: SelectFit
             Object of SelectFit
         """
         # Determine which mean is the reference

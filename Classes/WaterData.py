@@ -34,7 +34,7 @@ class WaterData(object):
         raw_vel_mps: np.array(float)
             Contains the raw unfiltered velocity data in m/s.  1st index 1-4 are beams 1,2,3,4 if beam or
             u,v,w,d if otherwise.
-        frequency_kHz: np.array(float)
+        frequency_khz: np.array(float)
             Defines ADCP frequency used for velocity measurement, in kHz.
         orig_coord_sys: str
             Defines the original raw data velocity coordinate system "Beam", "Inst", "Ship", "Earth".
@@ -143,7 +143,7 @@ class WaterData(object):
         # Data input to this class
         self.raw_vel_mps = None  # Contains the raw unfiltered velocity data in m/s.  Rows 1-4 are
                                  # beams 1,2,3,4 if beam or u,v,w,d if otherwise
-        self.frequency_kHz = None  # Defines ADCP frequency used for velocity measurement
+        self.frequency_khz = None  # Defines ADCP frequency used for velocity measurement
         self.orig_coord_sys = None  # Defines the original velocity coordinate system Beam, Inst, Ship, Earth
         self.orig_nav_ref = None  # Defines the original taw data naviagation reference: None, BT, GGA, VTG
         self.corr = None  # Correlation values for WT, if available
@@ -254,7 +254,7 @@ class WaterData(object):
         """
 
         # Set object properties from input data standard for all ADCPs
-        self.frequency_kHz = freq_in
+        self.frequency_khz = freq_in
         self.orig_coord_sys = coord_sys_in
         self.coord_sys = coord_sys_in
         self.orig_nav_ref = nav_ref_in
@@ -342,7 +342,7 @@ class WaterData(object):
         #
         #
         # #Set object properties from input data
-        # self.frequency_kHz = freq_in
+        # self.frequency_khz = freq_in
         # self.orig_coord_sys = coord_sys_in
         # self.coord_sys = coord_sys_in
         # self.orig_nav_ref = nav_ref_in
@@ -455,9 +455,9 @@ class WaterData(object):
         ----------
         new_coord_sys: str
             New coordinate system (Beam, Inst, Ship, Earth)
-        sensors: object
+        sensors: Sensors
             Object of Sensors
-        adcp: object
+        adcp: InstrumentData
             Object of instrument data
         """
         
@@ -467,7 +467,7 @@ class WaterData(object):
             
             # Assign the transformation matrix and retrieve the sensor data
             t_matrix = adcp.t_matrix.matrix
-            t_matrix_freq = adcp.frequency_kHz
+            t_matrix_freq = adcp.frequency_khz
 
             # DSM changed 2/6/2018
             # pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
@@ -540,7 +540,7 @@ class WaterData(object):
                         
                         # Determine frequency index for transformation
                         if len(t_matrix.shape) > 2:
-                            idx_freq = np.where(t_matrix_freq == self.frequency_kHz[ii])
+                            idx_freq = np.where(t_matrix_freq == self.frequency_khz[ii])
                             t_mult = np.copy(t_matrix[:, :, idx_freq])
                         else:
                             t_mult = np.copy(t_matrix)
@@ -663,7 +663,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        boat_vel: object
+        boat_vel: BoatStructure
             Object of BoatStructure
         """
         
@@ -698,7 +698,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        boat_vel: object
+        boat_vel: BoatData
             Object of BoatData
         heading_chng: float
             Heading change due to change in magvar or offset, in degrees.
@@ -719,7 +719,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        boat_vel: object
+        boat_vel: BoatData
             Object of BoatData
         heading: np.array(float)
             New heading data, in degrees
@@ -738,7 +738,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         target: str
             Specifies if interpolation is for Ensembles or Cells
@@ -806,7 +806,7 @@ class WaterData(object):
         """Coordinates application of specified filters and subsequent interpolation.
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         beam: int
@@ -867,7 +867,7 @@ class WaterData(object):
 
         Parameters
         ---------_
-        transect: object
+        transect: TransectData
             Object of TransectData
         ratio: float
             Ratio of new speed of sound to old speed of sound
@@ -887,7 +887,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 
@@ -1299,7 +1299,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         setting: str
             Set filter (Auto, Off)
@@ -1409,7 +1409,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         setting: bool
             Setting for filter (True, False)
@@ -1429,7 +1429,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         setting: float
             Range from the transducer, in m
@@ -1581,7 +1581,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 
@@ -1652,7 +1652,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 
@@ -1719,7 +1719,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 
@@ -1783,7 +1783,7 @@ class WaterData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 

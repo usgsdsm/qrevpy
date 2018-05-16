@@ -56,7 +56,7 @@ class NormData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         data_type: str
             Type of data (v, q, V, or Q)

@@ -25,27 +25,27 @@ class TransectData(object):
 
     Attributes
     ----------
-    adcp: object
-        Object of clsInstrument
+    adcp: InstrumentData
+        Object of InstrumentData
     file_name: str
         Filename of transect data file
-    w_vel: object
-        Object of clsWaterData
-    boat_vel: object
+    w_vel: WaterData
+        Object of WaterData
+    boat_vel: BoatStructure
         Object of BoatStructure containing objects of BoatData for BT, GGA, and VTG
-    gps: object
-        Object of clsGPSData
-    sensors: object
-        Object of clsSensorData
-    depths: object
-        Object of clsDepthStructure containing objects of Depth data for btDepths, vbDepths, dsDepths)
-    edges: object
-        Object of clsEdges (left and right object of clsEdgeData)
-    extrap: object
-        Object of clsExtrapData
+    gps: GPSData
+        Object of GPSData
+    sensors: SensorData
+        Object of SensorData
+    depths: DepthStructure
+        Object of DepthStructure containing objects of Depth data for bt_depths, vb_depths, ds_depths)
+    edges: Edges
+        Object of Edges (left and right object of clsEdgeData)
+    extrap: ExtrapData
+        Object of ExtrapData
     start_edge: str
         Starting edge of transect looking downstream (Left or Right)
-    date_time: object
+    date_time: DateTime
         Object of DateTime
     checked: bool
         Setting for if transect was checked for use in mmt file assumed checked for SonTek
@@ -73,18 +73,18 @@ class TransectData(object):
 
         Parameters
         ----------
-        mmt_transect: object
+        mmt_transect: MMT_Transect
             Object of Transect (from mmt)
-        pd0_data: object
-            Object of PD0TRDI
-        mmt: object
+        pd0_data: Pd0TRDI
+            Object of Pd0TRDI
+        mmt: MMT_TRDI
             Object of MMT_TRDI
         type: str
             Type of transect (Q: discharge or MB: moving-bed test)
         """
 
         # This starts at line 148 from the Matlab code. Matlab code handled creating PD0 object
-        self.file_name = mmt_transect.Files[0]['File']
+        self.file_name = mmt_transect.Files[0]
 
         # Get the configuration property of the mmt_transect
         # if type == 'Q':
@@ -95,11 +95,11 @@ class TransectData(object):
 
         if pd0_data.Wt is not None:
             # Get and compute ensemble beam depths
-            temp_depth = np.array(pd0_data.Bt.depth_m)
+            temp_depth_bt = np.array(pd0_data.Bt.depth_m)
             # Screen out invalid depths
-            temp_depth[temp_depth < 0.01] = np.nan
+            temp_depth_bt[temp_depth_bt < 0.01] = np.nan
             # Add draft
-            temp_depth += mmt_config['Offsets_Transducer_Depth']
+            temp_depth_bt += mmt_config['Offsets_Transducer_Depth']
             
             # Get instrument cell data
             cell_size_all_m, cell_depth_m, sl_cutoff_per, sl_lag_effect_m = \
@@ -110,7 +110,7 @@ class TransectData(object):
             
             # Create depth data object for BT
             self.depths = DepthStructure()
-            self.depths.add_depth_object(depth_in=temp_depth,
+            self.depths.add_depth_object(depth_in=temp_depth_bt,
                                          source_in='BT',
                                          freq_in=pd0_data.Inst.freq,
                                          draft_in=mmt_config['Offsets_Transducer_Depth'],
@@ -127,16 +127,17 @@ class TransectData(object):
             
             # Check for the presence of vertical beam data
             if np.nanmax(np.nanmax(pd0_data.Sensor.vert_beam_status)) > 0:
-                temp_depth = pd0_data.Sensor.vert_beam_range_m
+                temp_depth_vb = np.tile(np.nan, (1, cell_depth_m.shape[1]))
+                temp_depth_vb[0, :] = pd0_data.Sensor.vert_beam_range_m
                 
                 # Screen out invalid depths
-                temp_depth[temp_depth < 0.01] = np.nan
+                temp_depth_vb[temp_depth_vb < 0.01] = np.nan
                 
                 # Add draft
-                temp_depth = temp_depth + mmt_config['Offsets_Transducer_Depth']
+                temp_depth_vb = temp_depth_vb + mmt_config['Offsets_Transducer_Depth']
                 
                 # Create depth data object for vertical beam
-                self.depths.add_depth_object(depth_in=temp_depth,
+                self.depths.add_depth_object(depth_in=temp_depth_vb,
                                              source_in='VB',
                                              freq_in=pd0_data.Inst.freq,
                                              draft_in=mmt_config['Offsets_Transducer_Depth'],
@@ -145,18 +146,18 @@ class TransectData(object):
                                    
             # Check for the presence of depth sounder
             if np.nansum(np.nansum(pd0_data.Gps2.depth_m)) > 1e-5:
-                temp_depth = pd0_data.Gps2.depth_m
+                temp_depth_ds[0, :] = pd0_data.Gps2.depth_m
                 
                 # Screen out invalid data
-                temp_depth[temp_depth < 0.01] = np.nan
+                temp_depth_ds[temp_depth_ds < 0.01] = np.nan
                 
                 # Use the last valid depth for each ensemble
-                last_depth_col_idx = np.sum(np.isnan(temp_depth) == False, axis=1)-1
+                last_depth_col_idx = np.sum(np.isnan(temp_depth_ds) == False, axis=1)-1
                 last_depth_col_idx[last_depth_col_idx == -1] = 0               
-                row_index = np.arange(len(temp_depth))
+                row_index = np.arange(len(temp_depth_ds))
                 last_depth = np.empty(row_index.size)
                 for row in row_index:
-                    last_depth[row] = temp_depth[row, last_depth_col_idx[row]]
+                    last_depth[row] = temp_depth_ds[row, last_depth_col_idx[row]]
 
                 # Determine if mmt file has a scale factor and offset for the depth sounder
                 if mmt_config['DS_Cor_Spd_Sound'] == 0:
@@ -167,7 +168,8 @@ class TransectData(object):
                 # Apply scale factor, offset, and draft
                 # Note: Only the ADCP draft is stored.  The transducer
                 # draft or scaling for depth sounder data cannot be changed in QRev
-                ds_depth = (last_depth * scale_factor) \
+                ds_depth = np.tile(np.nan, (1, cell_depth_m.shape[1]))
+                ds_depth[1, :] = (last_depth * scale_factor) \
                     + mmt_config['DS_Transducer_Depth']\
                     + mmt_config['DS_Transducer_Offset']
                 
@@ -181,52 +183,52 @@ class TransectData(object):
             # Set depth reference to value from mmt file
             if 'Proc_River_Depth_Source' in mmt_config:
                 if mmt_config['Proc_River_Depth_Source'] == 0:
-                    self.depths.set_depth_reference('BT')
+                    self.depths.selected('bt_depths')
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 1:
                     if self.depths.ds_depths is not None:
-                        self.depths.set_depth_reference('DS')
+                        self.depths.selected('ds_depths')
                     else:
-                        self.depths.set_depth_reference('BT')
+                        self.depths.selected('bt_depths')
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 2:
                     if self.depths.vb_depths is not None:
-                        self.depths.set_depth_reference('VB')
+                        self.depths.selected('vb_depths')
                     else:
-                        self.depths.set_depth_reference('BT')
+                        self.depths.selected('bt_depths')
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 3:
                     if self.depths.vb_depths is None:
-                        self.depths.set_depth_reference('BT')
+                        self.depths.selected('bt_depths')
                         self.depths.composite_depths(self, setting=False)
                     else:
-                        self.depths.set_depth_reference('VB')
+                        self.depths.selected('vb_depths')
                         self.depths.composite_depths(self, setting=True)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 4:
                     if self.depths.bt_depths is not None:
-                        self.depths.set_depth_reference('BT')
+                        self.depths.selected('bt_depths')
                         self.depths.composite_depths(self, setting=True)
                     elif self.depths.vb_depths is not None:
-                        self.depths.set_depth_reference('VB')
+                        self.depths.selected('vb_depths')
                         self.depths.composite_depths(self, setting=True)
                     elif self.depths.ds_depths is not None:
-                        self.depths.set_depth_reference('DS')
+                        self.depths.selected('ds_depths')
                         self.depths.composite_depths(self, setting=True)
                 else:
-                    self.depths.set_depth_reference('BT')
+                    self.depths.selected('bt_depths')
                     self.depths.composite_depths(self, setting=False)
             else:
                 if mmt_config['DS_Use_Process'] > 0:
                     if self.depths.ds_depths is not None:
-                        self.depths.set_depth_reference('DS')
+                        self.depths.selected('ds_depths')
                     else:
-                        self.depths.set_depth_reference('BT')
+                        self.depths.selected('bt_depths')
                 else:
-                    self.depths.set_depth_reference('BT')
+                    self.depths.selected('bt_depths')
                 self.depths.composite_depths(self, setting=False)
                 
             # Create water_data object
@@ -621,7 +623,7 @@ class TransectData(object):
 
             # Create class for adcp information
             self.adcp = InstrumentData()
-            self.adcp.populate_data(manufacturer='TRDI', raw_data=pd0_data, type=type, mmt_transect=mmt_transect, mmt=mmt)
+            self.adcp.populate_data(manufacturer='TRDI', raw_data=pd0_data, mmt_transect=mmt_transect, mmt=mmt)
 
             
     def SonTek(self, rsdata, file_name):
@@ -629,7 +631,7 @@ class TransectData(object):
 
         Parameters
         ----------
-        rsdata: object
+        rsdata: MatSonTek
             Object of Matlab data from SonTek Matlab files
         file_name: str
             Name of SonTek Matlab file not including path.
@@ -683,9 +685,9 @@ class TransectData(object):
 
         # Set depth reference
         if rsdata.Setup.depthReference < 0.5:
-            self.depths.set_depth_reference('VB')
+            self.depths.selected('vb_depths')
         else:
-            self.depths.set_depth_reference('BT')
+            self.depths.selected('bt_depths')
 
         # Water Velocity
         # --------------
@@ -1404,10 +1406,10 @@ class TransectData(object):
         update: bool
             Determines if associated data should be updated
         setting: str
-            Depth reference (BT, VB, DS)
+            Depth reference (bt_depths, vb_depths, ds_depths)
         """
         
-        self.depths.set_depth_reference(setting)
+        self.depths.selected(setting)
         
         if update:
             self.process_depths(update)
@@ -1421,7 +1423,7 @@ class TransectData(object):
         setting: averaging method (IDW, Simple)
         """
         
-        self.depths.bt_depths.compute_avg_BT_depth(setting)
+        self.depths.bt_depths.compute_avg_bt_depth(setting)
         
         self.process_depths(False)
             
@@ -1463,8 +1465,8 @@ class TransectData(object):
         if valid_method is None:
             valid_method = self.depths.bt_depths.valid_data_method
 
-        self.depths.set_valid_data_method(setting=valid_method)
-        self.depths.bt_depths.set_avg_method(setting=avg_method)
+        self.depths.valid_data_method = valid_method
+        self.depths.bt_depths.avg_method = avg_method
         self.depths.depth_filter(transect=self, filter_method=filter_method)
         self.depths.depth_interpolation(transect=self, method=interpolation_method)
         self.depths.composite_depths(transect=self, setting=composite_setting)
@@ -1701,7 +1703,7 @@ class TransectData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -1758,7 +1760,7 @@ def allocate_transects(mmt, type='Q', checked=False):
 
     Parameters
     ----------
-    mmt: object
+    mmt: MMT_TRDI
         Object of MMT_TRDI
     type: str
         Type of transect (Q: discharge or MB: moving-bed test)
@@ -1773,25 +1775,23 @@ def allocate_transects(mmt, type='Q', checked=False):
     if type == 'Q':
         # Identify discharge transect files to load
         if checked:
-            file_names = [transect.Files[0]['Path'] for transect in mmt.mbt_transects if transect.Checked == 1]
+            file_names = [transect.Files[0] for transect in mmt.mbt_transects if transect.Checked == 1]
         else:
-            file_names = [transect.Files[0]['Path'] for transect in mmt.transects]
+            file_names = [transect.Files[0] for transect in mmt.transects]
 
     elif type == 'MB':
         # Identify moving-bed transect files to load
         transects = 'mbt_transects'
         active_config = 'active_config'
         # file_names = [attribute.Files[0].File for attribute in mmt.mbt_transects if attribute.Checked == 1]
-        file_names = [transect.Files[0]['Path'] for transect in mmt.mbt_transects]
-
-    # pathname = os.path.split(mmt)[0]
+        file_names = [transect.Files[0] for transect in mmt.mbt_transects]
     
     # Determine if any files are missing
     valid_files = []
     for name in file_names:
-        # fullname=os.path.join(pathname, name)
-        if os.path.exists(name):
-            valid_files.append(name)
+        fullname=os.path.join(mmt.path, name)
+        if os.path.exists(fullname):
+            valid_files.append(fullname)
 
     # Multi-thread for Pd0 files
     # -------------------------

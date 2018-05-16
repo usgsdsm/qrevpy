@@ -1,9 +1,3 @@
-"""
-Created on Sep 6, 2017
-
-@author: gpetrochenkov
-"""
-
 import numpy as np
 import utm
 from MiscLibs.common_functions import azdeg2rad, pol2cart
@@ -287,8 +281,7 @@ class GPSData(object):
             v_setting = self.gga_velocity_method
             
         # Use only valid gga data
-        # DSM changed to np.copy to avoid changing class data 1/30/2018
-        # TODO need to check all changes of == to is as this change won't work for np.array
+        # Check on need for deepcopy
         valid = np.copy(self.raw_gga_num_sats)
         valid[np.isnan(valid)] = 0
         valid[valid > 0] = 1
@@ -312,6 +305,7 @@ class GPSData(object):
 
         # Apply method for computing position of ensemble
         # TODO could these if process refer to generic functions for External, End, Average, First, mindt.
+
         # Use ensemble data from other software
         if p_setting == 'External':
             self.gga_lat_ens_deg = self.ext_gga_lat_deg

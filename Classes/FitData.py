@@ -67,7 +67,7 @@ class FitData(object):
 
         Parameters
         ----------
-        norm_data: object
+        norm_data: NormData
             Object of NormData
         top: str
             Top extrapolation method

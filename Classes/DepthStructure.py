@@ -1,19 +1,7 @@
-"""
-Created on Jul 19, 2017
-
-@author: gpetrochenkov
-
-Modified DSM 1/24/2018
-    - added cellDepth_in, and cellSize_in as required parameters
-    - modified code to support above change
-    - added docstrings
-    - cleaned up PEP8
-    - only modified __init__ adn add_depth_object
-"""
-
 from Classes.DepthData import DepthData
 import numpy as np
 from numpy.matlib import repmat
+
 
 class DepthStructure(object):
     """This class creates the data structure used store depths from different sources
@@ -34,14 +22,13 @@ class DepthStructure(object):
     
     def __init__(self):
         """Creates object and initializes variables to None"""
+
         self.selected = None  # name of object DepthData that contains the depth data for q computation
-        self.bt_depths = None # object of DepthData for by depth data
-        self.vb_depths = None # object of DepthData for vertical beam depth data
-        self.ds_depths = None # object of DepthData for depth sounder depth data
-        self.composite = None # Turn composite depths "on" or "off"
-        
-        
-    # DSM changed 1/24/2018 def add_depth_object(self, depth_in, source_in, freq_in, draft_in, kargs = None):
+        self.bt_depths = None  # object of DepthData for by depth data
+        self.vb_depths = None  # object of DepthData for vertical beam depth data
+        self.ds_depths = None  # object of DepthData for depth sounder depth data
+        self.composite = None  # Turn composite depths "on" or "off"
+
     def add_depth_object(self, depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in):
         """Adds a DepthData object to the depth structure for the specified type of depths.
 
@@ -62,52 +49,17 @@ class DepthStructure(object):
             Size of each depth cell. If the referenced depth does not have depth cells the cell size from
             the bottom track (BT) depths should be used.
         """
-        
-        # if kargs is not None:
-        #     cell_depth = kargs[0]
-        #     cell_size = kargs[1]
-            
+
         if source_in == 'BT':
             self.bt_depths = DepthData()
-            # DSM changed 1/24/2018 self.bt_depths.populate_data(depth_in, source_in, freq_in, draft_in, kargs=[cell_depth, cell_size])
             self.bt_depths.populate_data(depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in)
         elif source_in == 'VB':
             self.vb_depths = DepthData()
             self.vb_depths.populate_data(depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in)
-            # self.vb_depths.add_cell_data(self.bt_depths)
         elif source_in == 'DS':
             self.ds_depths = DepthData()
             self.ds_depths.populate_data(depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in)
-            # self.ds_depths.add_cell_data(self.bt_depths)
 
-    def set_depth_reference(self, reference):
-        """Set the depth reference to used the specified depth source.
-
-        Parameters
-        ----------
-        reference: str
-            Depth reference identifier.
-        """
-        # TODO Clean up calling methods to use a consistent reference format.
-        if reference == 'BT':
-            self.selected = 'bt_depths'
-        if reference == 'btDepths':
-            self.selected = 'bt_depths'
-        if reference == 'VB':
-            self.selected = 'vb_depths'
-        if reference == 'vbDepths':
-            self.selected = 'vb_depths'
-        if reference == 'DS':
-            self.selected = 'ds_depths'
-        if reference == 'dsDepths':
-            self.selected = 'ds_depths'
-
-    # =========================
-    # DSM stopped here 1/25/2018
-    # =========================
-    def set_valid_data_method(self, setting):
-        self.bt_depths.set_valid_data_method(setting)
-        
     def composite_depths(self, transect, setting=None):
         """Depth compositing is based on the following assumptions
         
@@ -124,7 +76,7 @@ class DepthStructure(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Transect object containing all data.
         setting: bool
             Setting to use (True) or not use (False) composite depths.
@@ -135,41 +87,40 @@ class DepthStructure(object):
         else:
             self.composite = setting
             
-        #The primary depth reference is the selected reference
+        # The primary depth reference is the selected reference
         ref = self.selected
-        
+        comp_depth = None
+
         if setting:
-            #Prepare vector of valid BT averages, which are defined as
-            #having at least 2 valid beams
-            
+            # Prepare vector of valid BT averages, which are defined as having at least 2 valid beams
             bt_valid = self.bt_depths.valid_data
             n_ensembles = bt_valid.shape[-1]
             bt_filtered = self.bt_depths.depth_processed_m
             bt_filtered[bt_filtered == 0] = np.nan
             
-            #Prepare vertical beam data, using only data prior to interpolation
+            # Prepare vertical beam data, using only data prior to interpolation
             if self.vb_depths is not None:
                 vb_filtered = self.vb_depths.depth_processed_m
-                vb_filtered[np.squeeze(self.vb_depths.valid_data) == False] = np.nan
+                vb_filtered[np.squeeze(np.equal(self.vb_depths.valid_data, False))] = np.nan
             else:
-                vb_filtered = repmat([np.nan],n_ensembles,1)
+                vb_filtered = repmat([np.nan], n_ensembles, 1)
                 vb_filtered = np.squeeze(vb_filtered)
                   
-            #Prepare depth sounder data, using only data prior to interpolation
+            # Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:
                 ds_filtered = self.ds_depths.depth_processed_m
-                ds_filtered[np.squeeze(self.ds_depths.valid_data) == False] = np.nan
+                ds_filtered[np.equal(self.ds_depths.valid_data, False)] = np.nan
             else:
-                ds_filtered = repmat([np.nan],n_ensembles,1)
+                ds_filtered = repmat([np.nan], n_ensembles, 1)
                 ds_filtered = np.squeeze(ds_filtered)
                 
             if len(bt_filtered.shape) > 1:
-                comp_source = repmat([np.nan],bt_filtered.shape[0],bt_filtered.shape[1])
+                comp_source = repmat([np.nan], bt_filtered.shape[0], bt_filtered.shape[1])
             else:
-                comp_source = repmat([np.nan],bt_filtered.shape[0],1)
+                comp_source = repmat([np.nan], bt_filtered.shape[0], 1)
                 comp_source = np.squeeze(comp_source)
             
-            
+            # Apply composite depths
             if ref == 'bt_depths':
                 comp_depth = bt_filtered
                 comp_source[np.isnan(comp_depth) == False] = 1
@@ -200,8 +151,7 @@ class DepthStructure(object):
                 comp_depth[np.isnan(comp_depth)] = np.squeeze(self.ds_depths.depth_processed_m[np.isnan(comp_depth)])
                 comp_source[(np.isnan(comp_depth) == False) & (np.isnan(comp_source) == True)] = 4
                
-            #Save composite depth to depth_processed of selected primary reference
-            
+            # Save composite depth to depth_processed of selected primary reference
             selected_data = getattr(self, ref)
             selected_data.apply_composite(comp_depth, comp_source)
                 
@@ -222,10 +172,15 @@ class DepthStructure(object):
             selected_data.apply_composite(comp_depth, comp_source)
 
     def set_draft(self, target, draft):
-        """This function will change the ref_depth draft/  The associated
-        depth object will also be updated because DepthData is a handle class.
-        The computations are actually done in DepthData as the data are private
-        to that class """
+        """This function will change the ref_depth draft.
+
+        Parameters
+        ----------
+        target: str
+            Source of depth data.
+        draft: float
+            New draft.
+        """
         
         if target == 'ADCP':
             self.bt_depths.change_draft(draft)
@@ -233,9 +188,17 @@ class DepthStructure(object):
         else:
             self.ds_depths.change_draft(draft)    
             
-    def depth_filter(self,transect, filter_method):
+    def depth_filter(self, transect, filter_method):
         """Method to apply filter to all available depth sources, so that
-        all sources have the same filter applied """
+        all sources have the same filter applied.
+
+        Parameters
+        ----------
+        transect: TransectData
+            Object of TransectData
+        filter_method: str
+            Method to use to filter data (Smooth, TRDI, None).
+        """
         
         if self.bt_depths is not None:
             self.bt_depths.apply_filter(transect, filter_method)
@@ -246,7 +209,15 @@ class DepthStructure(object):
             
     def depth_interpolation(self, transect, method=None):
         """Method to apply interpolation to all available depth sources, so
-        that all sources have the same filter applied """
+        that all sources have the same filter applied.
+
+        Parameters
+        ----------
+        transect: TransectData
+            Object of TransectData
+        method: str
+            Interpolation method (None, HoldLast, Smooth, Linear)
+            """
         
         if self.bt_depths is not None:
             self.bt_depths.apply_interpolation(transect, method)
@@ -256,12 +227,18 @@ class DepthStructure(object):
             self.vb_depths.apply_interpolation(transect, method)
             
     def sos_correction(self, ratio):
-        """Correct depths for change in speed of sound"""
+        """Correct depths for change in speed of sound.
+
+        Parameters
+        ----------
+        ratio: float
+            Ratio of new to old speed of sound.
+        """
         
-        #Bottom Track Depths
+        # Bottom Track Depths
         if self.bt_depths is not None:
             self.bt_depths.sos_correction(ratio)
             
-        #Vertical beam depths
+        # Vertical beam depths
         if self.vb_depths is not None:
             self.vb_depths.sos_correction(ratio)

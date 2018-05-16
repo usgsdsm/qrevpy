@@ -15,11 +15,11 @@ class SensorStructure(object):
     ----------
     self.selected: str
         The selected sensor reference name ('internal', 'external', 'user').
-    self.internal: object
+    self.internal: SensorData
         Contains the data from the internal sensor, object of SensorData
-    self.external: object
+    self.external: SensorData
         Contains the data from an external sensor, object of SensorData
-    self.user: object
+    self.user: SensorData
         Contains user supplied value, object of SensorData
     """
     

@@ -1,30 +1,28 @@
-"""
-Created on Sep 5, 2017
-
-@author: gpetrochenkov
-"""
+import copy
 import numpy as np
 from numpy.matlib import repmat
-from MiscLibs.common_functions import cosd, sind, cart2pol, pol2cart, iqr
+from MiscLibs.common_functions import cosd, sind, cart2pol, iqr, pol2cart
 from MiscLibs.lowess import lowess
-# TODO check if frequency is an array or single value for TRDI
 
 
 class BoatData(object):
     """Class to process and store boat velocity data.
 
-    Original data provided to the class:
+    Attributes
+    ----------
+
+    Original data provided to the class
         raw_vel_mps: np.array
             Contains the raw unfiltered velocity data in m/s.
             First index is 1-4 are beams 1,2,3,3 if if beam or u,v,w,d if otherwise.
-        frequency_kHz: np.array or float
+        frequency_khz: np.array or float
             Defines ADCP frequency used for velocity Measurement.
         orig_coord_sys: str
             Defines the original raw data velocity Coordinate, "Beam", "Inst", "Ship", "Earth".
         nav_ref: str
             Defines the original raw data navigation reference, "None", "BT", "GGA" "VTG".
 
-    Coordinate transformed data:
+    Coordinate transformed data
         coord_sys: str
             Defines the current coordinate system "Beam", "Inst", "Ship", "Earth" used to compute u, v, w, and d.
         u_mps: np.array(float)
@@ -40,7 +38,7 @@ class BoatData(object):
         bottom_mode: str
             BT mode for TRDI, 'Variable' for SonTek.
 
-    Processed data:
+    Processed data
         u_processed_mps: np.array(float)
             Horizontal velocity in x-direction filtered and interpolated.
         v_processed_mps: np.array(float)
@@ -48,7 +46,7 @@ class BoatData(object):
         processed_source: str
             Source of velocity: BT, VTG, GGA, INT.
 
-    Settings:
+    Settings variables
         d_filter: str
             Difference velocity filter "Manual", "Off", "Auto".
         d_filter_threshold: float
@@ -80,7 +78,7 @@ class BoatData(object):
         interpolate: str
             Type of interpolation: "None", "Linear", "Smooth" etc.
         beam_filter: integer
-            Minumum number of beams for valid data, 3 for 3-beam solutions, 4 for 4-beam.
+            Minimum number of beams for valid data, 3 for 3-beam solutions, 4 for 4-beam.
         valid_data: np.array(bool)
             Logical array of identifying valid and invalid data for each filter applied.
                 Row 1 [0] - composite
@@ -92,19 +90,16 @@ class BoatData(object):
     """
 
     def __init__(self):
+        """Initialize instance variables."""
 
         # Variables passed to the constructor
         self.raw_vel_mps = None  # contains the raw unfiltered velocity data in m/s.
-                                 # Rows 1-4 are beams 1,2,3,3 if if beam or u,v,w,d if otherwise
-        self.frequency_hz = None  # Defines ADCP frequency used for velocity Measurement
+        self.frequency_khz = None  # Defines ADCP frequency used for velocity Measurement
         self.orig_coord_sys = None  # Defines the original raw data velocity Coordinate
-                                    # "Beam", "Inst", "Ship", "Earth"
         self.nav_ref = None  # Defines the original raw data navigation reference
-                             # "None", "BT", "GGA" "VTG"
 
         # Coordinate transformed data
         self.coord_sys = None  # Defines the current coordinate system "Beam", "Inst", "Ship", "Earth"
-                               # For u, v, w, and d
         self.u_mps = None  # Horizontal velocity in x-direction, in m/s
         self.v_mps = None  # Horizontal velocity in y-direction, in m/s
         self.w_mps = None  # Vertical velocity (+ up), m/s
@@ -135,12 +130,6 @@ class BoatData(object):
         self.interpolate = None  # Type of interpolation: "None", "Linear", "Smooth" etc.
         self.beam_filter = None  # 3 for 3-beam solutions, 4 for 4-beam SolutionStackDescription
         self.valid_data = None  # Logical array of identifying valid and invalid data for each filter applied
-                                # Row 1 [0] - composite
-                                # Row 2 [1] - original
-                                # Row 3 [2] - d_filter of diff_qual
-                                # Row 4 [3] - w_filter or altitude
-                                # Row 5 [4] - smooth_filter
-                                # Row 6 [5] - beam_filter or HDOP
 
     def populate_data(self, source, vel_in, freq_in, coord_sys_in, nav_ref_in, beam_filter_in=3,
                       bottom_mode_in='Variable'):
@@ -169,20 +158,13 @@ class BoatData(object):
             vel_in = BoatData.filter_sontek(vel_in)
 
         self.raw_vel_mps = vel_in
-        self.frequency_hz = freq_in
+        self.frequency_khz = freq_in
         self.coord_sys = coord_sys_in
         self.orig_coord_sys = coord_sys_in
         self.nav_ref = nav_ref_in
         self.beam_filter = beam_filter_in
-
-        # Bottom mode is variable unless TRDI with BT reference
         self.bottom_mode = bottom_mode_in
-        # DSM changed 1/30/2018 if source == 'TRDI' and nav_ref_in == 'BT':
-        #     self.bottom_mode = kargs[1]
-        #     #Apply 3-beam setting from mmt file
-        #     if kargs[0] < .5:
-        #         self.beam_filter = 4
-# TODO check TRDI for beam_filter settings
+
         if nav_ref_in == 'BT':
 
             # Boat velocities are referenced to ADCP not the streambed and thus must be reversed
@@ -256,9 +238,9 @@ class BoatData(object):
         ----------
         new_coord_sys: str
             New coordinate_sys (Beam, Inst, Ship, Earth)
-        sensors: object
+        sensors: Sensors
             Object of Sensors
-        adcp: object
+        adcp: InstrumentData
             Object of InstrumentData
         """
 
@@ -268,10 +250,14 @@ class BoatData(object):
         else:
             o_coord_sys = self.orig_coord_sys.strip()
 
+        # Initialize variables
+        orig_sys = 0
+        new_sys = 0
+
         if self.orig_coord_sys.strip() != new_coord_sys.strip():
             # Assign the transformation matrix and retrieve the sensor data
             t_matrix = adcp.t_matrix.matrix
-            t_matrix_freq = adcp.frequency_kHz
+            t_matrix_freq = adcp.frequency_khz
 
             # DSM changed 2/6/2018
             # pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
@@ -314,12 +300,12 @@ class BoatData(object):
             if new_sys - orig_sys > 0:
 
                 # Compute trig function for heaing, pitch and roll
-                ch = np.cos(np.deg2rad(h))
-                sh = np.sin(np.deg2rad(h))
-                cp = np.cos(np.deg2rad(p))
-                sp = np.sin(np.deg2rad(p))
-                cr = np.cos(np.deg2rad(r))
-                sr = np.sin(np.deg2rad(r))
+                ch = cosd(h)
+                sh = sind(h)
+                cp = cosd(p)
+                sp = sind(p)
+                cr = cosd(r)
+                sr = sind(r)
 
                 vel_changed = np.tile([np.nan], self.raw_vel_mps.shape)
                 n_ens = self.raw_vel_mps.shape[1]
@@ -342,7 +328,7 @@ class BoatData(object):
 
                         # Determine frequency index for transformation matrix
                         if len(t_matrix.shape) > 2:
-                            idx_freq = np.where(t_matrix_freq == self.frequency_kHz[ii])
+                            idx_freq = np.where(t_matrix_freq == self.frequency_khz[ii])
                             t_mult = np.copy(t_matrix[idx_freq])
                         else:
                             t_mult = np.copy(t_matrix)
@@ -469,8 +455,8 @@ class BoatData(object):
                                 # 3 Beam solution for non-RiverRay
                                 vel_3_beam_zero = vel
                                 vel_3_beam_zero[np.isnan(vel)] = 0
-                                vel_error = t_mult[3, :] * vel_3_beam_zero
-                                vel[idx_3_beam] = -1 * vel_error / t_mult[3, idx_3_beam]
+                                vel_error = np.matmul(t_mult[3, :], vel_3_beam_zero)
+                                vel[idx_3_beam] = -1 * vel_error / np.squeeze(t_mult[3, idx_3_beam])
                                 temp_t = t_mult.dot(vel)
 
                             # Apply transformation matrix for 3 beam solutions
@@ -506,16 +492,30 @@ class BoatData(object):
                 self.u_processed_mps = np.copy(self.u_mps)
                 self.v_processed_mps = np.copy(self.v_mps)
 
-        # TODO change_magvar
-        # TODO change_offset
-        # TODO change_heading_source
+    def change_heading(self, heading_change):
+        """Rotates the boat velocities for a change in heading due to a change in
+        magnetic variation, heading offset, or heading source.
+
+        Parameters
+        ----------
+        heading_change: float
+            Change in the magnetic variation in degrees
+        """
+
+        # Apply change to processed data
+        direction, mag = cart2pol(self.u_processed_mps, self.v_processed_mps)
+        self.u_processed_mps, self.v_processed_mps = pol2cart(direction - np.deg2rad(heading_change), mag)
+
+        # Apply change to unprocessed data
+        direction, mag = cart2pol(self.u_mps, self.v_mps)
+        self.u_mps, self.v_mps = pol2cart(direction - np.deg2rad(heading_change), mag)
 
     def apply_interpolation(self, transect, interpolation_method=None):
         """Function to apply interpolations to navigation data.
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         interpolation_method: str
             Specified interpolation method if different from that in self
@@ -590,7 +590,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         ratio: float
             Ratio of new and old speed of sound
@@ -675,7 +675,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData"""
 
         # Get data from object
@@ -702,7 +702,7 @@ class BoatData(object):
         """This function interpolates data flagged invalid using linear interpolation.
 
         Parameters
-        transect: object
+        transect: TransectData
             Object of TransectData
         """
 
@@ -735,9 +735,8 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
-        transect: object of TransectData
         """
         u = np.copy(self.u_processed_mps)
         v = np.copy(self.v_processed_mps)
@@ -779,8 +778,8 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
-            Object of
+        transect: TransectData
+            Object of TransectData
         beam: int
             Setting for beam filter (3, 4, -1)
         difference: str
@@ -876,10 +875,10 @@ class BoatData(object):
             # Apply automatic filter
             # ----------------------
             # Find all 3 beam solutions
-            temp = np.copy(self)
-            temp.filter_beam[4]
-            temp3 = np.copy(temp)
-            temp3.filter_beam[3]
+            temp = copy.deepcopy(self)
+            temp.filter_beam(4)
+            temp3 = copy.deepcopy(temp)
+            temp3.filter_beam(3)
             valid_3_beams = temp3.valid_data[5, :] - temp.valid_data[5, :]
             n_ens = len(temp.valid_data[5, :])
             idx = np.where(valid_3_beams == True)[0]
@@ -912,8 +911,10 @@ class BoatData(object):
                             ref_idx_after = None
 
                         if (ref_idx_after is not None) and (ref_idx_before is not None):
-                            u_ratio = (temp.u_mps[idx[m]]) / ((temp.u_mps[ref_idx_before] + temp.u_mps[ref_idx_after]) / 2.) - 1
-                            v_ratio = (temp.v_mps[idx[m]]) / ((temp.v_mps[ref_idx_before] + temp.v_mps[ref_idx_after]) / 2.) - 1
+                            u_ratio = (temp.u_mps[idx[m]]) / ((temp.u_mps[ref_idx_before]
+                                                               + temp.u_mps[ref_idx_after]) / 2.) - 1
+                            v_ratio = (temp.v_mps[idx[m]]) / ((temp.v_mps[ref_idx_before]
+                                                               + temp.v_mps[ref_idx_after]) / 2.) - 1
                         else:
                             u_ratio = 1
                             v_ratio = 1
@@ -958,7 +959,10 @@ class BoatData(object):
         multiplier = 5
         minimum_window = 0.01
 
-        d_vel = np.copy(self.d_mps)
+        # Initialize variables
+        d_vel = copy.deepcopy(self.d_mps)
+        d_vel_max_ref = 0
+        d_vel_min_ref = 0
 
         # Apply selected method
         if self.d_filter == 'Manual':
@@ -998,7 +1002,7 @@ class BoatData(object):
                 d_vel_good_idx = list(np.intersect1d(d_vel_less_idx, d_vel_greater_idx))
 
                 # Update filtered data array
-                d_vel_filtered=np.copy(d_vel_filtered[d_vel_good_idx])
+                d_vel_filtered = np.copy(d_vel_filtered[d_vel_good_idx])
 
                 # Determine differences due to last filter iteration
                 d_vel_std2 = iqr(d_vel_filtered)
@@ -1038,8 +1042,10 @@ class BoatData(object):
         # Set filter characteristics
         multiplier = 5
 
-        # Get vertical velocity data from object
+        # Intialize variables
         w_vel = np.copy(self.w_mps)
+        w_vel_max_ref = 0
+        w_vel_min_ref = 0
 
         # Apply selected method
         if self.w_filter == 'Manual':
@@ -1074,7 +1080,7 @@ class BoatData(object):
                 w_vel_good_idx = list(set(np.hstack((w_vel_less_idx, w_vel_greater_idx))))
 
                 # Update filtered data array
-                w_vel_filtered=np.copy(w_vel_filtered[w_vel_good_idx])
+                w_vel_filtered = np.copy(w_vel_filtered[w_vel_good_idx])
 
                 # Determine differences due to last filter iteration
                 w_vel_std2 = iqr(w_vel_filtered)
@@ -1118,7 +1124,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         setting: bool
             Filter setting (True, False)
@@ -1142,6 +1148,11 @@ class BoatData(object):
             half_width = 10
             multiplier = 9
             cycles = 3
+
+            # Initialize variables
+            bt_bad_idx = []
+            upper_limit = 0
+            lower_limit = 0
 
             # Compute speed and direction of boat
             direct, speed = cart2pol(b_vele, b_veln)
@@ -1190,7 +1201,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         differential: str
             Differential filter setting (1, 2, 4)
@@ -1208,11 +1219,12 @@ class BoatData(object):
             Other filter typically a smooth.
         """
 
-        if len(set([differential, altitude, altitude_threshold, hdop, hdop_max_threshold, hdop_change_threshold, other])):
+        if len({differential, altitude, altitude_threshold, hdop,
+                hdop_max_threshold, hdop_change_threshold, other}) > 0:
             # Differential filter only applies to GGA data, defaults to 1 for VTG
             if differential is not None:
                 if self.nav_ref == 'GGA':
-                    self.filter_diff_qual(gps_data=transect.gps, setting=differential)
+                    self.filter_diff_qual(gps_data=transect.gps, setting=int(differential))
                 else:
                     self.filter_diff_qual(gps_data=transect.gps, setting=1)
 
@@ -1246,7 +1258,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        gps_data: object
+        gps_data: GPSData
             Object of GPSData
         setting: int
             Filter setting (1, 2, 4).
@@ -1292,7 +1304,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        gps_data: object
+        gps_data: GPSData
             Object of GPSData
         setting: str
             New setting for filter (Off, Manual, Auto)
@@ -1323,7 +1335,7 @@ class BoatData(object):
             # Loop until no change in the number of valid ensembles
             while k < 100 and change > 0.1:
                 # Compute mean using valid ensembles
-                alt_mean = np.nanmean(gps_data.altitude_ens_m[self.valid_data[1,:]])
+                alt_mean = np.nanmean(gps_data.altitude_ens_m[self.valid_data[1, :]])
 
                 # Compute difference for each ensemble
                 diff = np.abs(gps_data.altitude_ens_m - alt_mean)
@@ -1344,7 +1356,7 @@ class BoatData(object):
 
         Parameters
         ----------
-        gps_data: object
+        gps_data: GPSData
             Object of GPSData
         setting: str
             Filter setting (On, off, Auto)
@@ -1403,7 +1415,7 @@ class BoatData(object):
         self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     @staticmethod
-    def filter_sontek( vel_in):
+    def filter_sontek(vel_in):
         """Determines invalid raw bottom track samples for SonTek data.
 
         Invalid data are those that are zero or where the velocity doesn't change between ensembles.
@@ -1433,7 +1445,7 @@ class BoatData(object):
         invalid_bool = np.full(test_sum.size, False)
         invalid_bool[test_sum > 3] = True
         # Handle first ensemble
-        invalid_bool = np.concatenate((np.array([False]), invalid_bool),0)
+        invalid_bool = np.concatenate((np.array([False]), invalid_bool), 0)
         if np.nansum(vel_in[:, 0]) == 0:
             invalid_bool[0] = True
 

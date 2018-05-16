@@ -91,11 +91,11 @@ class SelectFit(object):
 
         Parameters
         ----------
-        normalized: object
+        normalized: NormData
             Object of NormData
         fit_method: str
             Fit method (Automatic or Manual)
-        transect: object
+        transect: TransectData
             Object of TransectData
         top: str
             Top extrapolation method

@@ -70,7 +70,7 @@ class QComp(object):
         
         Parameters
         ----------
-        data_in: object
+        data_in: TransectData
             Object TransectData
         moving_bed_data: list
             List of MovingBedTests objects
@@ -245,7 +245,7 @@ class QComp(object):
 
         Parameters
         ----------
-        transect: object
+        transect: TransectData
             Object of TransectData
         w_vel_x: np.array(float)
             Array of water velocity in the x direction
@@ -310,7 +310,7 @@ class QComp(object):
         ----------
         xprod: np.array(float)
             Cross product computed from the cross product method
-        transect: object
+        transect: TransectData
             Object of TransectData
         delta_t: np.array(float)
             Duration of each ensemble computed from QComp
@@ -343,7 +343,7 @@ class QComp(object):
         ----------
         xprod: np.array(float)
             Cross product computed from the cross product method
-        transect: object
+        transect: TransectData
             Object of TransectData
         delta_t: np.array(float)
             Duration of each ensemble computed from QComp
@@ -487,7 +487,7 @@ class QComp(object):
         ----------
         xprod: np.array(float)
             Cross product computed from the cross product method
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -538,7 +538,7 @@ class QComp(object):
         ----------
         xprod: np.array(float)
             Cross product of the water and boat velocities
-        transect: object
+        transect: TransectData
             Object of TransectData
         delta_t: np.array(float)
             Duration of each ensemble
@@ -663,7 +663,7 @@ class QComp(object):
         ----------
         x_prod: np.array(float)
             Cross product computed from the cross product method
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -712,7 +712,7 @@ class QComp(object):
         ----------
         edge_loc: str
             Edge location (left or right)
-        transect: object
+        transect: TransectData
             Object of TransectData
         top_method: str
             Top extrapolation method
@@ -764,7 +764,7 @@ class QComp(object):
         ----------
         edge_loc: str
             Edge location (left or right)
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -811,7 +811,7 @@ class QComp(object):
         ----------
         edge_idx: np.array
             Indices of ensembles used to compute edge discharge
-        transect: object
+        transect: TransectData
             Object of TransectData
         top_method: str
             Top extrapolation method
@@ -861,7 +861,7 @@ class QComp(object):
         ----------
         edge_idx: np.array
             Indices of ensembles used to compute edge discharge
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -927,7 +927,7 @@ class QComp(object):
         ----------
         edge_idx: np.array
             Indices of ensembles used to compute edge discharge
-        transect: object
+        transect: TransectData
             Object of TransectData
         top_method: str
             Top extrapolation method
@@ -1188,7 +1188,7 @@ class QComp(object):
         ----------
         edge_idx: np.array
             Indices of ensembles used to compute edge discharge
-        transect: object
+        transect: TransectData
             Object of TransectData
 
         Returns
@@ -1318,8 +1318,8 @@ class QComp(object):
         ----------
         edge_loc: str
             Edge location (left_or right)
-        transect: object
-            Object of Transect DAta
+        transect: TransectData
+            Object of TransectData
 
         Returns
         -------
@@ -1378,9 +1378,9 @@ class QComp(object):
             Computed middle discharge
         bottom_q: float
             Bottom discharge from extrapolation
-        trans_data: object
+        trans_data: TransectData
             Object of TransectData
-        mb_data: object
+        mb_data: MovingBedTests
             Object of MovingBedTests
         delta_t: np.array(float)
             Duration of each ensemble, computed in QComp
@@ -1455,9 +1455,9 @@ class QComp(object):
             Computed middle discharge
         bottom_q: float
             Bottom discharge from extrapolation
-        trans_data: object
+        trans_data: TransectData
             Object of TransectData
-        mb_data: object
+        mb_data: MovingBedTests
             Object of MovingBedTests
         delta_t: np.array(float)
             Duration of each ensemble, computed in QComp
@@ -1598,7 +1598,7 @@ class QComp(object):
         
         Parameters
         ----------
-        transData: object
+        transData: TransectData
             Object of TransectData
         
         Returns
@@ -1647,8 +1647,8 @@ class QComp(object):
             Middle of measured discharge in each ensemble
         q_bot_ens: np.array(flot)
             Bottom extrapolated discharge in each ensemble
-        transect: object
-            Object of clsTransectData
+        transect: TransectData
+            Object of TransectData
 
         Returns
         -------

@@ -22,9 +22,9 @@ class Edges(object):
         Method used to determine coef for rec. edge 'Fixed', 'Variable'.
     vel_method: str
         Method used to compute the velocity used 'MeasMag', 'VectorProf'.
-    left: object
+    left: EdgeData
         Object of EdgeData for left edge.
-    right: object
+    right: EdgeData
         Object of EdgeData for right edge.
     """
     
