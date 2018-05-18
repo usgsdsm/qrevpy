@@ -302,8 +302,7 @@ class DepthData(object):
         """Determines if raw data are sufficient to compute a valid depth without interpolation."""
         
         if self.depth_source == 'BT':
-            # self.valid_data = np.array([True for x in range(self.valid_beams.shape[1])])
-            self.valid_data = np.tile(True, self.valid_beams.shape)
+            self.valid_data = np.tile(True, self.valid_beams.shape[1])
             nvalid = np.sum(self.valid_beams, axis=0)
             
             if self.valid_data_method == 'TRDI':
@@ -320,7 +319,7 @@ class DepthData(object):
         if len(self.depth_beams_m.shape) > 1:
             self.valid_beams = np.tile(True, self.depth_beams_m.shape)
         else:
-            self.valid_beams = np.tile(True, (1, self.depth_beams_m.shape))
+            self.valid_beams = np.tile(True, (1, self.depth_beams_m.shape[0]))
         
         # Set ensembles with no depth data to invalid
         self.valid_beams[self.depth_beams_m == 0] = False
@@ -347,6 +346,8 @@ class DepthData(object):
         multiplier - number multiplied times the IQR to determine the filter criteria
         
         """
+
+        depth_res = np.array([])
 
         # If the smoothed depth has not been computed
         if self.smooth_depth is None:
@@ -419,7 +420,8 @@ class DepthData(object):
 
                         # Compute filter criteria and apply appropriate
                         criteria = multiplier * fill_array
-                        idx = np.where(criteria < np.max(np.vstack((depth[j, :] * .05, np.ones(depth.shape) / 10)), 0))[0]
+                        idx = np.where(criteria < np.max(np.vstack((depth[j, :] * .05,
+                                                                    np.ones(depth.shape) / 10)), 0))[0]
                         if len(idx) > 0:
                             criteria[idx] = np.max(np.vstack((depth[j, idx] * .05, np.ones(idx.shape) / 10)), 0)
 
@@ -487,7 +489,7 @@ class DepthData(object):
             # Vertical beam or depth sounder depths
             self.depth_processed_m = self.depth_beams_m[0, :]
             
-        self.depth_processed_m[np.equal(self.valid_data, False)] = np.nan
+        self.depth_processed_m[np.squeeze(np.equal(self.valid_data, False))] = np.nan
         
         # Set interpolation type
         self.interp_type = 'None'
@@ -601,6 +603,7 @@ class DepthData(object):
             valid_data = copy.deepcopy(self.valid_beams[n])
             valid = np.vstack([valid_depth_mono, valid_x_mono, valid_data])
             valid = np.all(valid, 0)
+            depth_int = np.array([])
 
             if np.sum(valid) > 1:
                 # Compute interpolation function from all valid data

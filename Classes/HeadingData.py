@@ -165,6 +165,7 @@ class HeadingData(object):
                     elif test2:
                         c = -360
                     self.data[idx_invalid[n]] = (((self.data[after_idx] - self.data[before_idx] + c) /
-                        (before_idx - after_idx)) * (before_idx - idx_invalid[n])) + self.data[before_idx]
+                                                  (before_idx - after_idx)) *
+                                                 (before_idx - idx_invalid[n])) + self.data[before_idx]
                     if self.data[idx_invalid[n]] > 360:
                         self.data[idx_invalid[n]] = self.data[idx_invalid[n]] - 360

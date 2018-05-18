@@ -2,6 +2,7 @@ from Classes.QComp import QComp
 import numpy as np
 from MiscLibs.common_functions import get_object_values
 
+
 class ExtrapQSensitivity(object):
     """Class to compute the sensitivity of the discharge to various extrapolation methods.
 
@@ -19,9 +20,9 @@ class ExtrapQSensitivity(object):
         Discharge 3-pt no slip
     q_3p_ns_opt_mean: float
         Discharge 3-pt optimized no slip
-    q_PP_per_diff: float
+    q_pp_per_diff: float
         Power power 1/6 difference from reference
-    q_PP_opt_per_diff: float
+    q_pp_opt_per_diff: float
         Power power optimized percent difference from reference
     q_cns_per_diff: float
         Constant no slip percent difference from reference
@@ -56,11 +57,11 @@ class ExtrapQSensitivity(object):
         self.q_cns_opt_mean = None  # Discharge constant optimized no slip
         self.q_3p_ns_mean = None  # Discharge 3-pt no slip
         self.q_3p_ns_opt_mean = None  # Discharge 3-pt optimized no slip
-        self.q_PP_per_diff = None  # Power power 1/6 difference from reference
-        self.q_PP_opt_per_diff = None  # Power power optimized percent difference from reference
+        self.q_pp_per_diff = None  # Power power 1/6 difference from reference
+        self.q_pp_opt_per_diff = None  # Power power optimized percent difference from reference
         self.q_cns_per_diff = None  # Constant no slip percent difference from reference
         self.q_cns_opt_per_diff = None  # Constant optimized no slip percent difference from reference
-        self.q_3p_nS_per_diff = None  # 3-point no skip percent difference from reference
+        self.q_3p_ns_per_diff = None  # 3-point no skip percent difference from reference
         self.q_3p_ns_opt_per_diff = None  # 3-point optimized no slip percent difference from reference
         self.pp_exponent = None  # Optimized power power exponent
         self.ns_exponent = None  # Optimized no slip Exponent
@@ -123,8 +124,6 @@ class ExtrapQSensitivity(object):
 
         self.compute_percent_diff(extrap_fits=extrap_fits, transects=transects)
 
-
-
     def compute_percent_diff(self, extrap_fits, transects=None):
         """Computes the percent difference for each of the extrapolation options as compared to selected method.
 
@@ -132,6 +131,8 @@ class ExtrapQSensitivity(object):
         ----------
         extrap_fits: SelectFit
             Object of SelectFit
+        transects: list
+            List of TransectData objects
         """
         # Determine which mean is the reference
         if extrap_fits[-1].fit_method == 'Manual':
@@ -151,7 +152,11 @@ class ExtrapQSensitivity(object):
                                     bot_method=self.man_bot,
                                     exponent=self.man_exp)
                     q_man.append(q)
-                self.q_man_mean = np.nanmean(q_man[checked].total)
+                container = []
+                for index, item in enumerate(q_man):
+                    if checked[index]:
+                        container.append(item.total)
+                self.q_man_mean = np.nanmean(container)
             reference_mean = self.q_man_mean
 
         else:
@@ -180,4 +185,4 @@ class ExtrapQSensitivity(object):
         self.q_3p_ns_opt_per_diff = ((self.q_3p_ns_opt_mean - reference_mean) / reference_mean) * 100
 
         if extrap_fits[-1].fit_method == 'Manual':
-            self.q_man_per_diff =((self.q_man_mean - reference_mean) / reference_mean) * 100
+            self.q_man_per_diff = ((self.q_man_mean - reference_mean) / reference_mean) * 100

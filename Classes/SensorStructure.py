@@ -1,13 +1,3 @@
-"""
-Created on Sep 14, 2017
-
-@author: gpetrochenkov
-Modified DSM 2/1/2018
-    - Added numpy docstrings
-    - Cleaned up PEP8
-"""
-
-
 class SensorStructure(object):
     """Class to store sensor data from various sources.
 

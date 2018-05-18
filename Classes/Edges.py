@@ -1,15 +1,3 @@
-"""
-Created on Sep 12, 2017
-
-@author: gpetrochenkov
-Modified DSM 1/31/2018
-    - Added numpy docstrings
-    - Removed need for kargs
-    - Removed create method
-    - Cleaned up PEP8
-
-"""
-
 from Classes.EdgeData import EdgeData
 
 

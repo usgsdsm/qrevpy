@@ -86,6 +86,9 @@ class FitData(object):
 
         lower_bound = [-np.inf, 0.01]
         upper_bound = [np.inf, 1]
+        bounds = None
+        p0 = None
+        uc = np.nan
 
         # Process data if available
         if len(idxz) > 0:
@@ -103,14 +106,12 @@ class FitData(object):
             fit_combo = ''.join([top, bot])
             if fit_combo == 'PowerPower':
                 self.z = np.arange(0, 1.01, 0.01)
-                # self.z = self.z.T
                 zc = np.nan
                 uc = np.nan
             elif fit_combo == 'ConstantPower':
                 self.z = np.arange(0, np.max(avg_z[idxz])+0.01, 0.01)
                 self.z = np.hstack([self.z, np.nan])
                 zc = np.arange(np.max(avg_z[idxz] + 0.01), 1.01, 0.01)
-                # zc = zc.T
                 uc = np.tile(y[idxz[0]], zc.shape)
             elif fit_combo == '3-PointPower':
                 self.z = np.arange(0, np.max(avg_z[idxz]) + 0.01, 0.01)
@@ -122,7 +123,7 @@ class FitData(object):
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
                     p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
-                    zc = np.max(avg_z[idxz] + 0.01, 1.01, 0.01)
+                    zc = np.max([avg_z[idxz] + 0.01, 1.01, 0.01])
                     # zc = zc.T
                     uc = zc * p[0] + p[1]
 
@@ -178,7 +179,7 @@ class FitData(object):
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
                     p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
-                    zc = np.max(avg_z[idxz] + 0.01, 1.01, 0.01)
+                    zc = np.max([avg_z[idxz] + 0.01, 1.01, 0.01])
                     # zc = zc.T
                     uc = zc * p[0] + p[1]
 
@@ -195,6 +196,7 @@ class FitData(object):
             self.exponent = np.nan
             self.exponent_95_ci = np.nan
             self.r_squared = np.nan
+            fit_func = 'linear'
 
             lower_method = method.lower()
 

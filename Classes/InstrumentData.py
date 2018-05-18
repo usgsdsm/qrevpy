@@ -183,7 +183,7 @@ class InstrumentData(object):
             self.model = 'M9'
         else:
             self.model = 'S5'
-        if rs.SystemHW is not None:
+        if hasattr(rs, 'SystemHW'):
             revision = str(rs.SystemHW.FirmwareRevision)
             if len(revision) < 2:
                 revision = '0' + revision

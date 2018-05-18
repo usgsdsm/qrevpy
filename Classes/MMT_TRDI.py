@@ -139,7 +139,7 @@ class MMT_TRDI(object):
         # If only one transect make it a list
         if not isinstance(transects, list):
             transects = [transects]
-        tr_idx = 0
+
         # Process each transect dictionary
         for tsect in transects:
             transect = MMT_Transect(tsect)
@@ -237,7 +237,7 @@ class MMT_Transect(object):
             for file in files:
                 self.Files.append(file['#text'])
         else:
-             self.Files.append(files['#text'])
+            self.Files.append(files['#text'])
 
         # Create Note classes for each file associated with transect
         if 'Note' in trans.keys():

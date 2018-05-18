@@ -1,14 +1,3 @@
-"""
-Created on Sep 14, 2017
-
-@author: gpetrochenkov
-Modified DSM 2/1/2018
-    - Added numpy docstrings
-    - Cleaned up PEP8
-The two set_* methods are not needed unless class variables are set to read only.
-"""
-
-
 class SensorData(object):
     """Class stores data for pitch, roll, temperature, salinity, and speed of sound and its source/
 

@@ -4,13 +4,6 @@ import scipy.io as sio
 class MatSonTek(object):
     """Read SonTek Matlab files and returns a dictionary of mat_struct.
      Any data in English units are converted to SI units.
-
-     Atributes
-     ---------
-     mat_data: dictionary
-        This is a dictionary of mat_struct, which can be accessed as mat_data[key].struct_name.sub_name.
-    convert2correct: method
-        Converts all English data to metric units.
     """
 
     def __init__(self, fullname):
@@ -29,11 +22,17 @@ class MatSonTek(object):
         if mat_data['BottomTrack'].Units.BT_Depth == 'ft':
             self.convert2metric(mat_data)
 
+        # Create structure from dictionary
         vars(self).update(mat_data)
 
-
-    def convert2metric(self, mat_data):
+    @staticmethod
+    def convert2metric(mat_data):
         """Converts all data in English units to metric units.
+
+        Parameters
+        ----------
+        mat_data: dict
+            Dictionary of data from Matlab file
         """
 
         data2correct = ['BottomTrack', 'GPS', 'Setup', 'Summary', 'System', 'WaterTrack']

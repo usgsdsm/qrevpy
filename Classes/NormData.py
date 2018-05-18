@@ -146,7 +146,8 @@ class NormData(object):
             # Apply extents
             unit_lower = unit_total[-1] * data_extent[0] / 100
             unit_upper = unit_total[-1] * data_extent[1] / 100
-            idx_extent = np.where(np.logical_and(np.greater(unit_total, unit_lower), np.less(unit_total, unit_upper)))[0]
+            idx_extent = np.where(np.logical_and(np.greater(unit_total, unit_lower),
+                                                 np.less(unit_total, unit_upper)))[0]
             unit_norm = unit_norm[:, idx_extent]
             norm_cell_depth = norm_cell_depth[:, idx_extent]
             

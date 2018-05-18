@@ -17,6 +17,7 @@ from Classes.InstrumentData import InstrumentData
 from Classes.MultiThread import MultiThread
 import matplotlib.dates as mdates
 from datetime import datetime
+from datetime import timezone
 from MiscLibs.common_functions import nandiff, sontek_3d_arrange
 
 
@@ -146,6 +147,7 @@ class TransectData(object):
                                    
             # Check for the presence of depth sounder
             if np.nansum(np.nansum(pd0_data.Gps2.depth_m)) > 1e-5:
+                temp_depth_ds = np.tile(np.nan, (1, cell_depth_m.shape[1]))
                 temp_depth_ds[0, :] = pd0_data.Gps2.depth_m
                 
                 # Screen out invalid data
@@ -183,52 +185,52 @@ class TransectData(object):
             # Set depth reference to value from mmt file
             if 'Proc_River_Depth_Source' in mmt_config:
                 if mmt_config['Proc_River_Depth_Source'] == 0:
-                    self.depths.selected('bt_depths')
+                    self.depths.selected = 'bt_depths'
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 1:
                     if self.depths.ds_depths is not None:
-                        self.depths.selected('ds_depths')
+                        self.depths.selected = 'ds_depths'
                     else:
-                        self.depths.selected('bt_depths')
+                        self.depths.selected = 'bt_depths'
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 2:
                     if self.depths.vb_depths is not None:
-                        self.depths.selected('vb_depths')
+                        self.depths.selected = 'vb_depths'
                     else:
-                        self.depths.selected('bt_depths')
+                        self.depths.selected = 'bt_depths'
                     self.depths.composite_depths(self, setting=False)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 3:
                     if self.depths.vb_depths is None:
-                        self.depths.selected('bt_depths')
+                        self.depths.selected = 'bt_depths'
                         self.depths.composite_depths(self, setting=False)
                     else:
-                        self.depths.selected('vb_depths')
+                        self.depths.selected = 'vb_depths'
                         self.depths.composite_depths(self, setting=True)
 
                 elif mmt_config['Proc_River_Depth_Source'] == 4:
                     if self.depths.bt_depths is not None:
-                        self.depths.selected('bt_depths')
+                        self.depths.selected = 'bt_depths'
                         self.depths.composite_depths(self, setting=True)
                     elif self.depths.vb_depths is not None:
-                        self.depths.selected('vb_depths')
+                        self.depths.selected = 'vb_depths'
                         self.depths.composite_depths(self, setting=True)
                     elif self.depths.ds_depths is not None:
-                        self.depths.selected('ds_depths')
+                        self.depths.selected = 'ds_depths'
                         self.depths.composite_depths(self, setting=True)
                 else:
-                    self.depths.selected('bt_depths')
+                    self.depths.selected = 'bt_depths'
                     self.depths.composite_depths(self, setting=False)
             else:
                 if mmt_config['DS_Use_Process'] > 0:
                     if self.depths.ds_depths is not None:
-                        self.depths.selected('ds_depths')
+                        self.depths.selected = 'ds_depths'
                     else:
-                        self.depths.selected('bt_depths')
+                        self.depths.selected = 'bt_depths'
                 else:
-                    self.depths.selected('bt_depths')
+                    self.depths.selected = 'bt_depths'
                 self.depths.composite_depths(self, setting=False)
                 
             # Create water_data object
@@ -579,7 +581,7 @@ class TransectData(object):
             # Start date and time
             idx = np.where(np.isnan(pd0_data.Sensor.time[:, 0]) == False)[0][0]
             start_year = int(pd0_data.Sensor.date[idx, 0])
-            
+
             # StreamPro doesn't include y2k dates
             if start_year < 100:
                 start_year = 2000 + int(pd0_data.Sensor.date_not_y2k[idx, 0])
@@ -591,8 +593,8 @@ class TransectData(object):
             start_sec = int(pd0_data.Sensor.time[idx, 2] + pd0_data.Sensor.time[idx, 3] / 100)
             
             start_dt = datetime(start_year, start_month, start_day, start_hour, start_min, start_sec)
-            start_serial_time = mdates.date2num(start_dt)
-            start_date = datetime.strftime(start_dt, '%m/%d/%Y')
+            start_serial_time = start_dt.timestamp()
+            start_date = datetime.strftime(datetime.fromtimestamp(start_serial_time), '%m/%d/%Y')
             
             # End data and time
             idx = np.where(np.isnan(pd0_data.Sensor.time[:, 0]) == False)[0][-1]
@@ -608,8 +610,8 @@ class TransectData(object):
             end_sec = int(pd0_data.Sensor.time[idx, 2] + pd0_data.Sensor.time[idx, 3] / 100)
             
             end_dt = datetime(end_year, end_month, end_day, end_hour, end_min, end_sec)
-            end_serial_time = mdates.date2num(end_dt)
-            end_date = datetime.strftime(start_dt, '%m/%d/%Y')
+            end_serial_time = end_dt.timestamp()
+            end_date = datetime.strftime(datetime.fromtimestamp(end_serial_time), '%m/%d/%Y')
             
             # Create date/time object
             self.date_time = DateTime()
@@ -626,7 +628,7 @@ class TransectData(object):
             self.adcp.populate_data(manufacturer='TRDI', raw_data=pd0_data, mmt_transect=mmt_transect, mmt=mmt)
 
             
-    def SonTek(self, rsdata, file_name):
+    def sontek(self, rsdata, file_name):
         """Reads Matlab file produced by RiverSurveyor Live and populates the transect instance variables.
 
         Parameters
@@ -672,11 +674,12 @@ class TransectData(object):
                                      cell_depth_in=cell_depth,
                                      cell_size_in=cell_size_all)
         # Prepare vertical beam depth variable
-        depth = rsdata.BottomTrack.VB_Depth
-        depth[depth == 0] = np.nan
+        depth_vb = np.tile(np.nan, (1, cell_depth.shape[1]))
+        depth_vb[0, :] = rsdata.BottomTrack.VB_Depth
+        depth_vb[depth_vb == 0] = np.nan
 
         # Create depth object for vertical beam
-        self.depths.add_depth_object(depth_in=depth,
+        self.depths.add_depth_object(depth_in=depth_vb,
                                      source_in='VB',
                                      freq_in=np.array([rsdata.Transformation_Matrices.Frequency[1]] * depth.shape[-1]),
                                      draft_in=rsdata.Setup.sensorDepth,
@@ -685,9 +688,9 @@ class TransectData(object):
 
         # Set depth reference
         if rsdata.Setup.depthReference < 0.5:
-            self.depths.selected('vb_depths')
+            self.depths.selected = 'vb_depths'
         else:
-            self.depths.selected('bt_depths')
+            self.depths.selected = 'bt_depths'
 
         # Water Velocity
         # --------------
@@ -988,10 +991,9 @@ class TransectData(object):
             error_str = self.file_name + ' is missing ' + str(number_missing) + ' samples'
             raise ValueError(error_str)
 
-        # Date, start, end, and duration
-        start_serial_time = DateTime.time_2_serial_time(time_in=rsdata.System.Time[0], source='SonTek')
-        end_serial_time = DateTime.time_2_serial_time(time_in=rsdata.System.Time[-1], source='SonTek')
-        meas_date = time.strftime('%m/%d/%Y', time.gmtime(start_serial_time))
+        start_serial_time = rsdata.System.Time[0] + ((30 * 365) + 7) * 24 * 60 * 60 + 1 + 4 * 60 * 60
+        end_serial_time = rsdata.System.Time[-1] + ((30 * 365) + 7) * 24 * 60 * 60 + 1 + 4 * 60 * 60
+        meas_date = datetime.strftime(datetime.fromtimestamp(start_serial_time), '%m/%d/%Y')
         self.date_time = DateTime()
         self.date_time.populate_data(date_in=meas_date,
                                      start_in=start_serial_time,
@@ -1409,8 +1411,8 @@ class TransectData(object):
             Depth reference (bt_depths, vb_depths, ds_depths)
         """
         
-        self.depths.selected(setting)
-        
+        self.depths.selected = setting
+
         if update:
             self.process_depths(update)
             self.adjust_side_lobe()

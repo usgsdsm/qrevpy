@@ -384,16 +384,17 @@ class Measurement(object):
                 # G3 compasses
                 if file.endswith('.ccal'):
                     compass_cal_files.append(file)
+                    time_stamp = file.split('_')
+                    time_stamp = time_stamp[0] + '_' + time_stamp[1]
                 # G2 compasses
                 elif file.endswith('.txt'):
                     compass_cal_files.append(file)
+                    time_stamp = file.split('l')[1].split('.')[0]
             for file in compass_cal_files:
-                time_stamp = file.split('_')[1].split('.')
-                time_stamp = time_stamp[0] + ':' + time_stamp[1] + ':' + time_stamp[2]
                 with open(os.path.join(compass_cal_folder, file)) as f:
                     cal_data = f.read()
                     cal = CompassCal()
-                    cal.populate_data(time_stamp, cal_data, 'SSC')
+                    cal.populate_data(time_stamp, cal_data)
                     self.compass_cal.append(cal)
 
         # System Test
@@ -407,7 +408,7 @@ class Measurement(object):
                         test_data = test_data.replace('\x00','')
                     time_stamp = file[18:20] + ':' + file[20:22] + ':' + file[22:24]
                     sys_test = SystemTest()
-                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data, data_type='SST')
+                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data)
                     self.system_test.append(sys_test)
 
         # Moving-bed tests

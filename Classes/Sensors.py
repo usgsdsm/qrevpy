@@ -1,15 +1,3 @@
-"""
-Created on Sep 14, 2017
-
-@author: gpetrochenkov
-Modified DSM 2/1/2018
-    - Added numpy docstrings
-    - Commented out two methods
-    - Cleaned up PEP8
-    - Set method to static
-"""
-
-# from Classes.HeadingData import HeadingData
 from Classes.SensorStructure import SensorStructure
 # from Classes.SensorData import SensorData
 
@@ -42,24 +30,6 @@ class Sensors(object):
         self.temperature_deg_c = SensorStructure()  # Temperature data, object of SensorStructure
         self.salinity_ppt = SensorStructure()  # Salinity data, object of SensorStructure
         self.speed_of_sound_mps = SensorStructure()  # Speed of sound, object of SensorStructure
-        
-    # DSM I don't think these are needed. 2/1/2018
-    # def add_sensor_data(self, sensor_name, sensor_type, data,source, kargs = None):
-    #     #this function will create the appropriate objects for the specified property
-    #     if sensor_name == 'heading_deg':
-    #         sensor = getattr(self, sensor_name)
-    #         h_data = HeadingData()
-    #         h_data.populate_data(data, source, kargs)
-    #         setattr(sensor, sensor_type, h_data)
-    #     else:
-    #         sensor = getattr(self, sensor_name)
-    #         s_data = SensorData()
-    #         s_data.populate_data(data, source)
-    #         setattr(sensor, sensor_type, s_data)
-    #
-    # def set_selected(self, sensor_name, selected_name):
-    #     sensor = getattr(self, sensor_name)
-    #     sensor.set_selected(selected_name)
 
     @staticmethod
     def speed_of_sound(temperature, salinity):

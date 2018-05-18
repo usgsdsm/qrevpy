@@ -1034,14 +1034,15 @@ class QComp(object):
                     sl_depth = min_depth - ((transect.w_vel.sl_cutoff_percent / 100.) * min_depth)
                 else:
                     sl_depth = min_depth - ((transect.w_vel.sl_cutoff_percent / 100.) * min_depth) \
-                        - (transect.w_vel.sl_cutoff_number * cell_size[0,0])
+                        - (transect.w_vel.sl_cutoff_number * cell_size[0, 0])
 
                 # Adjust side lobe depth for draft
                 sl_depth = sl_depth + draft_bt_beam_orig
                 above_sl = cell_depth < (sl_depth + np.nanmax(cell_size))
                 above_sl_profile = np.nansum(above_sl, 1)
                 # TODO this line doesn't make sense to me
-                valid_idx = np.logical_and(np.less(above_sl_profile, np.nanmax(above_sl_profile)+1), np.greater(above_sl_profile, 0))
+                valid_idx = np.logical_and(np.less(above_sl_profile, np.nanmax(above_sl_profile)+1),
+                                           np.greater(above_sl_profile, 0))
 
                 # Compute the number of cells above the side lobe cutoff
                 remaining_depth = sl_depth - cell_depth_edge[idx_first_valid_cell]

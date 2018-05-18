@@ -493,8 +493,8 @@ class Pd0TRDI(object):
                         self.Sensor.date_y2k[i_ens, :] = np.fromfile(f, np.uint8, count=4)
                         self.Sensor.time_y2k[i_ens, :] = np.fromfile(f, np.uint8, count=4)
                         self.Sensor.date[i_ens, :] = self.Sensor.date_not_y2k[i_ens, :]
-                        self.Sensor.date[i_ens, 0] = self.Sensor.date_y2k[i_ens, 1] * 100 + \
-                            self.Sensor.date_y2k[i_ens, 2]
+                        self.Sensor.date[i_ens, 0] = self.Sensor.date_y2k[i_ens, 0] * 100 + \
+                            self.Sensor.date_y2k[i_ens, 1]
                         self.Cfg.lag_near_bottom[i_ens] = np.fromfile(f, np.uint8, count=1)[0]
 
                         # Check if more data types need to be read and position the pointer
@@ -1451,7 +1451,7 @@ class Pd0TRDI(object):
 
         Parameters
         ----------
-        f: object
+        f: BufferedReader
             File object of pd0 file
         f_size: int
             File size in bytes
@@ -1507,7 +1507,7 @@ class Pd0TRDI(object):
 
         Parameters
         ----------
-        f: object
+        f: BufferedReader
             File object
 
         Returns
@@ -1557,7 +1557,7 @@ class Pd0TRDI(object):
 
         Parameters
         ----------
-        f: object
+        f: BufferedReader
             File object
         fileloc: int
             Location within file
@@ -1611,7 +1611,7 @@ class Pd0TRDI(object):
                     return False
             else:
                 return False
-        except:  
+        except Exception:
             return False
 
     @staticmethod
@@ -1620,7 +1620,7 @@ class Pd0TRDI(object):
 
         Parameters
         ----------
-        f: object
+        f: BufferedReader
             File object
         file_loc: int
             Location in file
@@ -1642,7 +1642,7 @@ class Pd0TRDI(object):
 
         Parameters
         ----------
-        f: object
+        f: BufferedReader
             File object
         file_loc: int
             Location in file
@@ -1655,37 +1655,10 @@ class Pd0TRDI(object):
 
         """
         if i_data_types + 1 <= self.Hdr.n_data_types[i_ens]:
-            f.seek(int(self.Hdr.data_offsets[i_ens,i_data_types])+file_loc, 0)
+            f.seek(int(self.Hdr.data_offsets[i_ens, i_data_types])+file_loc, 0)
         else:
             f.seek(file_loc+bytes_per_ens-2, 0)
-            
-       
-# -------------------------------------------------thus far testing individual pd0 file extraction until comfortable  
-if __name__ == '__main__':
 
-    files = [
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_000.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_001.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_002.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_003.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_004.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_1308000_359\13038000_359_005.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_000_14-04-14_LBT.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_001_14-04-14.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_002_14-04-14.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RG_Cal_NoEval\01327750_0_003_14-04-14.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_000_LBT.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RP_02353000_554_New_SysTest\02353000_554_001.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\RR_Multi_Cal\05LC004_20140812.AQ1_0_001.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_000_LBT.PD0',
-        r'C:\Users\gpetrochenkov\Desktop\drive-download-20170522T150040Z-0014\SP_10126sp778_3\10126sp778_0_001.PD0'
-            ]
-      
-    c = [Pd0TRDI(file) for file in files]
-    
 
 class Hdr(object):
     """Class to hold header variables.

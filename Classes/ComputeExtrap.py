@@ -1,19 +1,15 @@
-"""
-Created on Sep 26, 2017
-
-@author: gpetrochenkov
-"""
 import numpy as np
 from Classes.SelectFit import SelectFit
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 from Classes.NormData import NormData
+
 
 class ComputeExtrap(object):
     """Class to compute the optimized or manually specified extrapolation methods"""
     
     def __init__(self):
         self.threshold = None  # Threshold as a percent for determining if a median is valid
-        self.subsection = None  #Percent of discharge, does not account for transect direction
+        self.subsection = None  # Percent of discharge, does not account for transect direction
         self.fit_method = None  # Method used to determine fit.  Automatic or manual
         self.norm_data = []  # Object of class norm data
         self.sel_fit = []  # Object of class SelectFit
@@ -41,8 +37,7 @@ class ComputeExtrap(object):
         data_type: str
             Type of data processing (q or v)
         """
-        
-        
+
         # Compute normalized data for each transect
         for transect in transects:
             norm_data = NormData()
@@ -56,6 +51,7 @@ class ComputeExtrap(object):
         comp_data = NormData()
         comp_data.create_composite(transects=transects, norm_data=self.norm_data, threshold=self.threshold)
         self.norm_data.append(comp_data)
+        sel_fit = None
 
         # Compute the fit for the selected  method
         for n in range(len(self.norm_data)):

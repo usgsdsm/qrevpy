@@ -146,7 +146,7 @@ class MovingBedTests(object):
 
         # Create transect objects for each discharge transect
         self.transect = TransectData()
-        self.transect.SonTek(rsdata, file_name)
+        self.transect.sontek(rsdata, file_name)
         
     def loop_test(self, ens_duration=None):
         """Process loop moving bed test.

@@ -10,3 +10,4 @@ class QAData(object):
     as the container for all methods of evaluating the quality of the measurement"""
     
     def __init__(self):
+        pass

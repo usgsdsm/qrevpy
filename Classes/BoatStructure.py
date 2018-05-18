@@ -44,7 +44,8 @@ class BoatStructure(object):
         # Future versions may try to determine this setting from SonTek data
         self.composite = False  # Setting for compositir tracks
         
-    def add_boat_object(self, source, vel_in, freq_in=None, coord_sys_in=None, nav_ref_in=None, min_beams=3, bottom_mode='Variable'):
+    def add_boat_object(self, source, vel_in, freq_in=None, coord_sys_in=None, nav_ref_in=None,
+                        min_beams=3, bottom_mode='Variable'):
         """Adds a BoatData object to the appropriate property
 
         Parameters
@@ -59,7 +60,7 @@ class BoatStructure(object):
             Coordinate system of velocity data.
         nav_ref_in: str
             Source of boat velocity data
-        min_beams: float
+        min_beams: int
             Setting to allow 3 beam solutions or require 4 beam solutions or set to Auto (-1)
         bottom_mode: str
             Bottom mode used
@@ -158,7 +159,14 @@ class BoatStructure(object):
             
         # Composite depths turned on
         if setting:
-            
+            # Intialize variables
+            u_bt = np.array([])
+            v_bt = np.array([])
+            u_gga = np.array([])
+            v_gga = np.array([])
+            u_vtg = np.array([])
+            v_vtg = np.array([])
+
             # Prepare bt data
             if self.bt_vel is not None:
                 u_bt = self.bt_vel.u_processed_mps
@@ -312,11 +320,38 @@ class BoatStructure(object):
                 # self.gga_vel = self.interpolate_composite()
                 self.gga_vel.apply_composite(u_comp, v_comp, comp_source)
                 self.gga_vel.interpolate_composite(transect)
-            # else:
-                # Composite tracks false
+            else:
+                # Composite tracks off
 
-                # Use only intepolations for bt
-            # DSM Stopped here 1/29/2018
+                # Use only interpolations for bt
+                if self.bt_vel is not None:
+                    self.bt_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                    comp_source = np.tile(np.nan, self.bt_vel.u_processed_mps.shape)
+                    comp_source[self.bt_vel.valid_data[0, :]] = 1
+                    comp_source[np.isnan(comp_source) and not np.isnan(self.bt_vel.u_processed_mps)] = 0
+                    comp_source[np.isnan(comp_source)] = -1
+                    self.bt_vel.apply_composite(u_composite=self.bt_vel.u_processed_mps,
+                                                v_composite=self.bt_vel.v_processed_mps,
+                                                composite_source=comp_source)
 
+                # Use only interpolations for gga
+                if self.gga_vel is not None:
+                    self.gga_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                    comp_source = np.tile(np.nan, self.gga_vel.u_processed_mps.shape)
+                    comp_source[self.gga_vel.valid_data[0, :]] = 2
+                    comp_source[np.isnan(comp_source) and not np.isnan(self.gga_vel.u_processed_mps)] = 0
+                    comp_source[np.isnan(comp_source)] = -1
+                    self.gga_vel.apply_composite(u_composite=self.gga_vel.u_processed_mps,
+                                                 v_composite=self.gga_vel.v_processed_mps,
+                                                 composite_source=comp_source)
 
-# TODO Finish coding BoatStructure class
+                # Use only interpolations for vtg
+                if self.vtg_vel is not None:
+                    self.vtg_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                    comp_source = np.tile(np.nan, self.vtg_vel.u_processed_mps.shape)
+                    comp_source[self.vtg_vel.valid_data[0, :]] = 3
+                    comp_source[np.isnan(comp_source) and not np.isnan(self.vtg_vel.u_processed_mps)] = 0
+                    comp_source[np.isnan(comp_source)] = -1
+                    self.vtg_vel.apply_composite(u_composite=self.vtg_vel.u_processed_mps,
+                                                 v_composite=self.vtg_vel.v_processed_mps,
+                                                 composite_source=comp_source)

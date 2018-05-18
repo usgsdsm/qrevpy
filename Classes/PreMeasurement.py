@@ -104,7 +104,6 @@ class PreMeasurement(object):
         for rssi_match in rssi_matches:
             rssi_array = np.hstack((rssi_array, np.array(re.findall('\d+\.*\d*', rssi_match))))
 
-
         # Process each set of correlation tables
         for n, lag_match in enumerate(lag_matches):
 
