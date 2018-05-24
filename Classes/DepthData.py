@@ -545,10 +545,9 @@ class DepthData(object):
             track_x = boat_vel_x * transect.date_time.ens_duration_sec
             track_y = boat_vel_y * transect.date_time.ens_duration_sec
         else:
-            size_u = transect.boat_vel[transect.boat_vel.selected].u_processed_mps.shape
-            size_v = transect.boat_vel[transect.boat_vel.selected].v_processed_mps.shape
-            track_x = repmat([np.nan], size_u[0], size_u[1])
-            track_y = repmat([np.nan], size_v[0], size_v[1])
+            select = getattr(transect.boat_vel, 'bt_vel')
+            track_x = np.tile(np.nan, select.u_processed_mps.shape)
+            track_y = np.tile(np.nan, select.v_processed_mps.shape)
               
         idx = np.where(np.isnan(track_x[1:]))
         
@@ -611,9 +610,9 @@ class DepthData(object):
                 # Fill in invalid data with interpolated data
                 depth_new[n, np.logical_not(self.valid_beams[n])] = depth_int[np.logical_not(self.valid_beams[n])]
 
-            else:
-                # No valid data
-                depth_int[n] = repmat([np.nan], 1, len(valid))
+            # else:
+            #     # No valid data
+            #     depth_int[n, :] = np.tile(np.nan, len(valid))
 
         if self.depth_source == 'BT':
             # Bottom track depths

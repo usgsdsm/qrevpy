@@ -1,5 +1,6 @@
 import xmltodict
 import os
+import re
 
 
 class MMT_TRDI(object):
@@ -54,8 +55,16 @@ class MMT_TRDI(object):
         """
 
         # Open the file and convert to an ordered dictionary tree
-        with open(mmt_file) as fd:
-            win_river = xmltodict.parse(fd.read())
+        with open(mmt_file, 'r', encoding='utf-8') as fd:
+            xml_data = fd.read()
+            clean_xml_data = ''
+            remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F%]')
+            for line in xml_data:
+                new_line, count = remove_re.subn('', line)
+                clean_xml_data = clean_xml_data + new_line
+
+            win_river = xmltodict.parse(clean_xml_data)
+        # UnicodeDecodeError
         win_river = win_river['WinRiver']
 
         self.path = os.path.split(mmt_file)[0]

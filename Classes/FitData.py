@@ -48,19 +48,19 @@ class FitData(object):
         """Initialize object and instance variables."""
 
         self.file_name = None  # Name of transect file
-        self.top_method = None  # Top extrapolation method
-        self.bot_method = None  # Bottom extrapolation method
-        self.coef = None  # Power fit coefficient
-        self.exponent = None  # Power fit exponent
+        self.top_method = 'Power'  # Top extrapolation method
+        self.bot_method = 'Power'  # Bottom extrapolation method
+        self.coef = 0  # Power fit coefficient
+        self.exponent = 0.1667  # Power fit exponent
         self.u = None  # Fit values of the variable
         self.u_auto = None  # Fit values from automatic fit
         self.z_auto = None  # z values for automtic fit
         self.z = None  # Distance from the streambed for fit variable
-        self.exp_method = None  # Method to determine exponent (default, optimize, or manual)
-        self.data_type = None  # Type of data (velocity or unit discharge)
-        self.exponent_95_ci = None  # 95% confidence intervals for optimized exponent
-        self.residuals = None  # Residuals from fit
-        self.r_squared = None  # R squared of model
+        self.exp_method = 'Power'  # Method to determine exponent (default, optimize, or manual)
+        self.data_type = 'Power'  # Type of data (velocity or unit discharge)
+        self.exponent_95_ci = 0  # 95% confidence intervals for optimized exponent
+        self.residuals = np.array([])  # Residuals from fit
+        self.r_squared = 0  # R squared of model
 
     def populate_data(self, norm_data, top, bot, method, exponent=None):
         """Computes fit and stores associated data.
@@ -263,6 +263,8 @@ class FitData(object):
 
             # Compute residuals
             self.residuals = y[idx_power] - self.coef * avg_z[idx_power]**self.exponent
+            if self.residuals is None:
+                self.residuals = np.array([])
 
             # Compute values (velocity or discharge) based on exponent and compute coefficient
             self.u = self.coef * self.z**self.exponent

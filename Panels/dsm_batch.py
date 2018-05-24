@@ -113,7 +113,7 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
 
         # Process TRDI files
         if lines[0].endswith('.mmt'):
-            for line in lines:
+            for line in lines[self.sb_skip.value()::]:
                 path, name = os.path.split(line)
                 self.txt_status.setText('Processing ' + name)
                 QtCore.QCoreApplication.processEvents()
@@ -121,7 +121,7 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
 
         # Process QRev files
         elif lines[0].endswith('QRev.mat'):
-            for line in lines:
+            for line in lines[self.sb_skip.value()::]:
                 path, name = os.path.split(line)
                 self.txt_status.setText('Processing ' + name)
                 QtCore.QCoreApplication.processEvents()
@@ -131,7 +131,7 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
         elif lines[0].endswith('r.mat'):
             # Find unique paths to identify files that belong to a measurement
             paths = []
-            for line in lines:
+            for line in lines[self.sb_skip.value()::]:
                 path, name = os.path.split(line)
                 paths.append(path)
             unique_path = set(paths)

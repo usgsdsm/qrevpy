@@ -60,25 +60,25 @@ class MovingBedTests(object):
 
         self.type = None  # Loop or Stationary
         self.transect = None  # Object of TransectData
-        self.duration_sec = None  # Duration of test in secs
-        self.percent_invalid_bt = None  # Percent of invalid bottom track
-        self.compass_diff_deg = None  # Difference in heading for out and back of loop
-        self.flow_dir = None  # Mean flow direction from loop test
-        self.mb_dir = None  # Moving bed or closure error direction
-        self.dist_us_m = None  # Distance moved upstream in m
-        self.flow_spd_mps = None  # Magnitude of water velocity in mps
-        self.mb_spd_mps = None  # Magnitude of moving=bed velocity in mps
-        self.percent_mb = None  # Potential error due to moving bed in percent
-        self.moving_bed = None  # Moving-bed determined 'Yes' 'No'
+        self.duration_sec = np.nan  # Duration of test in secs
+        self.percent_invalid_bt = np.nan  # Percent of invalid bottom track
+        self.compass_diff_deg = np.nan  # Difference in heading for out and back of loop
+        self.flow_dir = np.nan  # Mean flow direction from loop test
+        self.mb_dir = np.nan  # Moving bed or closure error direction
+        self.dist_us_m = np.nan  # Distance moved upstream in m
+        self.flow_spd_mps = np.nan  # Magnitude of water velocity in mps
+        self.mb_spd_mps = np.nan  # Magnitude of moving=bed velocity in mps
+        self.percent_mb = np.nan  # Potential error due to moving bed in percent
+        self.moving_bed = np.nan  # Moving-bed determined 'Yes' 'No'
         self.user_valid = True  # Logical to allow user to determine if test should be considered a valid test
         self.test_quality = None  # Quality of test 'Valid' 'Warnings' 'Errors'
         self.use_2_correct = None  # Use this test to correct discharge
         self.selected = None  # Selected valid moving-bed test to use for correction or determine moving-bed condition
         self.messages = None  # Cell array of warning and error messages based on data processing
-        self.near_bed_speed_mps = None  # Mean near-bed water speed for test in mps
-        self.stationary_us_track = None  # Upstream component of the bottom track referenced ship track
-        self.stationary_cs_track = None  # Cross=stream component of the bottom track referenced ship track
-        self.stationary_mb_vel = None  # Moving-bed velocity by ensemble
+        self.near_bed_speed_mps = np.nan  # Mean near-bed water speed for test in mps
+        self.stationary_us_track = np.nan  # Upstream component of the bottom track referenced ship track
+        self.stationary_cs_track = np.nan  # Cross=stream component of the bottom track referenced ship track
+        self.stationary_mb_vel = np.nan  # Moving-bed velocity by ensemble
         
     def populate_data(self, source, file=None, test_type=None):
         """Process and store moving-bed test data.

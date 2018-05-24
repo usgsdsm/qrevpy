@@ -89,7 +89,7 @@ class DepthStructure(object):
             
         # The primary depth reference is the selected reference
         ref = self.selected
-        comp_depth = None
+        comp_depth = np.array([])
 
         if setting:
             # Prepare vector of valid BT averages, which are defined as having at least 2 valid beams
@@ -103,23 +103,21 @@ class DepthStructure(object):
                 vb_filtered = self.vb_depths.depth_processed_m
                 vb_filtered[np.squeeze(np.equal(self.vb_depths.valid_data, False))] = np.nan
             else:
-                vb_filtered = repmat([np.nan], n_ensembles, 1)
-                vb_filtered = np.squeeze(vb_filtered)
+                vb_filtered = np.tile(np.nan, n_ensembles)
+
                   
             # Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:
                 ds_filtered = self.ds_depths.depth_processed_m
                 ds_filtered[np.equal(self.ds_depths.valid_data, False)] = np.nan
             else:
-                ds_filtered = repmat([np.nan], n_ensembles, 1)
-                ds_filtered = np.squeeze(ds_filtered)
+                ds_filtered = np.tile(np.nan, n_ensembles)
                 
-            if len(bt_filtered.shape) > 1:
-                comp_source = repmat([np.nan], bt_filtered.shape[0], bt_filtered.shape[1])
-            else:
-                comp_source = repmat([np.nan], bt_filtered.shape[0], 1)
-                comp_source = np.squeeze(comp_source)
-            
+            # if len(bt_filtered.shape) > 1:
+            comp_source = np.tile(np.nan, bt_filtered.shape)
+            # else:
+            #     comp_source = np.tile(np.nan, bt_filtered.shape[0])
+
             # Apply composite depths
             if ref == 'bt_depths':
                 comp_depth = bt_filtered

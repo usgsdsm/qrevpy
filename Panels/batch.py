@@ -44,12 +44,18 @@ class Ui_mainWindow(object):
         self.gb_process = QtWidgets.QGroupBox(self.centralwidget)
         self.gb_process.setObjectName("gb_process")
         self.pb_process = QtWidgets.QPushButton(self.gb_process)
-        self.pb_process.setGeometry(QtCore.QRect(70, 40, 75, 23))
+        self.pb_process.setGeometry(QtCore.QRect(20, 40, 75, 23))
         self.pb_process.setObjectName("pb_process")
         self.txt_status = QtWidgets.QLabel(self.gb_process)
         self.txt_status.setGeometry(QtCore.QRect(20, 90, 211, 41))
         self.txt_status.setText("")
         self.txt_status.setObjectName("txt_status")
+        self.sb_skip = QtWidgets.QSpinBox(self.gb_process)
+        self.sb_skip.setGeometry(QtCore.QRect(180, 40, 42, 22))
+        self.sb_skip.setObjectName("sb_skip")
+        self.label = QtWidgets.QLabel(self.gb_process)
+        self.label.setGeometry(QtCore.QRect(150, 40, 21, 16))
+        self.label.setObjectName("label")
         self.gridLayout_2.addWidget(self.gb_process, 1, 0, 1, 1)
         mainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(mainWindow)
@@ -70,6 +76,7 @@ class Ui_mainWindow(object):
         self.pb_save.setText(_translate("mainWindow", "Save List"))
         self.gb_process.setTitle(_translate("mainWindow", "Batch Process Files"))
         self.pb_process.setText(_translate("mainWindow", "Process Files"))
+        self.label.setText(_translate("mainWindow", "Skip"))
 
 
 if __name__ == "__main__":

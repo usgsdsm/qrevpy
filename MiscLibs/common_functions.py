@@ -103,4 +103,27 @@ def sontek_3d_arrange(data_in):
     new_array = np.array([r1, r2, r3, r4])
     return new_array
 
+def valid_number(data_in):
+    """Check to see if data_in can be converted to float.
 
+    Parameters
+    ----------
+    data_in: str
+        String to be converted to float
+
+    Returns
+    -------
+    data_out: float
+        Returns a float of data_in or nan if conversion is not possible
+    """
+
+    try:
+        data_out = float(data_in)
+    except ValueError:
+        data_out = np.nan
+    return data_out
+
+def nans(shape, dtype=float):
+    a = np.empty(shape, dtype)
+    a.fill(np.nan)
+    return a

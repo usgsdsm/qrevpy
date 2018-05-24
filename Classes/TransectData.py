@@ -1720,7 +1720,7 @@ class TransectData(object):
 
         # Determine valid water track ensembles based on water track and navigation data.
         boat_vel_select = getattr(transect.boat_vel, transect.boat_vel.selected)
-        if np.nansum(np.logical_not(np.isnan(boat_vel_select.u_processed_mps))) > 0:
+        if boat_vel_select is not None and np.nansum(np.logical_not(np.isnan(boat_vel_select.u_processed_mps))) > 0:
             valid_nav = boat_vel_select.valid_data[0, in_transect_idx]
         else:
             valid_nav = np.tile(False, in_transect_idx.shape[0])
@@ -1840,46 +1840,46 @@ def allocate_transects(mmt, type='Q', checked=False):
     # Process each transect
     for k in range(len(pd0_data)):
         transect = TransectData()
+        if pd0_data[k].Wt is not None:
+            if type == 'MB':
+                # Process moving-bed transect
+                if multi_threaded:
+                    t_thread = MultiThread(thread_id=thread_id, function=add_transect,
+                                           args={'transect': transect,
+                                                 'mmt_transect': mmt.mbt_transects[k],
+                                                 'pd0_data': pd0_data[k],
+                                                 'mmt': mmt,
+                                                 'type': type})
+                    t_thread.start()
+                    transect_threads.append(t_thread)
 
-        if type == 'MB':
-            # Process moving-bed transect
-            if multi_threaded:
-                t_thread = MultiThread(thread_id=thread_id, function=add_transect,
-                                       args={'transect': transect,
-                                             'mmt_transect': mmt.mbt_transects[k],
-                                             'pd0_data': pd0_data[k],
-                                             'mmt': mmt,
-                                             'type': type})
-                t_thread.start()
-                transect_threads.append(t_thread)
-
-            else:
-                transect = TransectData()
-                add_transect(transect=transect,
-                             mmt_transect=mmt.mbt_transects[k],
-                             pd0_data=pd0_data[k],
-                             mmt=mmt,
-                             type=type)
-            
-        else:
-            # Process discharge transects
-            if multi_threaded:
-                t_thread = MultiThread(thread_id = thread_id, function= add_transect,
-                                       args = {'transect': transect,
-                                               'mmt_transect': mmt.transects[k],
-                                               'pd0_data': pd0_data[k],
-                                               'mmt': mmt,
-                                               'type': type})
-                t_thread.start()
-                transect_threads.append(t_thread)
+                else:
+                    transect = TransectData()
+                    add_transect(transect=transect,
+                                 mmt_transect=mmt.mbt_transects[k],
+                                 pd0_data=pd0_data[k],
+                                 mmt=mmt,
+                                 type=type)
 
             else:
-                add_transect(transect=transect,
-                             mmt_transect=mmt.transects[k],
-                             pd0_data=pd0_data[k],
-                             mmt=mmt,
-                             type=type)
-    
+                # Process discharge transects
+                if multi_threaded:
+                    t_thread = MultiThread(thread_id = thread_id, function= add_transect,
+                                           args = {'transect': transect,
+                                                   'mmt_transect': mmt.transects[k],
+                                                   'pd0_data': pd0_data[k],
+                                                   'mmt': mmt,
+                                                   'type': type})
+                    t_thread.start()
+                    transect_threads.append(t_thread)
+
+                else:
+                    add_transect(transect=transect,
+                                 mmt_transect=mmt.transects[k],
+                                 pd0_data=pd0_data[k],
+                                 mmt=mmt,
+                                 type=type)
+
     if multi_threaded:
         for x in transect_threads:
                 x.join()

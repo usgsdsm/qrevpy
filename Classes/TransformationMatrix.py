@@ -88,12 +88,15 @@ class TransformationMatrix(object):
         data_in:
             System test data
         """
-
-        idx = data_in.find('Instrument Transformation Matrix (Down):')
-        if idx != -1:
-            cell_matrix = np.fromstring(data_in[idx + 50:idx + 356], dtype=np.float64, sep=' ')
-            self.matrix = np.random.permutation(cell_matrix.reshape([8, 4]))
-            self.source = 'ADCP'
+        if data_in is not None:
+            idx = data_in.find('Instrument Transformation Matrix (Down):')
+            if idx != -1:
+                cell_matrix = np.fromstring(data_in[idx + 50:idx + 356], dtype=np.float64, sep=' ')
+                try:
+                    self.matrix = np.random.permutation(cell_matrix.reshape([8, 4]))
+                    self.source = 'ADCP'
+                except ValueError:
+                    pass
 
     def streampro(self, data_in):
         """Process StreamPro test data for transformation matrix.
@@ -104,12 +107,13 @@ class TransformationMatrix(object):
             System test data
         """
 
-        idx = data_in.find('>PS3')
-        if idx != -1:
-            temp2 = float(data_in[idx + 5:idx + 138])
-            if temp2 is not None:
-                self.matrix = temp2
-                self.source = 'ADCP'
+        if data_in is not None:
+            idx = data_in.find('>PS3')
+            if idx != -1:
+                temp2 = float(data_in[idx + 5:idx + 138])
+                if temp2 is not None:
+                    self.matrix = temp2
+                    self.source = 'ADCP'
 
     def riverray(self, data_in):
         """Process RiverRay test data for transformation matrix.
@@ -119,17 +123,17 @@ class TransformationMatrix(object):
         data_in:
             System test data
         """
-
-        idx = data_in.find('Instrument Transformation Matrix')
-        if idx != -1:
-            idx2 = data_in[idx:].find(':')
-            idx3 = idx + idx2[0]
-            if idx2 != -1:
-                idx4 = data_in[idx3:].find('>')
-                idx5 = idx3 + idx4[0] - 2
-                if idx4 != -1:
-                    self.matrix = float(data_in[idx3:idx5])
-                    self.source = 'ADCP'
+        if data_in is not None:
+            idx = data_in.find('Instrument Transformation Matrix')
+            if idx != -1:
+                idx2 = data_in[idx:].find(':')
+                idx3 = idx + idx2[0]
+                if idx2 != -1:
+                    idx4 = data_in[idx3:].find('>')
+                    idx5 = idx3 + idx4[0] - 2
+                    if idx4 != -1:
+                        self.matrix = float(data_in[idx3:idx5])
+                        self.source = 'ADCP'
 
     def riverpro(self, data_in):
         """Process RiverPro test data for transformation matrix.
@@ -139,17 +143,17 @@ class TransformationMatrix(object):
         data_in:
             System test data
         """
-
-        idx = data_in.find('Instrument Transformation Matrix')
-        if idx != -1:
-            idx2 = data_in[idx:].find(':')
-            idx3 = idx + idx2[0]
-            if idx2 != -1:
-                idx4 = data_in[idx3:].find('Has V-Beam')
-                idx5 = idx3 + idx4[0] - 2
-                if idx4 != -1:
-                    self.matrix = float(data_in[idx3:idx5])
-                    self.source = 'ADCP'
+        if data_in is not None:
+            idx = data_in.find('Instrument Transformation Matrix')
+            if idx != -1:
+                idx2 = data_in[idx:].find(':')
+                idx3 = idx + idx2[0]
+                if idx2 != -1:
+                    idx4 = data_in[idx3:].find('Has V-Beam')
+                    idx5 = idx3 + idx4[0] - 2
+                    if idx4 != -1:
+                        self.matrix = float(data_in[idx3:idx5])
+                        self.source = 'ADCP'
 
     def riopro(self, data_in):
         """Process RioPro test data for transformation matrix.
@@ -159,16 +163,18 @@ class TransformationMatrix(object):
         data_in:
             System test data
         """
-        idx = data_in.find('Instrument Transformation Matrix')
-        if idx != -1:
-            idx2 = data_in[idx:].find(':')
-            idx3 = idx + idx2[0]
-            if idx2 != -1:
-                idx4 = data_in[idx3:].find('Has V-Beam')
-                idx5 = idx3 + idx4[0] - 2
-                if idx4 != -1:
-                    self.matrix = float(data_in[idx3:idx5])
-                    self.source = 'ADCP'
+
+        if data_in is not None:
+            idx = data_in.find('Instrument Transformation Matrix')
+            if idx != -1:
+                idx2 = data_in[idx:].find(':')
+                idx3 = idx + idx2[0]
+                if idx2 != -1:
+                    idx4 = data_in[idx3:].find('Has V-Beam')
+                    idx5 = idx3 + idx4[0] - 2
+                    if idx4 != -1:
+                        self.matrix = float(data_in[idx3:idx5])
+                        self.source = 'ADCP'
 
     def sontek(self, data_in):
         """Store SonTek transformation matrix data.
@@ -179,7 +185,8 @@ class TransformationMatrix(object):
             System test data
         """
 
-        self.source = 'ADCP'
-        # Note: for M9 this is a 4x4x3 matrix (300,500,1000)
-        # Note: for S5 this is a 4x4x2 matrix (3000,1000)
-        self.matrix = data_in
+        if data_in is not None:
+            self.source = 'ADCP'
+            # Note: for M9 this is a 4x4x3 matrix (300,500,1000)
+            # Note: for S5 this is a 4x4x2 matrix (3000,1000)
+            self.matrix = data_in

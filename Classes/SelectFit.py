@@ -61,30 +61,30 @@ class SelectFit(object):
     def __init__(self):
         """Intialize object and instance variables."""
 
-        self.fit_method = None  # User selected method Automatic or Manual
-        self.top_method = None
-        self.bot_method = None
-        self.exponent = None
+        self.fit_method = 'Automatic'  # User selected method Automatic or Manual
+        self.top_method = 'Power'
+        self.bot_method = 'Power'
+        self.exponent = '0.1667'
         self.exp_method = None
         self.u = None
         self.u_auto = None
         self.z = None
         self.z_auto = None
-        self.residuals = None
-        self.coef = None
-        self.bot_method_auto = None  # Selected extrapolation for top
-        self.top_method_auto = None  # Selected extrapolation for bottom
-        self.exponent_auto = None  # Selected exponent
-        self.top_fit_r2 = None  # Top fit custom r^2
-        self.top_max_diff = None  # Maximum difference between power and 3-pt at top
-        self.bot_diff = None  # Difference between power and no slop at z = 0.1
-        self.bot_r2 = None  # Bottom fit r^2
-        self.fit_r2 = None  # Selected fit of selected power/no slip fit
-        self.ns_exponent = None  # No slip optimized exponent
-        self.pp_exponent = None  # Power Power optimized exponent
-        self.top_r2 = None
-        self.rsqr = None
-        self.exponent_95_ci = None
+        self.residuals = np.array([])
+        self.coef = 0
+        self.bot_method_auto = 'Power' # Selected extrapolation for top
+        self.top_method_auto = 'Power'  # Selected extrapolation for bottom
+        self.exponent_auto = 0.1667  # Selected exponent
+        self.top_fit_r2 = 0  # Top fit custom r^2
+        self.top_max_diff = 0  # Maximum difference between power and 3-pt at top
+        self.bot_diff = 0  # Difference between power and no slop at z = 0.1
+        self.bot_r2 = 0  # Bottom fit r^2
+        self.fit_r2 = 0  # Selected fit of selected power/no slip fit
+        self.ns_exponent = 0.1667  # No slip optimized exponent
+        self.pp_exponent = 0.1667  # Power Power optimized exponent
+        self.top_r2 = 0
+        self.rsqr = 0
+        self.exponent_95_ci = 0
 
     def populate_data(self, normalized, fit_method, transect=None, top=None, bot=None, exponent=None):
         """Determine selected fit.

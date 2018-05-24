@@ -297,12 +297,18 @@ class WaterData(object):
                 self.corr = corr_in
             else:
                 # No correlations input
-                self.corr = repmat([np.nan], rssi_in.shape[0], rssi_in.shape[1])
+                self.corr = np.tile(np.nan, rssi_in.shape)
 
         self.u_mps = np.squeeze(np.copy(self.raw_vel_mps)[0, :, :])
         self.v_mps = np.squeeze(np.copy(self.raw_vel_mps)[1, :, :])
         self.w_mps = np.squeeze(np.copy(self.raw_vel_mps)[2, :, :])
         self.d_mps = np.squeeze(np.copy(self.raw_vel_mps)[3, :, :])
+
+        if len(self.u_mps.shape) < 2:
+            self.u_mps = self.u_mps.reshape(-1, 1)
+            self.v_mps = self.v_mps.reshape(-1, 1)
+            self.w_mps = self.w_mps.reshape(-1, 1)
+            self.d_mps = self.d_mps.reshape(-1, 1)
 
         self.water_mode = wm_in
         self.excluded_dist_m = excluded_dist_in

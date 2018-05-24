@@ -50,37 +50,37 @@ class Measurement(object):
                 self.load_sontek(in_file)
 
         # For testing mmt, pd0, and Premeasurement stop here
+            if len(self.transects) > 0:
+                select = self.transects[0].boat_vel.selected
+                if select == 'bt_vel':
+                    ref = 'BT'
+                elif select == 'gga_vel':
+                    ref = 'GGA'
+                elif select == 'vtg_vel':
+                    ref = 'VTG'
 
-            select = self.transects[0].boat_vel.selected
-            if select == 'bt_vel':
-                ref = 'BT'
-            elif select == 'gga_vel':
-                ref = 'GGA'
-            elif select == 'vtg_vel':
-                ref = 'VTG'
+                if self.mb_tests is not None:
+                    self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
 
-            if self.mb_tests is not None:
-                self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
+                # Save initial settings
+                self.initial_settings = self.current_settings()
 
-            # Save initial settings
-            self.initial_settings = self.current_settings()
+                # Set processing type
+                if proc_type == 'QRev':
+                    # Apply QRev default settings
+                    settings = self.QRevDefaultSettings()
+                    settings['Processing'] = 'QRev'
+                    self.apply_settings(settings)
 
-            # Set processing type
-            if proc_type == 'QRev':
-                # Apply QRev default settings
-                settings = self.QRevDefaultSettings()
-                settings['Processing'] = 'QRev'
-                self.apply_settings(settings)
+                elif proc_type == 'None':
+                    #UpdateStatus "Processing with no filters and interpolation
+                    settings = self.NoFilterInterpSettings()
+                    settings['Processing'] = 'None'
 
-            elif proc_type == 'None':
-                #UpdateStatus "Processing with no filters and interpolation
-                settings = self.NoFilterInterpSettings()
-                settings['Processing'] = 'None'
+                    self.apply_settings(settings)
 
-                self.apply_settings(settings)
-
-            else:
-                self.discharge = QComp()
+                else:
+                    self.discharge = QComp()
         
         
 
@@ -124,9 +124,9 @@ class Measurement(object):
 
         for t in range(len(self.transects)):
             notes = getattr(mmt.transects[t], 'Notes')
-            for x in range(len(notes)):
-                note = 'Transect: ' + t + ' File: ' + x + ' ' + notes[x].NoteDate + ': ' + notes[x].NoteText
-                self.comments.append(note)
+            for note in notes:
+                note_text = ' File: ' + note['NoteFileNo'] + ' ' + note['NoteDate'] + ': ' + note['NoteText']
+                self.comments.append(note_text)
                 
         #Get external temperature
         self.ext_temp_chk['User'] = mmt.site_info['Water_Temperature']
@@ -745,7 +745,7 @@ class Measurement(object):
 
             # Apply BT settings
             transect.boat_filters(update=False,**bt_kwargs)
-
+            print(transect.file_name)
             # BT Interpolation
             transect.boat_interpolations(update=False, target='BT', method=settings['BTInterpolation'])
 

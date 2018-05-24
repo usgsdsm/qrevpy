@@ -1616,7 +1616,7 @@ class QComp(object):
         boat_vel_selected = getattr(trans_data.boat_vel, trans_data.boat_vel.selected)
 
         # Depending on type of interpolation determine the valid navigation ensembles
-        if len(boat_vel_selected.u_processed_mps) > 0:
+        if boat_vel_selected is not None and len(boat_vel_selected.u_processed_mps) > 0:
             if boat_vel_selected.interpolate == 'TRDI':
                 nav_valid = boat_vel_selected.valid_data[0, in_transect_idx]
             else:
