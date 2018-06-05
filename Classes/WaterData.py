@@ -299,16 +299,22 @@ class WaterData(object):
                 # No correlations input
                 self.corr = np.tile(np.nan, rssi_in.shape)
 
-        self.u_mps = np.squeeze(np.copy(self.raw_vel_mps)[0, :, :])
-        self.v_mps = np.squeeze(np.copy(self.raw_vel_mps)[1, :, :])
-        self.w_mps = np.squeeze(np.copy(self.raw_vel_mps)[2, :, :])
-        self.d_mps = np.squeeze(np.copy(self.raw_vel_mps)[3, :, :])
+        self.u_mps = np.copy(self.raw_vel_mps)[0, :, :]
+        self.v_mps = np.copy(self.raw_vel_mps)[1, :, :]
+        self.w_mps = np.copy(self.raw_vel_mps)[2, :, :]
+        self.d_mps = np.copy(self.raw_vel_mps)[3, :, :]
 
-        if len(self.u_mps.shape) < 2:
-            self.u_mps = self.u_mps.reshape(-1, 1)
-            self.v_mps = self.v_mps.reshape(-1, 1)
-            self.w_mps = self.w_mps.reshape(-1, 1)
-            self.d_mps = self.d_mps.reshape(-1, 1)
+        # if self.raw_vel_mps.shape[2] < 2:
+        #     self.u_mps = self.u_mps.reshape(-1, 1)
+        #     self.v_mps = self.v_mps.reshape(-1, 1)
+        #     self.w_mps = self.w_mps.reshape(-1, 1)
+        #     self.d_mps = self.d_mps.reshape(-1, 1)
+        #
+        # if self.raw_vel_mps.shape[1] < 2:
+        #     self.u_mps = self.u_mps.reshape(-1, 1).T
+        #     self.v_mps = self.v_mps.reshape(-1, 1).T
+        #     self.w_mps = self.w_mps.reshape(-1, 1).T
+        #     self.d_mps = self.d_mps.reshape(-1, 1).T
 
         self.water_mode = wm_in
         self.excluded_dist_m = excluded_dist_in
@@ -345,9 +351,6 @@ class WaterData(object):
         # Find invalid raw data
         valid_vel = np.tile(self.cells_above_sl, [4, 1, 1])
         valid_vel[np.isnan(self.raw_vel_mps)] = False
-        # DSM dealing with 0 velocity is dealt with in TransectData 1/26/2018
-        # if len(kargs) > 1:
-        #     valid_vel[self.raw_vel_mps == 0] = False
             
         # Identify invalid velocity data (less than 3 valid beams)
         valid_vel_sum = np.sum(valid_vel, axis=0)
@@ -499,7 +502,7 @@ class WaterData(object):
                             t_mult = np.copy(t_matrix)
                             
                         # Get velocity data
-                        vel_beams = np.squeeze(self.raw_vel_mps[:, :, ii])
+                        vel_beams = self.raw_vel_mps[:, :, ii]
                         
                         # Apply transformation matrix for 4 beam solutions
                         temp_t = t_mult.dot(vel_beams)
@@ -979,17 +982,9 @@ class WaterData(object):
                 # # est_u=temp.u_mps
                 n = 0
                 for col in cols_3b:
-                    # If the cell has data above and below it linearly interpolate using data in that ensemble. If not,
-                    # use other means of interpolation.
-                    if rows_3b[n]+1 < valid.shape[0]:
-                        last_cell = False
-                    else:
-                        last_cell = True
-
-                    if np.isnan(valid[rows_3b[n]+1, col]) or last_cell:
-                        est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
-                        est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
-                    else:
+                    # If the cell has valid data above and below it linearly interpolate using data in that ensemble.
+                    # If not, use other means of interpolation.
+                    if np.any(valid_bool[rows_3b[n]+1::, col]) and np.any(valid_bool[0:rows_3b[n], col]):
                         est_u = np.interp(x=rows_3b[n],
                                           xp=row_numbers[valid_bool[:, col]],
                                           fp=temp.u_mps[valid_bool[:, col], col])
@@ -997,6 +992,10 @@ class WaterData(object):
                         est_v = np.interp(x=rows_3b[n],
                                           xp=row_numbers[valid_bool[:, col]],
                                           fp=temp.v_mps[valid_bool[:, col], col])
+                    else:
+                        est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
+                        est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
+
                     u_ratio = (temp.u_mps[rows_3b[n], col] / est_u) - 1
                     v_ratio = (temp.v_mps[rows_3b[n], col] / est_v) - 1
                     if np.abs(u_ratio) < 0.5 or np.abs(v_ratio) < 0.5:
@@ -1078,9 +1077,12 @@ class WaterData(object):
                 d_vel_filtered = d_vel_filtered[d_vel_good_rows, d_vel_good_cols]
                 
                 # Determine differences due to last filter iteration
-                d_vel_std2 = iqr(d_vel_filtered)
-                std_diff = d_vel_std2 - d_vel_std
-                self.num_bins_filtered.append(len(d_vel_bad_idx))
+                if len(d_vel_filtered) > 0:
+                    d_vel_std2 = iqr(d_vel_filtered)
+                    std_diff = d_vel_std2 - d_vel_std
+                    self.num_bins_filtered.append(len(d_vel_bad_idx))
+                else:
+                    std_diff = 0
                 
         # Set valid data row 2 for difference velocity filter results
         bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
@@ -1162,9 +1164,12 @@ class WaterData(object):
                     w_vel_filtered = w_vel_filtered[w_vel_good_rows, w_vel_good_cols]
                     
                     # Determine differences due to last filter iteration
-                    w_vel_std2 = iqr(w_vel_filtered)
-                    std_diff = w_vel_std2 - w_vel_std
-                    num_bins_filtered.append(len(w_vel_bad_idx))
+                    if len(w_vel_filtered) > 0:
+                        w_vel_std2 = iqr(w_vel_filtered)
+                        std_diff = w_vel_std2 - w_vel_std
+                        num_bins_filtered.append(len(w_vel_bad_idx))
+                    else:
+                        std_diff = 0
                     
             # Set valid data row 3 for difference velocity filter results
             bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),

@@ -86,7 +86,7 @@ class NormData(object):
         w_vel_x = transect.w_vel.u_processed_mps[:, in_transect_idx]
         w_vel_y = transect.w_vel.v_processed_mps[:, in_transect_idx]
 
-        invalid_data = np.logical_not(np.squeeze(transect.w_vel.valid_data[0, :, in_transect_idx])).T
+        invalid_data = np.logical_not(transect.w_vel.valid_data[0, :, in_transect_idx]).T
         w_vel_x[invalid_data] = np.nan
         w_vel_y[invalid_data] = np.nan
         

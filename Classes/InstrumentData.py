@@ -21,8 +21,8 @@ class InstrumentData(object):
         Angle of the beams from vertical in degrees.
     beam_pattern:
         Pattern of the beam angles, concave or convex.
-    t_matrix: np array
-        Transformation matrix or matrices for the ADCP.
+    t_matrix: TransformationMatrix
+        Object of TransformationMatrix.
     configuration_commands:
         Commands used to configure the instrument.
     """
@@ -139,7 +139,7 @@ class InstrumentData(object):
             self.t_matrix = TransformationMatrix()
             self.t_matrix.populate_data(manufacturer='TRDI', model=self.model, data_in='Nominal')
         else:
-            if isinstance(mmt.qaqc, dict):
+            if isinstance(mmt.qaqc, dict) and len(mmt.qaqc) > 0:
                 if 'RG_Test' in mmt.qaqc.keys():
 
                     self.t_matrix = TransformationMatrix()
@@ -160,6 +160,7 @@ class InstrumentData(object):
                                                 data_in=mmt.qaqc['Compass_Evaluation'][0])
 
                 else:
+                    self.t_matrix = TransformationMatrix()
                     self.t_matrix.populate_data(manufacturer='TRDI',
                                                 model=self.model,
                                                 data_in='Nominal')

@@ -170,7 +170,7 @@ class MovingBedTests(object):
         vel_criteria = 0.012
 
         # Check that there is some valid BT data
-        if np.nansum(bt_valid) > 0:
+        if np.nansum(bt_valid) > 1:
             wt_u = trans_data.w_vel.u_processed_mps[:, in_transect_idx]
             wt_v = trans_data.w_vel.v_processed_mps[:, in_transect_idx]
             if ens_duration is None:

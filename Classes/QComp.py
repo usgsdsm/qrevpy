@@ -175,31 +175,29 @@ class QComp(object):
         # Moving-bed corrections are only applied to bottom track referenced computations
         if data_in.boat_vel.selected == 'bt_vel':
             if moving_bed_data is not None:
-                # TODO check with multiple moving-bed tests this is using a list and should be referencing an object
-                # Determine if any of the moving-bed tests indicated a moving bed
-                mb_valid = moving_bed_data.selected
-                if moving_bed_data[mb_valid].moving_bed == 'Yes':
 
-                    use_2_correct = moving_bed_data[:].use_2_correct
+                # Determine if a moving-bed test is to be used for correction
+                use_2_correct = []
+                for mb_idx, test in enumerate(moving_bed_data):
+                    use_2_correct.append(test.use_2_correct)
 
-                    # Determine if a moving-bed test is to be used for correction
-                    if np.sum(use_2_correct) > 0:
+                if any(use_2_correct):
 
-                        # Make sure composite tracks are turned off
-                        if data_in.boat_vel.composite == 'Off':
-                            # Apply appropriate moving-bed test correction method
-                            if np.sum(moving_bed_data[use_2_correct].type == 'Stationary') > 0:
-                                self.correction_factor = self.stationary_correction_factor(self.top, self.middle,
-                                                                                           self.bottom, data_in,
-                                                                                           moving_bed_data, delta_t)
-                            else:
-                                self.correction_factor = self.loop_correction_factor(self.top, self.middle,
-                                                                                     self.bottom, data_in,
-                                                                                     moving_bed_data[use_2_correct],
-                                                                                     delta_t)
+                    # Make sure composite tracks are turned off
+                    if data_in.boat_vel.composite == 'Off':
+                        # Apply appropriate moving-bed test correction method
+                        if np.sum(moving_bed_data[use_2_correct == True].type == 'Stationary') > 0:
+                            self.correction_factor = self.stationary_correction_factor(self.top, self.middle,
+                                                                                       self.bottom, data_in,
+                                                                                       moving_bed_data, delta_t)
                         else:
-                            # Set a flag to generate a warning
-                            raise ReferenceError('To apply moving-bed correction composite tracks must be turned off.')
+                            self.correction_factor = self.loop_correction_factor(self.top, self.middle,
+                                                                                 self.bottom, data_in,
+                                                                                 moving_bed_data[use_2_correct == True],
+                                                                                 delta_t)
+                    else:
+                        # Set a flag to generate a warning
+                        raise ReferenceError('To apply moving-bed correction composite tracks must be turned off.')
         # except:
         #     pass
 
@@ -526,7 +524,7 @@ class QComp(object):
                 top_rng[n] = cell_depth[idx_top[n], n] - 0.5 * cell_size[idx_top[n], n]
             else:
                 top_rng[n] = 0
-                idx_top[n] = 1
+                idx_top[n] = 0
 
         return idx_top, idx_top_3, top_rng
 

@@ -1,6 +1,6 @@
 import numpy as np
 import utm
-from MiscLibs.common_functions import azdeg2rad, pol2cart
+from MiscLibs.common_functions import azdeg2rad, pol2cart, nans
 
 
 class GPSData(object):
@@ -497,8 +497,8 @@ class GPSData(object):
         # Use last velocity for ensemble velocity
         elif v_setting == 'End':
             n_ensembles = vtg_speed_mps.shape[0]
-            vtg_vel = np.empty(n_ensembles)
-            vtg_dir = np.empty(n_ensembles)
+            vtg_vel = nans(n_ensembles)
+            vtg_dir = nans(n_ensembles)
             
             for n in range(n_ensembles):
                 idx = np.where(~np.isnan(vtg_speed_mps[n, :]))[0]
@@ -518,8 +518,8 @@ class GPSData(object):
         # Use first velocity for ensemble velocity
         elif v_setting == 'First':
             n_ensembles = vtg_speed_mps.shape[0]
-            vtg_vel = np.empty(n_ensembles)
-            vtg_dir = np.empty(n_ensembles)
+            vtg_vel = nans(n_ensembles)
+            vtg_dir = nans(n_ensembles)
             
             for n in range(n_ensembles):
                 idx = 0

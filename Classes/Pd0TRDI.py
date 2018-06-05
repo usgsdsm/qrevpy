@@ -45,7 +45,7 @@ class Pd0TRDI(object):
             Full name including path of pd0 file to be read
         """
         
-        self.file_name = None
+        self.file_name = file_name
         self.Hdr = None
         self.Inst = None
         self.Cfg = None
@@ -1262,7 +1262,7 @@ class Pd0TRDI(object):
                                     self.Inst.res_RDI = np.fromfile(f, np.uint16, count=1)[0]
                                     # Read checksum but not used
                                     _ = np.fromfile(f, np.uint16, count=1)[0]
-                                except (ValueError, EOFError):
+                                except (ValueError, EOFError, IndexError):
                                     pass
                         else:
                             end_file_check = end_file

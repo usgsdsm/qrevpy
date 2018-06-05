@@ -60,8 +60,8 @@ class DepthStructure(object):
             self.ds_depths = DepthData()
             self.ds_depths.populate_data(depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in)
 
-    def composite_depths(self, transect, setting=None):
-        """Depth compositing is based on the following assumptions
+    def composite_depths(self, transect, setting=False):
+        """Depth composite is based on the following assumptions
         
         1. If a depth sounder is available the user must have assumed the ADCP beams
         (BT or vertical) might have problems and it will be the second alternative if 
@@ -109,7 +109,7 @@ class DepthStructure(object):
             # Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:
                 ds_filtered = self.ds_depths.depth_processed_m
-                ds_filtered[np.equal(self.ds_depths.valid_data, False)] = np.nan
+                ds_filtered[np.squeeze(np.equal(self.ds_depths.valid_data, False))] = np.nan
             else:
                 ds_filtered = np.tile(np.nan, n_ensembles)
                 
@@ -222,7 +222,7 @@ class DepthStructure(object):
         if self.vb_depths is not None:
             self.vb_depths.apply_interpolation(transect, method)
         if self.ds_depths is not None:
-            self.vb_depths.apply_interpolation(transect, method)
+            self.ds_depths.apply_interpolation(transect, method)
             
     def sos_correction(self, ratio):
         """Correct depths for change in speed of sound.

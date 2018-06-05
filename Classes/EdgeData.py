@@ -7,7 +7,7 @@ class EdgeData(object):
         Shape of edge: 'Triangular', 'Rectangular', 'Custom, 'User Q'
     distance_m: float
         Distance to shore, in m.
-    cust_coeff: float
+    cust_coef: float
         Custom coefficient provided by user.
     number_ensembles: int
         Number of ensembles to average for depth and velocities.
@@ -19,7 +19,7 @@ class EdgeData(object):
         
         self.type = None       # Shape of edge: 'Triangular', 'Rectangular', 'Custom, 'User Q'
         self.distance_m = None          # Distance to shore
-        self.cust_coeff = None     # Custom coefficient provided by user
+        self.cust_coef = None     # Custom coefficient provided by user
         self.number_ensembles = None   # Number of ensembles to average for depth and velocities
         self.user_discharge_cms = None      # User supplied edge discharge.
         
@@ -45,7 +45,7 @@ class EdgeData(object):
         self.distance_m = distance
         self.number_ensembles = number_ensembles
         self.user_discharge_cms = user_discharge
-        self.cust_coeff = coefficient
+        self.cust_coef = coefficient
 
     def change_property(self, prop, setting):
         """Change edge data property

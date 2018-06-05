@@ -66,9 +66,9 @@ class HeadingData(object):
             Alignment correction to align compass with instrument, in degrees
         mag_error: np.array(float)
             Percent change in magnetic field (SonTek only)
-        pitch_limit: float
+        pitch_limit: np.array(float)
             Pitch limit of compass calibration (SonTek only)
-        roll_limit: float
+        roll_limit: np.array(float)
             Roll limit of compass calibration (SonTek only)
         """
         self.original_data = data_in

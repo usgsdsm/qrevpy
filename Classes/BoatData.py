@@ -1005,8 +1005,11 @@ class BoatData(object):
                 d_vel_filtered = np.copy(d_vel_filtered[d_vel_good_idx])
 
                 # Determine differences due to last filter iteration
-                d_vel_std2 = iqr(d_vel_filtered)
-                std_diff[k] = d_vel_std2 - d_vel_std
+                if len(d_vel_filtered) > 0:
+                    d_vel_std2 = iqr(d_vel_filtered)
+                    std_diff[k] = d_vel_std2 - d_vel_std
+                else:
+                    std_diff[k] = 0
 
         # Set valid data row 3 for difference velocity filter results
         self.valid_data[2, ] = False
@@ -1083,8 +1086,11 @@ class BoatData(object):
                 w_vel_filtered = np.copy(w_vel_filtered[w_vel_good_idx])
 
                 # Determine differences due to last filter iteration
-                w_vel_std2 = iqr(w_vel_filtered)
-                std_diff = w_vel_std2 - w_vel_std
+                if len(w_vel_filtered) > 0:
+                    w_vel_std2 = iqr(w_vel_filtered)
+                    std_diff = w_vel_std2 - w_vel_std
+                else:
+                    std_diff = 0
 
         # Set valid data row 4 for difference velocity filter results
         self.valid_data[3, :] = False

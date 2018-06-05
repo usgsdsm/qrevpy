@@ -85,14 +85,17 @@ def nandiff(values):
 
 def get_object_values(list_in, item, checked=None):
     if checked is not None:
-        working_list = np.array(list_in)[checked]
+        working_list = list_in[checked is True]
     else:
         working_list = list_in
 
-    out = []
-    for obj in working_list:
-        temp = getattr(obj, item)
-        out.append(temp)
+    if working_list is list:
+        out = []
+        for obj in working_list:
+            temp = getattr(obj, item)
+            out.append(temp)
+    else:
+        out = getattr(working_list, item)
     return np.array(out)
 
 def sontek_3d_arrange(data_in):
@@ -127,3 +130,4 @@ def nans(shape, dtype=float):
     a = np.empty(shape, dtype)
     a.fill(np.nan)
     return a
+

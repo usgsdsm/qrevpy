@@ -54,7 +54,7 @@ class SelectFit(object):
         r^2 for linear fit of top 4 cells
     rsqr: float
         Adjusted r^2 for optimized exponent
-    exponent_95_ci: float
+    exponent_95_ci: np.array(float)
         95% confidence intervals for optimized exponent
     """
 

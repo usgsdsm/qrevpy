@@ -4,13 +4,37 @@ import copy
 
 
 class PreMeasurement(object):
+    """Stores tests, calibrations, and evaluations conducted prior ot measurement.
+
+    Attributes
+    ----------
+    time_stamp: str
+        Time and date of test
+    data: str
+        Raw data from test
+    result: dict
+        Dictionary of test results. Varies by test.
+    """
     
     def __init__(self):
+        """Initialize instance variables."""
+
         self.time_stamp = None
         self.data = None
         self.result = {}
         
     def populate_data(self, time_stamp, data_in, data_type):
+        """Coordinates storing of test, calibration, and evaluation data.
+
+        Parameters
+        ----------
+        time_stamp: str
+            Time and date text.
+        data_in: str
+            Raw data from test
+        data_type: str
+            Type of data, C-compass, TST-TRDI test, SST-SonTek test
+        """
 
         # Store time stamp and data
         self.time_stamp = time_stamp
@@ -54,20 +78,12 @@ class PreMeasurement(object):
     def pt3_data(self):
         """Method for processing the data in the correlation matrices."""
         try:
-            data_types = {'corr_table': np.array([]), 'sdc': np.array([]), 'cdc': np.array([]), 'noise_floor': np.array([])}
-            test_types = {'high_wide': data_types.copy(), 'high_narrow': data_types.copy(), 'low_wide': data_types.copy(),
+            data_types = {'corr_table': np.array([]), 'sdc': np.array([]), 'cdc': np.array([]),
+                          'noise_floor': np.array([])}
+            test_types = {'high_wide': data_types.copy(), 'high_narrow': data_types.copy(),
+                          'low_wide': data_types.copy(),
                           'low_narrow': data_types.copy()}
             pt3 = {'hard_limit': copy.deepcopy(test_types), 'linear': copy.deepcopy(test_types)}
-            # pt3 = {'hard_limit':
-            #            {'high_wide': data_types.copy(),
-            #             'high_narrow': data_types.copy(),
-            #             'low_wide': data_types.copy(),
-            #             'low_narrow': data_types.copy()},
-            #        'linear':
-            #            {'high_wide': data_types.copy(),
-            #             'high_narrow': data_types.copy(),
-            #             'low_wide': data_types.copy(),
-            #             'low_narrow': data_types.copy()}}
 
             # Match regex for correlation tables
             matches = re.findall('Lag.*?0', self.data, re.DOTALL)
@@ -77,16 +93,6 @@ class PreMeasurement(object):
             for match in matches:
                 bm1_matches = re.findall('Bm1', match)
                 correl_count += len(bm1_matches)
-
-            # # Initialize correlation matrices
-            # corr_hlimit_hgain_wband = None
-            # corr_hlimit_lgain_wband = None
-            # corr_hlimit_hgain_nband = None
-            # corr_hlimit_lgain_nband = None
-            # corr_linear_hgain_wband = None
-            # corr_linear_lgain_wband = None
-            # corr_linear_hgain_nband = None
-            # corr_linear_lgain_nband = None
 
             # Correlation table match
             lag_matches = re.findall('Lag.*?^\s*$', self.data, re.MULTILINE | re.DOTALL)

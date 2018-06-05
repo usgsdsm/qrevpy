@@ -5,9 +5,30 @@ from Classes.NormData import NormData
 
 
 class ComputeExtrap(object):
-    """Class to compute the optimized or manually specified extrapolation methods"""
+    """Class to compute the optimized or manually specified extrapolation methods
+
+    Attributes
+    ----------
+    threshold: float
+        Threshold as a percent for determining if a median is valid
+    subsection: list
+        Percent of discharge, does not account for transect direction
+    fit_method: str
+        Method used to determine fit.  Automatic or manual
+    norm_data: NormData
+        Object of class NormData
+    sel_fit: SelectFit
+        Object of class SelectFit
+    q_sensitivity: ExtrapQSensitivity
+        Object of class ExtrapQSensitivity
+    messages: str
+        Variable for messages to UserWarning
+
+    """
     
     def __init__(self):
+        """Initialize instance variables."""
+
         self.threshold = None  # Threshold as a percent for determining if a median is valid
         self.subsection = None  # Percent of discharge, does not account for transect direction
         self.fit_method = None  # Method used to determine fit.  Automatic or manual
@@ -17,7 +38,16 @@ class ComputeExtrap(object):
         self.messages = []  # Variable for messages to UserWarning
         
     def populate_data(self, transects, compute_sensitivity=True):
-        
+        """Store data in instance variables.
+
+        Parameters
+        ----------
+        transects: list
+            List of transects of TransectData
+        compute_sensitivity: bool
+            Determines is sensitivity should be computed.
+        """
+
         self.threshold = 20
         self.subsection = [0, 100]
         self.fit_method = 'Automatic'
@@ -91,7 +121,6 @@ class ComputeExtrap(object):
         self.q_sensitivity = ExtrapQSensitivity()
         self.q_sensitivity.populate_data(trans_data, self.sel_fit)
         
-        
     def change_extents(self, trans_data, data_type, extents):
         """Function allows the data to be subsection by specifying the percent cumulative discharge
         for the start and end points.  Currently this function does not consider transect direction"""
@@ -104,9 +133,3 @@ class ComputeExtrap(object):
     def change_data_type(self, trans_data, data_type):
         self.process_profiles(trans_data, data_type)
         self.q_sensitivity = ExtrapQSensitivity(trans_data, self.selfit)
-        
-        
-        
-            
-            
-        

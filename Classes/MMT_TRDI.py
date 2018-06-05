@@ -91,17 +91,18 @@ class MMT_TRDI(object):
                     self.site_info[x] = float(site_data)
                     # -32768 used to denote no data
                     if self.site_info[x] < -100:
-                        self.site_info[x] = None
+                        self.site_info[x] = ''
                 else:
                     self.site_info[x] = site_data
             else:
-                self.site_info[x] = None
+                self.site_info[x] = ''
 
         trans = win_river['Project']['Site_Discharge']['Transect']
 
         # Create a Transect class for each transect found under Site_Discharge
         for i in range(len(trans)):
-            self.transects.append(MMT_Transect(trans[i]))
+            if 'File' in trans[i]:
+                self.transects.append(MMT_Transect(trans[i]))
 
         # Discharge Summary
         if 'Discharge_Summary' in win_river['Project']['Site_Discharge'].keys():
@@ -430,7 +431,7 @@ class MMT_Transect(object):
             if config['Recording']['MeasurmentNmb'] is None:
                 config_dict['Rec_MeasNmb'] = config['Recording']['MeasurmentNmb']
             else:
-                config_dict['Rec_MeasNmb'] = float(config['Recording']['MeasurmentNmb'])
+                config_dict['Rec_MeasNmb'] = config['Recording']['MeasurmentNmb']
             config_dict['Rec_GPS'] = config['Recording']['GPS_Recording']['#text']
             config_dict['Rec_DS'] = config['Recording']['DS_Recording']['#text']
             config_dict['Rec_EH'] = config['Recording']['EH_Recording']['#text']
