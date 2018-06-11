@@ -127,9 +127,9 @@ class InstrumentData(object):
             else:
                 user_commands = ' '
 
-            self.configuration_commands = ['Fixed', fixed_commands,
-                                           'Wizard', wizard_commands,
-                                           'User', user_commands]
+            self.configuration_commands = {'Fixed': fixed_commands,
+                                           'Wizard': wizard_commands,
+                                           'User': user_commands}
 
         # Obtain transformation matrix from one of the available sources
         if not np.isnan(pd0.Inst.t_matrix[0, 0]):

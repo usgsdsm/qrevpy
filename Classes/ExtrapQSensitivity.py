@@ -32,9 +32,9 @@ class ExtrapQSensitivity(object):
         3-point no skip percent difference from reference
     q_3p_ns_opt_per_diff: float
         3-point optimized no slip percent difference from reference
-    pp_exponent: float
+    pp_exp: float
         Optimized power power exponent
-    ns_exponent: float
+    ns_exp: float
         Optimized no slip Exponent
     man_top: str
         Manually specified top method
@@ -63,8 +63,8 @@ class ExtrapQSensitivity(object):
         self.q_cns_opt_per_diff = None  # Constant optimized no slip percent difference from reference
         self.q_3p_ns_per_diff = None  # 3-point no skip percent difference from reference
         self.q_3p_ns_opt_per_diff = None  # 3-point optimized no slip percent difference from reference
-        self.pp_exponent = None  # Optimized power power exponent
-        self.ns_exponent = None  # Optimized no slip Exponent
+        self.pp_exp = None  # Optimized power power exponent
+        self.ns_exp = None  # Optimized no slip Exponent
         self.man_top = None  # Manually specified top method
         self.man_bot = None  # Manually specified bottom method
         self.man_exp = None  # Manually specified exponent
@@ -88,8 +88,8 @@ class ExtrapQSensitivity(object):
         q_3p_ns = []
         q_3p_ns_opt = []
         checked = []
-        self.pp_exponent = extrap_fits[-1].pp_exponent
-        self.ns_exponent = extrap_fits[-1].ns_exponent
+        self.pp_exp = extrap_fits[-1].pp_exponent
+        self.ns_exp = extrap_fits[-1].ns_exponent
 
         # Compute discharges for each transect for possible extrapolation combinations
         for transect in transects:
@@ -99,19 +99,19 @@ class ExtrapQSensitivity(object):
             q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=0.1667)
             q_pp.append(q)
 
-            q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=self.pp_exponent)
+            q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=self.pp_exp)
             q_pp_opt.append(q)
 
             q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=0.1667)
             q_cns.append(q)
 
-            q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=self.ns_exponent)
+            q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=self.ns_exp)
             q_cns_opt.append(q)
 
             q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=0.1667)
             q_3p_ns.append(q)
 
-            q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=self.ns_exponent)
+            q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=self.ns_exp)
             q_3p_ns_opt.append(q)
 
         # Compute mean discharge for each combination

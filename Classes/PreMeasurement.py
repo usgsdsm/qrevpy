@@ -99,17 +99,17 @@ class PreMeasurement(object):
 
             # Sin match
             sin_match = re.findall('((Sin|SIN).*?^\s*$)', self.data, re.MULTILINE | re.DOTALL)[0][0]
-            sin_array = np.array(re.findall('\d+\.*\d*', sin_match))
+            sin_array = np.array(re.findall('\d+\.*\d*', sin_match), dtype=int)
 
             # Cos match
             cos_match = re.findall('((Cos|COS).*?^\s*$)', self.data, re.MULTILINE | re.DOTALL)[0][0]
-            cos_array = np.array(re.findall('\d+\.*\d*', cos_match))
+            cos_array = np.array(re.findall('\d+\.*\d*', cos_match), dtype=int)
 
             # RSSI match
             rssi_array = np.array([])
             rssi_matches = re.findall('RSSI.*?^\s*$', self.data, re.MULTILINE | re.DOTALL)
             for rssi_match in rssi_matches:
-                rssi_array = np.hstack((rssi_array, np.array(re.findall('\d+\.*\d*', rssi_match))))
+                rssi_array = np.hstack((rssi_array, np.array(re.findall('\d+\.*\d*', rssi_match), dtype=int)))
 
             # Process each set of correlation tables
             for n, lag_match in enumerate(lag_matches):
@@ -121,7 +121,7 @@ class PreMeasurement(object):
                 numbers = re.findall('\d+\.*\d*', lag_match)
 
                 # Create array from data in table
-                corr_data = np.array(numbers[(bm_count * 4):(bm_count * 44)]).reshape([8, (bm_count * 4) + 1])[:, 1::]
+                corr_data = np.array(numbers[(bm_count * 4):(bm_count * 44)], dtype=int).reshape([8, (bm_count * 4) + 1])[:, 1::]
 
                 # Only one pt3 test. Typical of Rio Grande and Streampro
                 if bm_count == 1:

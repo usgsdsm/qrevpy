@@ -8,7 +8,7 @@ from Panels.selectFile import OpenMeasurementDialog
 from Classes.Measurement import Measurement
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.QComp import QComp
-
+from Classes.Python2Matlab import Python2Matlab
 
 class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
@@ -35,6 +35,16 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
+            from Classes.Python2Matlab import Python2Matlab
+            dsm_struct = {'dsm_struct': Python2Matlab(meas).matlab_dict}
+            sio.savemat(file_name='C:/dsm/dsm_downloads/dsm_mat_test.mat',
+                        mdict=dsm_struct,
+                        appendmat=True,
+                        format='5',
+                        long_field_names=True,
+                        do_compression=False,
+                        oned_as='row')
+
             print('TRDI')
         elif self.select.type == 'QRev':
             meas = Measurement(in_file=self.select.fullName, source='QRev')

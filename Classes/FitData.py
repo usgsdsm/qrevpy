@@ -35,7 +35,7 @@ class FitData(object):
     exp_method: str
         Method to determine exponent (default, optimize, or manual)
     data_type: str
-        Type of data (velocity or unit discharge)
+        Type of data (v, q, V, or Q)
     exponent_95_ci: float
         95% confidence intervals for optimized exponent
     residuals: np.array(float)
@@ -57,7 +57,7 @@ class FitData(object):
         self.z_auto = None  # z values for automtic fit
         self.z = None  # Distance from the streambed for fit variable
         self.exp_method = 'Power'  # Method to determine exponent (default, optimize, or manual)
-        self.data_type = 'Power'  # Type of data (velocity or unit discharge)
+        self.data_type = None  # Type of data (velocity or unit discharge)
         self.exponent_95_ci = 0  # 95% confidence intervals for optimized exponent
         self.residuals = np.array([])  # Residuals from fit
         self.r_squared = 0  # R squared of model

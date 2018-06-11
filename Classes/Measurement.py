@@ -1165,6 +1165,18 @@ class Measurement(object):
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
 
+    @staticmethod
+    def save_matlab_file(self, file_name):
+
+        from Classes.Python2Matlab import Python2Matlab
+        dsm_struct = {'dsm_struct': Python2Matlab(self).matlab_dict}
+        sio.savemat(file_name='C:/dsm/dsm_downloads/dsm_mat_test.mat',
+                    mdict=dsm_struct,
+                    appendmat=True,
+                    format='5',
+                    long_field_names=True,
+                    do_compression=False,
+                    oned_as='row')
 
 if __name__ == '__main__':
     pass

@@ -56,6 +56,8 @@ class SelectFit(object):
         Adjusted r^2 for optimized exponent
     exponent_95_ci: np.array(float)
         95% confidence intervals for optimized exponent
+    data_type: str
+        Type of data (v, q, V, or Q)
     """
 
     def __init__(self):
@@ -85,6 +87,7 @@ class SelectFit(object):
         self.top_r2 = 0
         self.rsqr = 0
         self.exponent_95_ci = 0
+        self.data_type = None
 
     def populate_data(self, normalized, fit_method, transect=None, top=None, bot=None, exponent=None):
         """Determine selected fit.
@@ -109,6 +112,7 @@ class SelectFit(object):
 
         # Store data in properties to object
         self.fit_method = fit_method
+        self.data_type = normalized.data_type
 
         # Compute power fit with optimized exponent as reference to determine
         # if constant no slip will be more appropriate

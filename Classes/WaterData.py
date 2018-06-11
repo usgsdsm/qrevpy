@@ -131,13 +131,10 @@ class WaterData(object):
             User specigied number of cells to cutoff from SonTek, not implemented, undefined
         sl_cutoff_type: str
             Type of cutoff method "Percent" or "Number".
-        num_bins_filtered: float
-            ???????????
     """
     # TODO check water mode for TRDI is it an array, should it be?
     # TODO filters switch on and off should probably be bool
     # TODO how is number of bins for sl cutoff implemented by SonTek?
-    # TODO what is num_bins_filtered?
 
     def __init__(self):
         # Data input to this class
@@ -191,7 +188,7 @@ class WaterData(object):
         self.smooth_speed = None  # Smoothed boar speed
         self.smooth_upper_limit = None  # Smooth function upper limit of window
         self.smooth_lower_limit = None  # Smooth function lower limit of window
-        self.snr_filter = None  # SNR filter for SonTek data
+        self.snr_filter = 'Off'  # SNR filter for SonTek data
         self.snr_rng = None  # Range of beam averaged SNR
         self.wt_depth_filter = None  # WT in ensembles with invalid WT are marked invalid
         self.interpolate_ens = None  # Type of interpolation: "None", "TRDI", "Linear"
@@ -201,7 +198,6 @@ class WaterData(object):
         self.sl_cutoff_percent = None  # Percent cutoff defined by cos(angle)
         self.sl_cutoff_number = None  # User specified number of cells to cutoff above slcutoff
         self.sl_cutoff_type = None  # "Percent" or "Number"
-        self.num_bins_filtered = None
         
     def populate_data(self, vel_in, freq_in, coord_sys_in, nav_ref_in, rssi_in, rssi_units_in,
                       excluded_dist_in, cells_above_sl_in, sl_cutoff_per_in, sl_cutoff_num_in,
@@ -1056,7 +1052,6 @@ class WaterData(object):
             std_diff = 1
             i = -1
             # Loop until no additional data are removed
-            self.num_bins_filtered = []
             while std_diff != 0 and i < 1000:
                 i = i+1
                 
@@ -1080,7 +1075,6 @@ class WaterData(object):
                 if len(d_vel_filtered) > 0:
                     d_vel_std2 = iqr(d_vel_filtered)
                     std_diff = d_vel_std2 - d_vel_std
-                    self.num_bins_filtered.append(len(d_vel_bad_idx))
                 else:
                     std_diff = 0
                 
@@ -1142,7 +1136,6 @@ class WaterData(object):
                 w_vel_filtered = w_vel[:]
                 std_diff = 1
                 i = 0
-                num_bins_filtered = []
                 # Loop until no additional data are removed
                 while std_diff != 0 and i < 1000:
                     
@@ -1167,7 +1160,6 @@ class WaterData(object):
                     if len(w_vel_filtered) > 0:
                         w_vel_std2 = iqr(w_vel_filtered)
                         std_diff = w_vel_std2 - w_vel_std
-                        num_bins_filtered.append(len(w_vel_bad_idx))
                     else:
                         std_diff = 0
                     

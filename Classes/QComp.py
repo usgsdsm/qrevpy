@@ -53,12 +53,12 @@ class QComp(object):
         self.middle_ens = None  # Measured middle discharge including interpolation by ensemble
         self.bottom_ens = None  # Extrapolate bottom discharge by ensemble
         self.left = None  # Left edge discharge
-        self.left_idx = None  # Ensembles used for left edge
+        self.left_idx = []  # Ensembles used for left edge
         self.right = None  # Right edge discharge
-        self.right_idx = None  # Ensembles used for right edge
+        self.right_idx = []  # Ensembles used for right edge
         self.total_uncorrected = None  # Total discharge for transect uncorrected for moving-bed, if required
         self.total = None  # Total discharge with moving-bed correction applied if necessary
-        self.correction_factor = None  # Moving-bed correction factor, if required
+        self.correction_factor = 1  # Moving-bed correction factor, if required
         self.int_cells = None  # Total discharge computed for invalid depth cells excluding invalid ensembles
         self.int_ens = None  # Total discharge computed for invalid ensembles
         

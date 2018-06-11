@@ -27,7 +27,7 @@ class DepthStructure(object):
         self.bt_depths = None  # object of DepthData for by depth data
         self.vb_depths = None  # object of DepthData for vertical beam depth data
         self.ds_depths = None  # object of DepthData for depth sounder depth data
-        self.composite = None  # Turn composite depths "on" or "off"
+        self.composite = True  # Turn composite depths "on" or "off"
 
     def add_depth_object(self, depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in):
         """Adds a DepthData object to the depth structure for the specified type of depths.
