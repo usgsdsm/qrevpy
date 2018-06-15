@@ -12,6 +12,7 @@ from Classes.CompassCal import CompassCal
 from Classes.SystemTest import SystemTest
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
+from Classes.Uncertainty import Uncertainty
 
 
 class Measurement(object):
@@ -133,6 +134,8 @@ class Measurement(object):
                         q = QComp()
                         q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
                         self.discharge.append(q)
+                self.uncertainty = Uncertainty()
+                self.uncertainty.compute_uncertainty(self)
 
     def load_trdi(self, mmt_file, transect_type='Q', checked=False):
         """Method to load TRDI data.
