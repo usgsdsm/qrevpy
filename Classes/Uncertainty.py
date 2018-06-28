@@ -252,6 +252,8 @@ class Uncertainty(object):
             95% uncertainty due to top and bottom extrapolation estimates
         """
 
+
+
         # Compute mean total uncorrected discharge
         q_selected = np.nanmean(Uncertainty.get_array_attr(discharges, 'total_uncorrected'))
 
