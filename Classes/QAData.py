@@ -1,5 +1,6 @@
 import numpy as np
 from Classes.Uncertainty import Uncertainty
+from Classes.QComp import QComp
 
 
 class QAData(object):
@@ -127,7 +128,7 @@ class QAData(object):
             self.transects['status'] = 'caution'
             self.transects['messages'].append(
                 ['Transects: Duration of selected transects is less than 720 seconds;', 2, 0])
-            self.transects.duration = 1
+            self.transects['duration'] = 1
 
         # Check transects for missing ensembles
         for transect in meas.transects:
@@ -161,14 +162,14 @@ class QAData(object):
             # No transects selected
             self.transects['status'] = 'warning'
             self.transects['messages'].append(['TRANSECTS: No transects selected;', 1, 0])
-            self.transects.number = 2
+            self.transects['number'] = 2
         elif num_checked == 1:
             # Only one transect selected
             self.transects['status'] = 'caution'
             self.transects['messages'].append(['Transects: Only one transect selected;', 2, 0])
-            self.transects.number = 2
+            self.transects['number'] = 2
         else:
-            self.transects.number = num_checked
+            self.transects['number'] = num_checked
             if num_checked == 2:
                 # Only 2 transects selected
                 cov, _ = Uncertainty.uncertainty_q_random(discharges, 'total')
@@ -236,18 +237,19 @@ class QAData(object):
                     if 'hard_limit' in test.result['pt3']:
                         if 'high_wide' in test.result['pt3']['hard_limit']:
                             corr_table = test.result['pt3']['hard_limit']['high_wide']['corr_table']
-                            # All lags past lag 2 should be less than 50% of lag 0
-                            qa_threshold = corr_table[0, :] * 0.5
-                            all_lag_check = np.greater(corr_table[3::, :], qa_threshold)
+                            if len(corr_table) > 0:
+                                # All lags past lag 2 should be less than 50% of lag 0
+                                qa_threshold = corr_table[0, :] * 0.5
+                                all_lag_check = np.greater(corr_table[3::, :], qa_threshold)
 
-                            # Lag 7 should be less than 25% of lag 0
-                            lag_7_check = np.greater(corr_table[7, :], corr_table[0, :] * 0.25)
+                                # Lag 7 should be less than 25% of lag 0
+                                lag_7_check = np.greater(corr_table[7, :], corr_table[0, :] * 0.25)
 
-                            # If either condition is met for any beam the test fails
-                            if np.sum(np.sum(all_lag_check)) + np.sum(lag_7_check) > 1:
-                                pt3_fail = True
+                                # If either condition is met for any beam the test fails
+                                if np.sum(np.sum(all_lag_check)) + np.sum(lag_7_check) > 1:
+                                    pt3_fail = True
 
-                if test.result['n_failed'] > 0:
+                if test.result['n_failed'] is not None and test.result['n_failed'] > 0:
                     num_tests_with_failure += 1
 
             if pt3_fail:
@@ -283,14 +285,15 @@ class QAData(object):
 
         heading = np.unique(meas.transects[checked.index(True)].sensors.heading_deg.internal.data)
 
-        if len(heading) == 1 and heading == 0:
-            # ADCP has no compass
-            self.compass['status'] = 'inactive'
-            self.compass['status1'] = 'good'
-            self.compass['status2'] = 'good'
-            self.compass['magvar'] = None
-            self.compass['magvar_idx'] = None
-        else:
+
+        # Intialize variable as if ADCP has no compass
+        self.compass['status'] = 'inactive'
+        self.compass['status1'] = 'good'
+        self.compass['status2'] = 'good'
+        self.compass['magvar'] = None
+        self.compass['magvar_idx'] = None
+
+        if len(heading) > 1 and np.any(np.not_equal(heading, 0)):
             # ADCP has a compass
             # A compass calibration is required is a loop test or GPS are used
 
@@ -346,11 +349,14 @@ class QAData(object):
                             self.compass['messages'].append(['Compass: No compass evaluation;', 2, 4])
                         else:
                             # Check results of evaluation
-                            if meas.compass_cal[-1].result['compass']['error'] <= 1:
+                            try:
+                                if float(meas.compass_cal[-1].result['compass']['error']) <= 1:
+                                    self.compass['status1'] = 'good'
+                                else:
+                                    self.compass['status1'] = 'caution'
+                                    self.compass['messages'].append(['Compass: Evaluation result > 1 deg;', 2, 4])
+                            except ValueError:
                                 self.compass['status1'] = 'good'
-                            else:
-                                self.compass['status1'] = 'caution'
-                                self.compass['messages'].append(['Compass: Evaluation result > 1 deg;', 2, 4])
             else:
                 # Compass not required
                 if (not meas.compass_cal) and (not meas.compass_eval):
@@ -493,29 +499,32 @@ class QAData(object):
         """
 
         self.temperature['messages'] = []
+        check = [0, 0]
 
         # Create array of all temperatures
-        temp = []
+        temp = np.array([])
         for transect in meas.transects:
             if transect.checked:
                 temp_selected = getattr(transect.sensors.temperature_deg_c, transect.sensors.temperature_deg_c.selected)
-                temp.append(temp_selected.data)
-        np.asarray(temp)
+                if len(temp) == 0:
+                    temp = temp_selected.data
+                else:
+                    temp = np.hstack((temp, temp_selected.data))
 
         # Check temperature range
-        temp_range = np.max(temp) - np.min(temp)
+        temp_range = np.nanmax(temp) - np.nanmin(temp)
         if temp_range > 2:
-            check = [3]
+            check[0] = 3
             self.temperature['messages'].append(['TEMPERATURE: Temperature range is '
                                                 + '%3.1f % temp_range'
                                                 + 'degrees C which is greater than 2 degrees;', 1, 5])
         elif temp_range > 1:
-            check = [2]
+            check[0] = 2
             self.temperature['messages'].append(['TEMPERATURE: Temperature range is '
                                                  + '%3.1f % temp_range'
                                                  + 'degrees C which is greater than 1 degrees;', 2, 5])
         else:
-            check = [1]
+            check[0] = 1
 
         # Check for independent temperature reading
         if 'user' in meas.ext_temp_chk:
@@ -590,7 +599,7 @@ class QAData(object):
             for n, test in enumerate(mb_data):
                 if test.user_valid:
                     user_valid_test.append(True)
-                    file_names.append(mb_data.transect.file_name)
+                    file_names.append(test.transect.file_name)
                     if test.type == 'Loop' and not test.test_quality == 'Errors':
                         loop.append(test.moving_bed)
                     # Selected test
@@ -619,7 +628,7 @@ class QAData(object):
 
             if self.moving_bed['code'] == 0:
                 # Check test quality
-                if sum(np.array(test_quality) == 'Good') > 0:
+                if len(test_quality) > 0 and sum(np.array(test_quality) == 'Good') > 0:
                     self.moving_bed['status'] = 'good'
                     self.moving_bed['code'] = 1
 
@@ -649,14 +658,14 @@ class QAData(object):
                                         + 'Less than 3 stationary tests available for moving-bed correction;',
                                         2, 6])
 
-                elif sum(np.array(test_quality) == 'Warnings') > 0:
+                elif len(test_quality) > 0 and sum(np.array(test_quality) == 'Warnings') > 0:
                     # Quality check has warnings
                     self.moving_bed['messages'].append(['Moving-Bed Test: The moving-bed test(s) has warnings, '
                                                         + 'please review tests to determine validity;', 2, 6])
                     self.moving_bed['status'] = 'caution'
                     self.moving_bed['code'] = 2
 
-                elif sum(np.array(test_quality) == 'Manual') > 0:
+                elif len(test_quality) > 0 and sum(np.array(test_quality) == 'Manual') > 0:
                     # Manual override used
                     self.moving_bed['messages'].append(['MOVING-BED TEST: '
                                                         + 'The user has manually forced the use of some tests;', 1, 6])
@@ -733,7 +742,7 @@ class QAData(object):
                 in_transect_idx = transect.in_transect_idx
 
                 depths_selected = getattr(transect.depths, transect.depths.selected)
-                drafts.append(depths_selected.draft_use_m[in_transect_idx])
+                drafts.append(depths_selected.draft_use_m)
 
                 # Determine valid measured depths
                 if transect.depths.composite:
@@ -750,7 +759,7 @@ class QAData(object):
 
                 # Compute QA characteristics
                 q_total, q_max_run, number_invalid_ensembles = QAData.invalid_qa(depth_valid, meas.discharge[n])
-                self.depths['q_total'].append(q_total)
+                self.depths['q_total'][n] = q_total
                 self.depths['q_max_run'] = q_max_run
 
                 # Compute percentage compared to total
@@ -829,10 +838,10 @@ class QAData(object):
                             'filter': [('All: ', 0), ('Original: ', 1), ('ErrorVel: ', 2),
                                        ('VertVel: ', 3), ('Other: ', 4), ('3Beams: ', 5)]},
                      'GGA': {'class': 'gga_vel', 'warning': 'GGA-', 'caution': 'gga-',
-                             'filters': [('All: ', 0), ('Original: ', 1), ('DGPS: ', 2),
+                             'filter': [('All: ', 0), ('Original: ', 1), ('DGPS: ', 2),
                                          ('Altitude: ', 3), ('Other: ', 4), ('HDOP: ', 5)]},
                      'VTG': {'class': 'vtg_vel', 'warning': 'VTG-', 'caution': 'vtg-',
-                             'filters': [('All: ', 0), ('Original: ', 1), ('HDOP: ', 5)]}}
+                             'filter': [('All: ', 0), ('Original: ', 1), ('HDOP: ', 5)]}}
 
         for dt_key, dt_value in data_type.items():
             boat = getattr(self, dt_value['class'])
@@ -850,7 +859,7 @@ class QAData(object):
             avg_speed_check = 0
 
             # Check the results of each filter
-            for dt_filter in dt_value['filters']:
+            for dt_filter in dt_value['filter']:
                 boat['status'] = 'inactive'
 
                 # Quality check each transect
@@ -865,45 +874,45 @@ class QAData(object):
                         if getattr(transect.boat_vel, dt_value['class']) is not None:
                             boat['status'] = 'good'
 
-                        # Compute quality characteristics
-                        valid = getattr(transect.boat_vel, dt_value['class']).valid_data[dt_filter[0]][in_transect_idx]
-                        q_total, q_max_run, number_invalid_ens = QAData.invalid_qa(valid, meas.discharge[n])
-                        boat['q_total'][n, dt_filter[1]] = q_total
-                        boat['q_max_run'][n, dt_filter[1]] = q_max_run
+                            # Compute quality characteristics
+                            valid = getattr(transect.boat_vel, dt_value['class']).valid_data[dt_filter[1], in_transect_idx]
+                            q_total, q_max_run, number_invalid_ens = QAData.invalid_qa(valid, meas.discharge[n])
+                            boat['q_total'][n, dt_filter[1]] = q_total
+                            boat['q_max_run'][n, dt_filter[1]] = q_max_run
 
-                        # Compute percentage compared to total
-                        q_total_percent = np.abs((q_total / meas.discharge[n].total) * 100)
-                        q_max_run_percent = np.abs((q_max_run / meas.discharge[n].total) * 100)
+                            # Compute percentage compared to total
+                            q_total_percent = np.abs((q_total / meas.discharge[n].total) * 100)
+                            q_max_run_percent = np.abs((q_max_run / meas.discharge[n].total) * 100)
 
-                        # Check if all invalid
-                        if dt_filter[1] == 0 and not np.any(valid):
-                            boat['all_invalid'][n] = True
+                            # Check if all invalid
+                            if dt_filter[1] == 0 and not np.any(valid):
+                                boat['all_invalid'][n] = True
 
-                        # Apply total interpolated discharge threshold
-                        if q_total_percent > self.q_total_threshold_warning:
-                            boat['q_total_warning'][n, dt_filter[1]] = True
-                        elif q_total_percent > self.q_total_threshold_caution:
-                            boat['q_total_caution'][n, dt_filter[1]] = True
-
-                        # Apply interpolated discharge run thresholds
-                        if q_max_run_percent > self.q_run_threshold_warning:
-                            boat['q_run_warning'][n, dt_filter[1]] = True
-                        elif q_max_run_percent > self.q_run_threshold_caution:
-                            boat['q_run_caution'][n, dt_filter[1]] = True
-
-                        # Check boat velocity for vtg data
-                        if dt_key is 'VTG' and transect.boat_vel.selected is 'vtg_vel' and avg_speed_check == 0:
-                            avg_speed = np.nanmean((transect.boat_vel.vtg_vel.u_mps**2
-                                                    + transect.boat_vel.vtg_vel.v_mps**2)**0.5)
-                            if avg_speed < 0.24:
+                            # Apply total interpolated discharge threshold
+                            if q_total_percent > self.q_total_threshold_warning:
+                                boat['q_total_warning'][n, dt_filter[1]] = True
+                            elif q_total_percent > self.q_total_threshold_caution:
                                 boat['q_total_caution'][n, dt_filter[1]] = True
-                                boat['messages'].append(
-                                    ['vtg-AvgSpeed: VTG data may not be accurate for average boat speed less than'
-                                     + '0.24 m/s (0.8 ft/s);', 2, 8])
-                                avg_speed_check = 1
+
+                            # Apply interpolated discharge run thresholds
+                            if q_max_run_percent > self.q_run_threshold_warning:
+                                boat['q_max_run_warning'][n, dt_filter[1]] = True
+                            elif q_max_run_percent > self.q_run_threshold_caution:
+                                boat['q_max_run_caution'][n, dt_filter[1]] = True
+
+                            # Check boat velocity for vtg data
+                            if dt_key is 'VTG' and transect.boat_vel.selected is 'vtg_vel' and avg_speed_check == 0:
+                                avg_speed = np.nanmean((transect.boat_vel.vtg_vel.u_mps**2
+                                                        + transect.boat_vel.vtg_vel.v_mps**2)**0.5)
+                                if avg_speed < 0.24:
+                                    boat['q_total_caution'][n, dt_filter[1]] = True
+                                    boat['messages'].append(
+                                        ['vtg-AvgSpeed: VTG data may not be accurate for average boat speed less than'
+                                         + '0.24 m/s (0.8 ft/s);', 2, 8])
+                                    avg_speed_check = 1
 
                 # Create message for consecutive invalid discharge
-                if any(boat['q_run_warning']):
+                if boat['q_max_run_warning'].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -913,7 +922,7 @@ class QAData(object):
                             'Int. Q for consecutive invalid ensembles exceeds ' +
                             '%3.1f' % self.q_run_threshold_warning + '%;', 1, module_code])
                     status_switch = 2
-                elif any(boat['q_run_caution']):
+                elif boat['q_max_run_caution'].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -926,7 +935,7 @@ class QAData(object):
                         status_switch = 1
 
                 # Create message for total invalid discharge
-                if any(boat['q_total_warning']):
+                if boat['q_total_warning'].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -936,7 +945,7 @@ class QAData(object):
                             'Int. Q for invalid ensembles in a transect exceeds ' +
                             '%3.1f' % self.q_total_threshold_warning + '%;', 1, module_code])
                     status_switch = 2
-                elif any(boat['q_run_caution']):
+                elif boat['q_max_run_caution'].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -949,14 +958,14 @@ class QAData(object):
                         status_switch = 1
 
             # Create message for all data invalid
-            if any(boat['all_invalid']):
+            if boat['all_invalid'].any():
                 boat['status'] = 'warning'
                 if dt_key is 'BT':
                     module_code = 7
                 else:
                     module_code = 8
                 boat['messages'].append(
-                    [dt_value['warning'] + dt_value['filters'][0][0] +
+                    [dt_value['warning'] + dt_value['filter'][0][0] +
                         'There are no valid data for one or more transects.;', 1, module_code])
 
             # Set status
@@ -990,10 +999,10 @@ class QAData(object):
 
         # Initialize filter labels and indices
         prefix = ['All: ', 'Original: ', 'ErrorVel: ', 'VertVel: ', 'Other: ', '3Beams: ', 'SNR:']
-        if meas.transect[0].adcp.manufacturer is 'TRDI':
-            filter_index = [1, 2, 3, 4, 5, 6]
+        if meas.transects[0].adcp.manufacturer is 'TRDI':
+            filter_index = [0, 1, 2, 3, 4, 5]
         else:
-            filter_index = [1, 2, 3, 4, 5, 6, 8]
+            filter_index = [0, 1, 2, 3, 4, 5, 7]
 
         # TODO if meas had a property checked as list it would save creating that list multiple times
         checked = []
@@ -1053,37 +1062,37 @@ class QAData(object):
                             self.w_vel['q_total_caution'] = True
 
                 # Generate messages for ensemble run or clusters
-                if any(self.w_vel['q_max_run_warning']):
+                if np.any(self.w_vel['q_max_run_warning']):
                     self.w_vel['messages'].append(['WT-' + prefix[prefix_idx]
                                                    + 'Int. Q for consecutive invalid ensembles exceeds '
                                                    + '%3.0f' % self.q_run_threshold_warning
-                                                   + '%;'], 1, 11)
+                                                   + '%;', 1, 11])
                     status_switch = 2
-                elif any(self.w_vel['q_max_run_caution']):
+                elif np.any(self.w_vel['q_max_run_caution']):
                     self.w_vel['messages'].append(['wt-' + prefix[prefix_idx]
                                                    + 'Int. Q for consecutive invalid ensembles exceeds '
                                                    + '%3.0f' % self.q_run_threshold_caution
-                                                   + '%;'], 2, 11)
+                                                   + '%;', 2, 11])
                     if status_switch < 1:
                         status_switch = 1
 
                 # Generate message for total_invalid Q
-                if any(self.w_vel['q_total_warning']):
+                if np.any(self.w_vel['q_total_warning']):
                     self.w_vel['messages'].append(['WT-' + prefix[prefix_idx]
                                                    + 'Int. Q for invalid ensembles in a transect exceeds '
                                                    + '%3.0f' % self.q_total_threshold_warning
-                                                   + '%;'], 1, 11)
+                                                   + '%;', 1, 11])
                     status_switch = 2
-                elif any(self.w_vel['q_max_run_caution']):
+                elif np.any(self.w_vel['q_max_run_caution']):
                     self.w_vel['messages'].append(['wt-' + prefix[prefix_idx]
                                                    + 'Int. Q for invalid cells and ensembles in a transect exceeds '
                                                    + '%3.0f' % self.q_total_threshold_caution
-                                                   + '%;'], 2, 11)
+                                                   + '%;', 2, 11])
                     if status_switch < 1:
                         status_switch = 1
 
             # Generate message for all invalid
-            if any(self.w_vel['all_invalid']):
+            if np.any(self.w_vel['all_invalid']):
                 self.w_vel['messages'].append(['WT-', prefix[0], 'There are no valid data for one or more transects.',
                                                1, 11])
                 status_switch = 2
@@ -1149,7 +1158,7 @@ class QAData(object):
         dist_made_good = []
         left_type = []
         right_type = []
-        for n, transect in enumerate(meas.transect):
+        for n, transect in enumerate(meas.transects):
             checked.append(transect.checked)
             if transect.checked:
                 left_q.append(meas.discharge[n].left)
@@ -1159,10 +1168,10 @@ class QAData(object):
                 dist_moved_right.append(dmr)
                 dist_moved_left.append(dml)
                 dist_made_good.append(dmg)
-                edge_dist_left.append(transect.edges.left.dist_m)
-                edge_dist_right.append(transect.edges.right.dist_m)
-                left_type.append(transect.edges.left.edge_type)
-                right_type.append(transect.eges.right.edge_type)
+                edge_dist_left.append(transect.edges.left.distance_m)
+                edge_dist_right.append(transect.edges.right.distance_m)
+                left_type.append(transect.edges.left.type)
+                right_type.append(transect.edges.right.type)
 
         if any(checked):
             # Set default status to good
@@ -1214,14 +1223,14 @@ class QAData(object):
                 avg_right_edge_dist = np.nanmean(edge_dist_right)
                 right_threshold = np.nanmin([dmg_5_percent, avg_right_edge_dist])
                 self.edges['right_dist_moved_idx'] = np.where(dist_moved_right > right_threshold)[0]
-                if self.edges['right_dist_moved_idx']:
+                if np.any(self.edges['right_dist_moved_idx']):
                     self.edges['status'] = 'caution'
                     self.edges['messages'].append(['Edges: Excessive boat movement in right edge ensembles;', 2, 13])
 
                 avg_left_edge_dist = np.nanmean(edge_dist_left)
                 left_threshold = np.nanmin([dmg_5_percent, avg_left_edge_dist])
                 self.edges['left_dist_moved_idx'] = np.where(dist_moved_left > left_threshold)[0]
-                if self.edges['left_dist_moved_idx']:
+                if np.any(self.edges['left_dist_moved_idx']):
                     self.edges['status'] = 'caution'
                     self.edges['messages'].append(['Edges: Excessive boat movement in left edge ensembles;', 2, 13])
 
@@ -1254,19 +1263,18 @@ class QAData(object):
 
                 # Check consistent edge type
                 self.edges['left_type'] = 0
-                if np.unique(left_type) > 1:
+                if len(np.unique(left_type)) > 1:
                     self.edges['status'] = 'warning'
                     self.edges['messages'].append(['EDGES: Left edge type is not consistent;', 1, 13])
                     self.edges['left_type'] = 2
 
                 self.edges['right_type'] = 0
-                if np.unique(right_type) > 1:
+                if len(np.unique(right_type)) > 1:
                     self.edges['status'] = 'warning'
                     self.edges['messages'].append(['EDGES: Right edge type is not consistent;', 1, 13])
                     self.edges['right_type'] = 2
         else:
             self.edges['status'] = 'inactive'
-
 
     @staticmethod
     def invalid_qa(valid, discharge):
@@ -1291,7 +1299,7 @@ class QAData(object):
         """
 
         # Create bool for invalid data
-        invalid = not valid
+        invalid = np.logical_not(valid)
         q_invalid_total = np.nansum(discharge.middle_ens[invalid]) + np.nansum(discharge.top_ens[invalid]) \
             + np.nansum(discharge.bottom_ens[invalid])
 
@@ -1313,7 +1321,7 @@ class QAData(object):
         else:
             n_start = 0
 
-        n_end = len(valid_run)
+        n_end = len(valid_run)-1
 
         if n_runs > 1:
             m = 0
@@ -1345,9 +1353,9 @@ class QAData(object):
 
         Returns
         -------
-        dist_moved_right: float
+        right_dist_moved: float
             Distance in m moved during collection of right edge samples
-        dist_moved_left: float
+        left_dist_moved: float
             Distance in m moved during collection of left edge samples
         dmg: float
             Distance made good for the entire transect
@@ -1358,8 +1366,8 @@ class QAData(object):
 
         # Get boat velocities
         if boat_selected is not None:
-            u_processed = boat.u_processed_mps
-            v_processed = boat.v_processed_mps
+            u_processed = boat_selected.u_processed_mps
+            v_processed = boat_selected.v_processed_mps
         else:
             u_processed = np.tile(np.nan, transect.boat_vel.bt_vel.u_processed_mps.shape)
             v_processed = np.tile(np.nan, transect.boat_vel.bt_vel.v_processed_mps.shape)
@@ -1367,6 +1375,25 @@ class QAData(object):
         # Compute boat coordinates
         x_processed = np.nancumsum(u_processed * ens_duration)
         y_processed = np.nancumsum(v_processed * ens_duration)
+        dmg = (x_processed[-1]**2 + y_processed[-1]**2)**0.5
 
+        # Compute left distance moved
+        # TODO should be a dist moved function
+        left_edge_idx = QComp.edge_ensembles('left', transect)
+        if len(left_edge_idx) > 0:
+            boat_x = x_processed[left_edge_idx[-1]] - x_processed[left_edge_idx[0]]
+            boat_y = y_processed[left_edge_idx[-1]] - y_processed[left_edge_idx[0]]
+            left_dist_moved = (boat_x**2 + boat_y**2)**0.5
+        else:
+            left_dist_moved = np.nan
 
+        # Compute right distance moved
+        right_edge_idx = QComp.edge_ensembles('right', transect)
+        if len(right_edge_idx) > 0:
+            boat_x = x_processed[right_edge_idx[-1]] - x_processed[right_edge_idx[0]]
+            boat_y = y_processed[right_edge_idx[-1]] - y_processed[right_edge_idx[0]]
+            right_dist_moved = (boat_x ** 2 + boat_y ** 2) ** 0.5
+        else:
+            right_dist_moved = np.nan
 
+        return right_dist_moved, left_dist_moved, dmg

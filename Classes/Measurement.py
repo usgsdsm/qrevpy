@@ -13,6 +13,7 @@ from Classes.SystemTest import SystemTest
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 from Classes.Uncertainty import Uncertainty
+from Classes.QAData import QAData
 
 
 class Measurement(object):
@@ -136,6 +137,7 @@ class Measurement(object):
                         self.discharge.append(q)
                 self.uncertainty = Uncertainty()
                 self.uncertainty.compute_uncertainty(self)
+                self.qa = QAData(self)
 
     def load_trdi(self, mmt_file, transect_type='Q', checked=False):
         """Method to load TRDI data.

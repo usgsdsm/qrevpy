@@ -343,7 +343,13 @@ class Uncertainty(object):
                 # Check to see if there are any valid tests
                 if np.any(np.logical_and(np.asarray(quality), np.asarray(user_valid))):
                     # Check to see if the valid tests indicate a moving bed
-                    valid_moving_bed = np.logical_and(quality, np.asarray(moving_bed))
+                    moving_bed_bool = []
+                    for result in moving_bed:
+                        if result is 'Yes':
+                            moving_bed_bool = True
+                        else:
+                            moving_bed_bool = False
+                    valid_moving_bed = np.logical_and(quality, np.asarray(moving_bed_bool))
                     if np.any(valid_moving_bed):
                         # Check to see that a correction was used
                         if np.any(np.logical_and(valid_moving_bed, np.asarray(used))):

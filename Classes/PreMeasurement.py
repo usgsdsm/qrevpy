@@ -74,6 +74,9 @@ class PreMeasurement(object):
             # Store results
             self.result['n_tests'] = len(num_tests)
             self.result['n_failed'] = len(num_fails)
+        else:
+            self.result['n_tests'] = None
+            self.result['n_failed'] = None
         
     def pt3_data(self):
         """Method for processing the data in the correlation matrices."""
