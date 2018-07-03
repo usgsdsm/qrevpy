@@ -283,8 +283,10 @@ class QAData(object):
         for transect in meas.transects:
             checked.append(transect.checked)
 
-        heading = np.unique(meas.transects[checked.index(True)].sensors.heading_deg.internal.data)
-
+        if np.any(checked):
+            heading = np.unique(meas.transects[checked.index(1)].sensors.heading_deg.internal.data)
+        else:
+            heading = np.array([0])
 
         # Intialize variable as if ADCP has no compass
         self.compass['status'] = 'inactive'
@@ -503,8 +505,10 @@ class QAData(object):
 
         # Create array of all temperatures
         temp = np.array([])
+        checked = []
         for transect in meas.transects:
             if transect.checked:
+                checked.append(transect.checked)
                 temp_selected = getattr(transect.sensors.temperature_deg_c, transect.sensors.temperature_deg_c.selected)
                 if len(temp) == 0:
                     temp = temp_selected.data
@@ -512,7 +516,11 @@ class QAData(object):
                     temp = np.hstack((temp, temp_selected.data))
 
         # Check temperature range
-        temp_range = np.nanmax(temp) - np.nanmin(temp)
+        if np.any(checked):
+            temp_range = np.nanmax(temp) - np.nanmin(temp)
+        else:
+            temp_range = 0
+
         if temp_range > 2:
             check[0] = 3
             self.temperature['messages'].append(['TEMPERATURE: Temperature range is '

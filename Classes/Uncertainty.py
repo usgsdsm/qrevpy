@@ -322,9 +322,8 @@ class Uncertainty(object):
             95% uncertainty associated with moving-bed conditions
         """
 
-        if meas.transects[checked.index(1)].boat_vel.selected == 'bt_vel':
+        if np.any(checked) and meas.transects[checked.index(1)].boat_vel.selected == 'bt_vel':
             # Boat velocity based on bottom track, moving-bed possible
-
             if len(meas.mb_tests) > 0:
                 # Moving_bed tests recorded
                 user_valid = []
@@ -369,5 +368,6 @@ class Uncertainty(object):
         else:
             # GPS used as boat velocity reference
             moving_bed_uncertainty = 0
+
 
         return moving_bed_uncertainty
