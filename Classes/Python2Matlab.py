@@ -1,4 +1,6 @@
 import numpy as np
+import datetime as datetime
+import scipy.io as sio
 
 
 class Python2Matlab(object):
@@ -19,7 +21,6 @@ class Python2Matlab(object):
         self.matlab_dict['processing'] = meas.processing
         self.matlab_dict['extTempChk'] = meas.ext_temp_chk
         self.matlab_dict['initialSettings'] = meas.initial_settings
-        # Comments really needs to convert to cell
         self.matlab_dict['comments'] = self.comment2struct(meas.comments)
         self.matlab_dict['compassCal'] = self.listobj2struct(meas.compass_cal, py_2_mat_dict)
         self.matlab_dict['compassEval'] = self.listobj2struct(meas.compass_eval, py_2_mat_dict)
@@ -28,6 +29,8 @@ class Python2Matlab(object):
         self.matlab_dict['transects'] = self.listobj2struct(meas.transects, py_2_mat_dict)
         self.matlab_dict['extrapFit'] = self.listobj2struct([meas.extrap_fit], py_2_mat_dict)
         self.matlab_dict['mbTests'] = self.listobj2struct(meas.mb_tests, py_2_mat_dict)
+        self.matlab_dict['uncertainty'] = self.listobj2struct([meas.uncertainty], py_2_mat_dict)
+        self.matlab_dict['qa'] = self.listobj2struct([meas.qa], py_2_mat_dict)
 
     @staticmethod
     def listobj2struct(list_in, new_key_dict=None):
@@ -45,32 +48,33 @@ class Python2Matlab(object):
         struct: np.array
             Structured array
         """
+        if list_in:
+            # Create data type for each variable in object
+            keys = list(vars(list_in[0]).keys())
+            data_type = []
+            for key in keys:
+                if new_key_dict is not None and key in new_key_dict:
+                    data_type.append((new_key_dict[key], list))
+                else:
+                    data_type.append((key, list))
 
-        # Create data type for each variable in object
-        keys = list(vars(list_in[0]).keys())
-        data_type = []
-        for key in keys:
-            if new_key_dict is not None and key in new_key_dict:
-                data_type.append((new_key_dict[key], list))
-            else:
-                data_type.append((key, list))
+            # Create structured array based on data type and length of list
+            dt = np.dtype(data_type)
+            struct = np.zeros((len(list_in),), dt)
 
-        # Create structured array based on data type and length of list
-        dt = np.dtype(data_type)
-        struct = np.zeros((len(list_in),), dt)
-
-        # Populate the structure with data from the objects
-        for n, item in enumerate(list_in):
-            if type(item) is list:
-                struct = Python2Matlab.listobj2struct(item, new_key_dict)
-            else:
-                new_dict = Python2Matlab.obj2dict(item, new_key_dict)
-                for key in new_dict:
-                    if new_key_dict is not None and key in new_key_dict:
-                        struct[new_key_dict[key]][n] = new_dict[key]
-                    else:
-                        struct[key][n] = new_dict[key]
-
+            # Populate the structure with data from the objects
+            for n, item in enumerate(list_in):
+                if type(item) is list:
+                    struct = Python2Matlab.listobj2struct(item, new_key_dict)
+                else:
+                    new_dict = Python2Matlab.obj2dict(item, new_key_dict)
+                    for key in new_dict:
+                        if new_key_dict is not None and key in new_key_dict:
+                            struct[new_key_dict[key]][n] = new_dict[key]
+                        else:
+                            struct[key][n] = new_dict[key]
+        else:
+            struct=np.array([np.nan])
         return struct
 
     @staticmethod
@@ -230,7 +234,7 @@ class Python2Matlab(object):
                          'depth_orig_m': 'depthOrig_m',
                          'depth_processed_m': 'depthProcessed_m',
                          'depth_source': 'depthSource',
-                         'depths': ' depths',
+                         'depths': 'depths',
                          'diff_qual_ens': 'diffQualEns',
                          'dist_us_m': 'distUS_m',
                          'distance_m': 'dist_m',
@@ -348,10 +352,10 @@ class Python2Matlab(object):
                          'q_pp_opt_per_diff': 'qPPoptperdiff',
                          'q_pp_per_diff': 'qPPperdiff',
                          'q_run_threshold_caution': 'qRunThresholdCaution',
-                         'q_run_threshold_warning': ' qRunThresholdWarning',
+                         'q_run_threshold_warning': 'qRunThresholdWarning',
                          'q_sensitivity': 'qSensitivity',
-                         'q_total_threshold_caution': ' qTotalThresholdWarning',
-                         'q_total_threshold_warning': ' qTotalThresholdCaution',
+                         'q_total_threshold_caution': 'qTotalThresholdWarning',
+                         'q_total_threshold_warning': 'qTotalThresholdCaution',
                          'raw_gga_altitude_m': 'rawGGAAltitude_m',
                          'raw_gga_delta_time': 'rawGGADeltaTime',
                          'raw_gga_differential': 'rawGGADifferential',
@@ -392,10 +396,10 @@ class Python2Matlab(object):
                          'stationary_mb_vel': 'stationaryMBVel',
                          'stationary_us_track': 'stationaryUSTrack',
                          'system_test': 'sysTest',
-                         'system_tst': ' systemTest',
+                         'system_tst': 'systemTest',
                          'systematic_user': 'systematicUser',
                          't_matrix': 'tMatrix',
-                         'temperature': ' temperature',
+                         'temperature': 'temperature',
                          'temperature_c': 'temperature_degC',
                          'test_quality': 'testQuality',
                          'time_stamp': 'timeStamp',
@@ -441,3 +445,26 @@ class Python2Matlab(object):
                          'wt_depth_filter': 'wtDepthFilter',
                          'z_auto': 'zAuto'}
         return py_2_mat_dict
+
+    @staticmethod
+    def save_matlab_file(meas, file_name):
+        """Saves the measurement class and all data into a Matlab file using the variable names and structure
+        from the QRev Matlab version.
+
+        Parameters
+        ----------
+        meas: Measurement
+            Object of class Measurement
+        file_name: str
+            File name of saved Matlab file
+        """
+
+        # Convert Python objects to Matlab structure
+        mat_struct = {'py2mat_struct': Python2Matlab(meas).matlab_dict}
+        sio.savemat(file_name=file_name,
+                    mdict=mat_struct,
+                    appendmat=True,
+                    format='5',
+                    long_field_names=True,
+                    do_compression=False,
+                    oned_as='row')

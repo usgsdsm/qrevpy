@@ -2,7 +2,7 @@ import os
 from PyQt5 import QtWidgets
 from Classes.stickysettings import StickySettings as SSet
 import wSelectFile
-
+import datetime as datetime
 
 class OpenMeasurementDialog(QtWidgets.QDialog, wSelectFile.Ui_selectFile):
     """Dialog to allow users to select measurement files for processing.
@@ -181,3 +181,57 @@ class OpenMeasurementDialog(QtWidgets.QDialog, wSelectFile.Ui_selectFile):
         """
         self.close()
 
+
+class SaveMeasurementDialog(QtWidgets.QDialog):
+    """Dialog to allow users to select measurement files for processing.
+
+        Parameters
+        ----------
+        wSelectFile.Ui_selectFile : QDialog
+            Dialog window with options for users
+
+        Attributes
+        ----------
+        full_Name: str
+            Filename with path to save file.
+    """
+
+    def __init__(self, parent=None):
+        """Initializes settings and connections.
+
+        Parameters
+        ----------
+        parent
+            Identifies parent GUI.
+        """
+        super(SaveMeasurementDialog, self).__init__(parent)
+        # self.setupUi(self)
+
+        # Create settings object which contains the default folder
+        settings = SSet('TestSettings')
+
+        # Get the current folder setting.
+        folder = self.defaultFolder(settings)
+
+        # Create default file name
+        file_name = os.path.join(folder, datetime.datetime.today().strftime('%Y%m%d_%H%M%S_QRev.mat'))
+        # Get the full names (path + file) of the selected file
+        self.full_Name = QtWidgets.QFileDialog.getSaveFileName(
+            self, self.tr('Save File'), file_name,
+            self.tr('QRev File (*_QRev.mat)'))[0]
+
+    @staticmethod
+    def defaultFolder(settings):
+        """Returns default folder.
+
+        Returns the folder stored in settings or if no folder is stored, then the current
+        working folder is returned.
+        """
+        try:
+            folder = settings.get('Folder')
+            if not folder:
+                folder = os.getcwd()
+        except KeyError:
+            settings.new('Folder', os.getcwd())
+            folder = settings.get('Folder')
+        return folder

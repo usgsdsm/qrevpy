@@ -2,6 +2,7 @@ import copy
 import numpy as np
 from numpy.matlib import repmat
 from statsmodels.nonparametric import smoothers_lowess
+from MiscLibs.common_functions import iqr
 
 
 class DepthData(object):
@@ -695,7 +696,7 @@ class DepthData(object):
             else:
                 sample = np.hstack([data[n - half_width:n], data[n + 1:n + half_width]])
                 
-            iqr_array.append(np.nanpercentile(sample, 75)-np.nanpercentile(sample, 25))
+            iqr_array.append(iqr(sample))
             
         return np.array(iqr_array)
         

@@ -4,7 +4,7 @@ import scipy.io as sio
 from Classes.stickysettings import StickySettings as SSet
 import dsm_gui
 import sys
-from Panels.selectFile import OpenMeasurementDialog
+from Panels.selectFile import OpenMeasurementDialog, SaveMeasurementDialog
 from Classes.Measurement import Measurement
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.QComp import QComp
@@ -19,7 +19,7 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
         # self.settings = SSet(self.settingsFile)
         self.setupUi(self)
         self.pushButton_4.clicked.connect(self.selectMeasurement)
-
+        self.pushButton_3.clicked.connect(self.saveMeasurement)
     def selectMeasurement(self):
         self.select = OpenMeasurementDialog(self)
         self.select.exec_()
@@ -27,20 +27,25 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
             # Show folder name in GUI header
 
             # Create measurement object
-            meas = Measurement(in_file=self.select.fullName, source='SonTek')
+            self.meas = Measurement(in_file=self.select.fullName, source='SonTek')
 
             print('SonTek')
         elif self.select.type == 'TRDI':
             # Show mmt filename in GUI header
 
             # Create measurement object
-            meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
+            self.meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
 
             print('TRDI')
         elif self.select.type == 'QRev':
-            meas = Measurement(in_file=self.select.fullName, source='QRev')
+            self.meas = Measurement(in_file=self.select.fullName, source='QRev')
         else:
             print('Cancel')
+
+    def saveMeasurement(self):
+        # Create default file name
+        save_file = SaveMeasurementDialog()
+        Python2Matlab.save_matlab_file(self.meas, save_file.full_Name)
 
 
 

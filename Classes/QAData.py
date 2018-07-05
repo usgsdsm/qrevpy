@@ -292,8 +292,8 @@ class QAData(object):
         self.compass['status'] = 'inactive'
         self.compass['status1'] = 'good'
         self.compass['status2'] = 'good'
-        self.compass['magvar'] = None
-        self.compass['magvar_idx'] = None
+        self.compass['magvar'] = 0
+        self.compass['magvar_idx'] = 0
 
         if len(heading) > 1 and np.any(np.not_equal(heading, 0)):
             # ADCP has a compass
