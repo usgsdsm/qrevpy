@@ -194,5 +194,5 @@ class InstrumentData(object):
         self.beam_angle_deg = 25
         self.beam_pattern = 'Convex'
         self.t_matrix = TransformationMatrix()
-        self.t_matrix.populate_data('SonTek', rs.Transformation_Matrices.Matrix)
+        self.t_matrix.populate_data('SonTek', data_in=rs.Transformation_Matrices.Matrix)
         self.configuration_commands = None

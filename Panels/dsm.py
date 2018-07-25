@@ -27,7 +27,7 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
             # Show folder name in GUI header
 
             # Create measurement object
-            self.meas = Measurement(in_file=self.select.fullName, source='SonTek')
+            self.meas = Measurement(in_file=self.select.fullName, source='SonTek', proc_type='QRev')
 
             print('SonTek')
         elif self.select.type == 'TRDI':

@@ -1034,7 +1034,7 @@ class WaterData(object):
         multiplier = 5
 
         # Get difference data from object
-        d_vel = self.d_mps
+        d_vel = copy.deepcopy(self.d_mps)
 
         d_vel_min_ref = None
         d_vel_max_ref = None
@@ -1048,7 +1048,7 @@ class WaterData(object):
             d_vel_min_ref = np.nanmin(np.nanmin(d_vel)) - 1
         elif self.d_filter == 'Auto':
             # Initialize variables
-            d_vel_filtered = d_vel
+            d_vel_filtered = copy.deepcopy(d_vel)
             std_diff = 1
             i = -1
             # Loop until no additional data are removed
@@ -1063,14 +1063,14 @@ class WaterData(object):
                 d_vel_min_ref = np.nanmedian(d_vel_filtered) - multiplier * d_vel_std
                 
                 # Identify valid and invalid data
-                d_vel_bad_idx = np.where(np.logical_or(np.greater(d_vel_filtered, d_vel_max_ref),
-                                                       np.less(d_vel_filtered, d_vel_min_ref)))[0]
+                d_vel_bad_rows, d_vel_bad_cols = np.where(np.logical_or(np.greater(d_vel_filtered, d_vel_max_ref),
+                                                       np.less(d_vel_filtered, d_vel_min_ref)))
                 d_vel_good_rows, d_vel_good_cols = np.where(np.logical_or(np.less_equal(d_vel_filtered, d_vel_max_ref),
                                                             np.greater_equal(d_vel_filtered, d_vel_min_ref)))
                 
                 # Update filtered data array
-                d_vel_filtered = d_vel_filtered[d_vel_good_rows, d_vel_good_cols]
-                
+                d_vel_filtered[d_vel_bad_rows, d_vel_bad_cols] = np.nan
+
                 # Determine differences due to last filter iteration
                 if len(d_vel_filtered) > 0:
                     d_vel_std2 = iqr(d_vel_filtered)
@@ -1115,53 +1115,53 @@ class WaterData(object):
         if threshold is not None:
             self.w_filter_threshold = threshold
 
-            # Set multiplier
-            multiplier = 5 
-            
-            # Get difference data from object
-            w_vel = self.w_mps
+        # Set multiplier
+        multiplier = 5
 
-            w_vel_min_ref = None
-            w_vel_max_ref = None
-            
-            # Apply selected method
-            if self.w_filter == 'Manual':
-                w_vel_max_ref = np.abs(self.w_filter_threshold)
-                w_vel_min_ref = -1 * w_vel_max_ref
-            elif self.w_filter == 'Off':
-                w_vel_max_ref = np.nanmax(np.nanmax(w_vel)) + 1
-                w_vel_min_ref = np.nanmin(np.nanmin(w_vel)) - 1
-            elif self.w_filter == 'Auto':
-                # Initialize variables
-                w_vel_filtered = w_vel[:]
-                std_diff = 1
-                i = 0
-                # Loop until no additional data are removed
-                while std_diff != 0 and i < 1000:
-                    
-                    # Computed standard deviation
-                    w_vel_std = iqr(w_vel_filtered)
-                    
-                    # Compute maximum and minimum thresholds
-                    w_vel_max_ref = np.nanmedian(w_vel_filtered) + multiplier * w_vel_std
-                    w_vel_min_ref = np.nanmedian(w_vel_filtered) - multiplier * w_vel_std
-                    
-                    # Identify valid and invalid data
-                    w_vel_bad_idx = np.where(np.logical_or(np.greater(w_vel_filtered, w_vel_max_ref),
-                                                           np.less(w_vel_filtered, w_vel_min_ref)))[0]
-                    w_vel_good_rows, w_vel_good_cols = np.where(
-                        np.logical_or(np.less_equal(w_vel_filtered, w_vel_max_ref),
-                                      np.greater_equal(w_vel_filtered, w_vel_min_ref)))
-                    
-                    # Update filtered data array
-                    w_vel_filtered = w_vel_filtered[w_vel_good_rows, w_vel_good_cols]
-                    
-                    # Determine differences due to last filter iteration
-                    if len(w_vel_filtered) > 0:
-                        w_vel_std2 = iqr(w_vel_filtered)
-                        std_diff = w_vel_std2 - w_vel_std
-                    else:
-                        std_diff = 0
+        # Get difference data from object
+        w_vel = copy.deepcopy(self.w_mps)
+
+        w_vel_min_ref = None
+        w_vel_max_ref = None
+
+        # Apply selected method
+        if self.w_filter == 'Manual':
+            w_vel_max_ref = np.abs(self.w_filter_threshold)
+            w_vel_min_ref = -1 * w_vel_max_ref
+        elif self.w_filter == 'Off':
+            w_vel_max_ref = np.nanmax(np.nanmax(w_vel)) + 1
+            w_vel_min_ref = np.nanmin(np.nanmin(w_vel)) - 1
+        elif self.w_filter == 'Auto':
+            # Initialize variables
+            w_vel_filtered = copy.deepcopy(w_vel[:])
+            std_diff = 1
+            i = 0
+            # Loop until no additional data are removed
+            while std_diff != 0 and i < 1000:
+
+                # Computed standard deviation
+                w_vel_std = iqr(w_vel_filtered)
+
+                # Compute maximum and minimum thresholds
+                w_vel_max_ref = np.nanmedian(w_vel_filtered) + multiplier * w_vel_std
+                w_vel_min_ref = np.nanmedian(w_vel_filtered) - multiplier * w_vel_std
+
+                # Identify valid and invalid data
+                w_vel_bad_rows, w_vel_bad_cols = np.where(np.logical_or(np.greater(w_vel_filtered, w_vel_max_ref),
+                                                       np.less(w_vel_filtered, w_vel_min_ref)))
+                w_vel_good_rows, w_vel_good_cols = np.where(
+                    np.logical_or(np.less_equal(w_vel_filtered, w_vel_max_ref),
+                                  np.greater_equal(w_vel_filtered, w_vel_min_ref)))
+
+                # Update filtered data array
+                w_vel_filtered[w_vel_bad_rows, w_vel_bad_cols] = np.nan
+
+                # Determine differences due to last filter iteration
+                if len(w_vel_filtered) > 0:
+                    w_vel_std2 = iqr(w_vel_filtered)
+                    std_diff = w_vel_std2 - w_vel_std
+                else:
+                    std_diff = 0
                     
             # Set valid data row 3 for difference velocity filter results
             bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),

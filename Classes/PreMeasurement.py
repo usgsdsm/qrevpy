@@ -59,7 +59,7 @@ class PreMeasurement(object):
         # Match regex for compass evaluation error:
         splits = re.split('(Total error:|Double Cycle Errors:|Error from calibration:)', self.data)
         if len(splits) > 1:
-            error = re.search('\d+\.*\d*', splits[-1])[0]
+            error = float(re.search('\d+\.*\d*', splits[-1])[0])
         else:
             error = 'N/A'
         self.result['compass'] = {'error': error}

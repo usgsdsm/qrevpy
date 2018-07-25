@@ -76,7 +76,6 @@ class DepthData(object):
         self.smooth_upper_limit = None  # Smooth function upper limit of window
         self.smooth_lower_limit = None  # Smooth function lowerl limit or window
         self.avg_method = None  # Defines averaging method: "Simple", "IDW"
-        self.avg_depth = None
         self.filter_type = None  # Type of filter: "None", "TRDI", "Smooth"
         self.interp_type = None  # Type of interpolation: "None", "Linear", "Smooth"
         self.valid_data_method = None  # QRev or TRDI
@@ -603,7 +602,6 @@ class DepthData(object):
             valid_data = copy.deepcopy(self.valid_beams[n])
             valid = np.vstack([valid_depth_mono, valid_x_mono, valid_data])
             valid = np.all(valid, 0)
-            depth_int = np.array([])
 
             if np.sum(valid) > 1:
                 # Compute interpolation function from all valid data

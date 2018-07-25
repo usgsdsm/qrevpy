@@ -93,34 +93,40 @@ class ExtrapQSensitivity(object):
 
         # Compute discharges for each transect for possible extrapolation combinations
         for transect in transects:
-            checked.append(transect.checked)
-            q = QComp()
+            if transect.checked:
+                q = QComp()
 
-            q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=0.1667)
-            q_pp.append(q)
+                q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=0.1667)
+                q_pp.append(q.total)
 
-            q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=self.pp_exp)
-            q_pp_opt.append(q)
+                q.populate_data(data_in=transect, top_method='Power', bot_method='Power', exponent=self.pp_exp)
+                q_pp_opt.append(q.total)
 
-            q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=0.1667)
-            q_cns.append(q)
+                q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=0.1667)
+                q_cns.append(q.total)
 
-            q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=self.ns_exp)
-            q_cns_opt.append(q)
+                q.populate_data(data_in=transect, top_method='Constant', bot_method='No Slip', exponent=self.ns_exp)
+                q_cns_opt.append(q.total)
 
-            q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=0.1667)
-            q_3p_ns.append(q)
+                q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=0.1667)
+                q_3p_ns.append(q.total)
 
-            q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=self.ns_exp)
-            q_3p_ns_opt.append(q)
+                q.populate_data(data_in=transect, top_method='3-Point', bot_method='No Slip', exponent=self.ns_exp)
+                q_3p_ns_opt.append(q.total)
 
         # Compute mean discharge for each combination
-        self.q_pp_mean = np.nanmean(get_object_values(q_pp, 'total', checked))
-        self.q_pp_opt_mean = np.nanmean(get_object_values(q_pp_opt, 'total', checked))
-        self.q_cns_mean = np.nanmean(get_object_values(q_cns, 'total', checked))
-        self.q_cns_opt_mean = np.nanmean(get_object_values(q_cns_opt, 'total', checked))
-        self.q_3p_ns_mean = np.nanmean(get_object_values(q_3p_ns, 'total', checked))
-        self.q_3p_ns_opt_mean = np.nanmean(get_object_values(q_3p_ns_opt, 'total', checked))
+        self.q_pp_mean = np.nanmean(q_pp)
+        self.q_pp_opt_mean = np.nanmean(q_pp_opt)
+        self.q_cns_mean = np.nanmean(q_cns)
+        self.q_cns_opt_mean = np.nanmean(q_cns_opt)
+        self.q_3p_ns_mean = np.nanmean(q_3p_ns)
+        self.q_3p_ns_opt_mean = np.nanmean(q_3p_ns_opt)
+        # self.q_pp_mean = np.nanmean(get_object_values(q_pp, 'total', checked))
+        # self.q_pp_opt_mean = np.nanmean(get_object_values(q_pp_opt, 'total', checked))
+        # self.q_cns_mean = np.nanmean(get_object_values(q_cns, 'total', checked))
+        # self.q_cns_opt_mean = np.nanmean(get_object_values(q_cns_opt, 'total', checked))
+        # self.q_3p_ns_mean = np.nanmean(get_object_values(q_3p_ns, 'total', checked))
+        # self.q_3p_ns_opt_mean = np.nanmean(get_object_values(q_3p_ns_opt, 'total', checked))
 
         self.compute_percent_diff(extrap_fits=extrap_fits, transects=transects)
 

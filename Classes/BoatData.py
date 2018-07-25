@@ -929,7 +929,7 @@ class BoatData(object):
 
         # Combine all filter data to composite valid data
         self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
-        self.num_invalid = np.sum(self.valid_data, 0)
+        self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     def filter_diff_vel(self, setting, threshold=None):
         """Applies either manual or automatic filtering of the difference
@@ -973,7 +973,7 @@ class BoatData(object):
             d_vel_min_ref = np.nanmin(d_vel) - 99
         elif self.d_filter == 'Auto':
             # Initialize variables
-            d_vel_filtered = np.copy(d_vel)
+            d_vel_filtered = copy.deepcopy(d_vel)
 
             # Fix to zeros in Sontek M9 data
             d_vel_filtered[d_vel_filtered == 0] = np.nan
@@ -1002,7 +1002,7 @@ class BoatData(object):
                 d_vel_good_idx = list(np.intersect1d(d_vel_less_idx, d_vel_greater_idx))
 
                 # Update filtered data array
-                d_vel_filtered = np.copy(d_vel_filtered[d_vel_good_idx])
+                d_vel_filtered = copy.deepcopy(d_vel_filtered[d_vel_good_idx])
 
                 # Determine differences due to last filter iteration
                 if len(d_vel_filtered) > 0:
@@ -1023,7 +1023,7 @@ class BoatData(object):
 
         # Combine all filter data to composite filter data
         self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
-        self.num_invalid = np.sum(self.valid_data == False, 0)
+        self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     def filter_vert_vel(self, setting, threshold=None):
         """Applies either manual or automatic filtering of the vertical
@@ -1103,7 +1103,7 @@ class BoatData(object):
 
         # Combine all filter data to composite valid data
         self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
-        self.num_invalid = np.sum(self.valid_data[0, :])
+        self.num_invalid = np.sum(self.valid_data[0, :] == False)
 
     def filter_smooth(self, transect, setting):
         """This filter employs a running trimmed standard deviation filter to

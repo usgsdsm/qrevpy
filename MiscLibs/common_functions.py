@@ -40,7 +40,19 @@ def pol2cart(phi, rho):
 
 def iqr(data):
     """This function computes the iqr consistent with Matlab"""
-    q25, q50, q75 = sp.mstats.mquantiles(data, alphap=0.5, betap=0.5)
+
+    # If 2-D array use only 1st row
+    if len(data.shape) > 1:
+        data_1d = data.flatten()
+    else:
+        data_1d = data
+
+    # Remove nan elements
+    idx = np.where(np.isnan(data_1d) == False)[0]
+    data_1d = data_1d[idx]
+
+    # Compute statistics
+    q25, q50, q75 = sp.mstats.mquantiles(data_1d, alphap=0.5, betap=0.5)
     sp_iqr = q75 - q25
     return sp_iqr
 

@@ -138,7 +138,7 @@ class QComp(object):
         # Compute measured or middle discharge
         self.middle_cells = QComp.discharge_middle_cells(x_prod, data_in, delta_t)
         self.middle_ens = np.nansum(self.middle_cells, 0)
-        self.middle = np.nansum(self.middle_ens, 0)
+        self.middle = np.nansum(self.middle_ens)
         
         # Compute the top discharge
         self.top_ens = QComp.extrapolate_top(x_prod, data_in, delta_t, top_method, exponent)
@@ -463,15 +463,15 @@ class QComp(object):
 
                 # If 6 or more bins use 3-pt at top
                 if n_bins[j] > 5:
-                    sumd = np.nansum(cell_depth[idx_top_3[0:3, j]])
-                    sumd2 = np.nansum(cell_depth[idx_top_3[0:3, j]]**2)
-                    sumq = np.nansum(component[idx_top_3[0:3, j]])
-                    sumqd = np.nansum(component[idx_top_3[0:3, j], j])
+                    sumd = np.nansum(cell_depth[idx_top_3[0:3, j], j])
+                    sumd2 = np.nansum(cell_depth[idx_top_3[0:3, j], j]**2)
+                    sumq = np.nansum(component[idx_top_3[0:3, j], j])
+                    sumqd = np.nansum(component[idx_top_3[0:3, j], j] * cell_depth[idx_top_3[0:3, j], j])
                     delta = 3 * sumd2 - sumd**2
                     a = (3 * sumqd - sumq * sumd) / delta
                     b = (sumq * sumd2 - sumqd * sumd) / delta
                     # Compute discharge for 3-pt fit
-                    qo = (a * top_rng[j]**2) / (2 + b * top_rng[j])
+                    qo = (a * top_rng[j]**2) / 2 + b * top_rng[j]
                     top_value[j] = delta_t[j] * qo
 
         return top_value

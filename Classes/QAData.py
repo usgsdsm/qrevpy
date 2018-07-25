@@ -231,26 +231,27 @@ class QAData(object):
             num_tests_with_failure = 0
 
             for test in meas.system_test:
-                if test.result['pt3'] is not None:
+                if hasattr(test, 'result'):
+                    if 'pt3' in test.result and test.result['pt3'] is not None:
 
-                    # Check hard_limit, high gain, wide bandwidth
-                    if 'hard_limit' in test.result['pt3']:
-                        if 'high_wide' in test.result['pt3']['hard_limit']:
-                            corr_table = test.result['pt3']['hard_limit']['high_wide']['corr_table']
-                            if len(corr_table) > 0:
-                                # All lags past lag 2 should be less than 50% of lag 0
-                                qa_threshold = corr_table[0, :] * 0.5
-                                all_lag_check = np.greater(corr_table[3::, :], qa_threshold)
+                        # Check hard_limit, high gain, wide bandwidth
+                        if 'hard_limit' in test.result['pt3']:
+                            if 'high_wide' in test.result['pt3']['hard_limit']:
+                                corr_table = test.result['pt3']['hard_limit']['high_wide']['corr_table']
+                                if len(corr_table) > 0:
+                                    # All lags past lag 2 should be less than 50% of lag 0
+                                    qa_threshold = corr_table[0, :] * 0.5
+                                    all_lag_check = np.greater(corr_table[3::, :], qa_threshold)
 
-                                # Lag 7 should be less than 25% of lag 0
-                                lag_7_check = np.greater(corr_table[7, :], corr_table[0, :] * 0.25)
+                                    # Lag 7 should be less than 25% of lag 0
+                                    lag_7_check = np.greater(corr_table[7, :], corr_table[0, :] * 0.25)
 
-                                # If either condition is met for any beam the test fails
-                                if np.sum(np.sum(all_lag_check)) + np.sum(lag_7_check) > 1:
-                                    pt3_fail = True
+                                    # If either condition is met for any beam the test fails
+                                    if np.sum(np.sum(all_lag_check)) + np.sum(lag_7_check) > 1:
+                                        pt3_fail = True
 
-                if test.result['n_failed'] is not None and test.result['n_failed'] > 0:
-                    num_tests_with_failure += 1
+                    if test.result['n_failed'] is not None and test.result['n_failed'] > 0:
+                        num_tests_with_failure += 1
 
             if pt3_fail:
                 self.system_tst['status'] = 'caution'
@@ -394,24 +395,33 @@ class QAData(object):
                     # SonTek G3 compass provides pitch, roll, and magnetic error parameters that can be checked
                     if meas.transects[checked.index(True)].adcp.manufacturer == 'SonTek':
                         if heading_source_selected.pitch_limit is not None:
-                            idx_max = np.where(pitch_source_selected.data > pitch_source_selected.pitch_limit[0])[0]
-                            idx_min = np.where(pitch_source_selected.data < pitch_source_selected.pitch_limit[1])[0]
-                            if not idx_max or not idx_min:
+                            # Check for bug in SonTek data where pitch and roll was n x 3 use n x 1
+                            if len(pitch_source_selected.data.shape) == 1:
+                                pitch_data = pitch_source_selected.data
+                            else:
+                                pitch_data = pitch_source_selected.data[:, 0]
+                            idx_max = np.where(pitch_data > heading_source_selected.pitch_limit[0])[0]
+                            idx_min = np.where(pitch_data < heading_source_selected.pitch_limit[1])[0]
+                            if len(idx_max) > 0 or len(idx_min) > 0:
                                 pitch_exceeded.append(True)
                             else:
                                 pitch_exceeded.append(False)
 
                         if heading_source_selected.roll_limit is not None:
-                            idx_max = np.where(roll_source_selected.data > roll_source_selected.pitch_limit[0])[0]
-                            idx_min = np.where(roll_source_selected.data < roll_source_selected.pitch_limit[1])[0]
-                            if not idx_max or not idx_min:
+                            if len(roll_source_selected.data.shape) == 1:
+                                roll_data = roll_source_selected.data
+                            else:
+                                roll_data = roll_source_selected.data[:, 0]
+                            idx_max = np.where(roll_data > heading_source_selected.pitch_limit[0])[0]
+                            idx_min = np.where(roll_data < heading_source_selected.pitch_limit[1])[0]
+                            if len(idx_max) > 0 or len(idx_min) > 0:
                                 roll_exceeded.append(True)
                             else:
                                 roll_exceeded.append(False)
 
                         if heading_source_selected.mag_error is not None:
                             idx_max = np.where(heading_source_selected.mag_error > 2)[0]
-                            if not idx_max:
+                            if len(idx_max) > 0:
                                 mag_error_exceeded.append(True)
                             else:
                                 mag_error_exceeded.append(False)
@@ -763,12 +773,12 @@ class QAData(object):
                     depth_valid = np.all(np.vstack((depth_nan, depth_valid_temp)), 0)
 
                 if not np.any(depth_valid):
-                    self.depths['all_invalid'] = True
+                    self.depths['all_invalid'][n] = True
 
                 # Compute QA characteristics
                 q_total, q_max_run, number_invalid_ensembles = QAData.invalid_qa(depth_valid, meas.discharge[n])
                 self.depths['q_total'][n] = q_total
-                self.depths['q_max_run'] = q_max_run
+                self.depths['q_max_run'][n] = q_max_run
 
                 # Compute percentage compared to total
                 q_total_percent = np.abs((q_total / meas.discharge[n].total) * 100)
@@ -847,7 +857,7 @@ class QAData(object):
                                        ('VertVel: ', 3), ('Other: ', 4), ('3Beams: ', 5)]},
                      'GGA': {'class': 'gga_vel', 'warning': 'GGA-', 'caution': 'gga-',
                              'filter': [('All: ', 0), ('Original: ', 1), ('DGPS: ', 2),
-                                         ('Altitude: ', 3), ('Other: ', 4), ('HDOP: ', 5)]},
+                                        ('Altitude: ', 3), ('Other: ', 4), ('HDOP: ', 5)]},
                      'VTG': {'class': 'vtg_vel', 'warning': 'VTG-', 'caution': 'vtg-',
                              'filter': [('All: ', 0), ('Original: ', 1), ('HDOP: ', 5)]}}
 
@@ -883,7 +893,8 @@ class QAData(object):
                             boat['status'] = 'good'
 
                             # Compute quality characteristics
-                            valid = getattr(transect.boat_vel, dt_value['class']).valid_data[dt_filter[1], in_transect_idx]
+                            valid = getattr(transect.boat_vel, dt_value['class']).valid_data[dt_filter[1],
+                                                                                             in_transect_idx]
                             q_total, q_max_run, number_invalid_ens = QAData.invalid_qa(valid, meas.discharge[n])
                             boat['q_total'][n, dt_filter[1]] = q_total
                             boat['q_max_run'][n, dt_filter[1]] = q_max_run
@@ -920,7 +931,7 @@ class QAData(object):
                                     avg_speed_check = 1
 
                 # Create message for consecutive invalid discharge
-                if boat['q_max_run_warning'].any():
+                if boat['q_max_run_warning'][:, dt_filter[1]].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -930,20 +941,20 @@ class QAData(object):
                             'Int. Q for consecutive invalid ensembles exceeds ' +
                             '%3.1f' % self.q_run_threshold_warning + '%;', 1, module_code])
                     status_switch = 2
-                elif boat['q_max_run_caution'].any():
+                elif boat['q_max_run_caution'][:, dt_filter[1]].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
                         module_code = 8
                     boat['messages'].append(
-                        [dt_value['warning'] + dt_filter[0] +
+                        [dt_value['caution'] + dt_filter[0] +
                             'Int. Q for consecutive invalid ensembles exceeds ' +
-                            '%3.1f' % self.q_run_threshold_caution + '%;', 1, module_code])
+                            '%3.1f' % self.q_run_threshold_caution + '%;', 2, module_code])
                     if status_switch < 1:
                         status_switch = 1
 
                 # Create message for total invalid discharge
-                if boat['q_total_warning'].any():
+                if boat['q_total_warning'][:, dt_filter[1]].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
@@ -953,15 +964,15 @@ class QAData(object):
                             'Int. Q for invalid ensembles in a transect exceeds ' +
                             '%3.1f' % self.q_total_threshold_warning + '%;', 1, module_code])
                     status_switch = 2
-                elif boat['q_max_run_caution'].any():
+                elif boat['q_max_run_caution'][:, dt_filter[1]].any():
                     if dt_key is 'BT':
                         module_code = 7
                     else:
                         module_code = 8
                     boat['messages'].append(
-                        [dt_value['warning'] + dt_filter[0] +
+                        [dt_value['caution'] + dt_filter[0] +
                             'Int. Q for invalid ensembles in a transect exceeds ' +
-                            '%3.1f' % self.q_total_threshold_caution + '%;', 1, module_code])
+                            '%3.1f' % self.q_total_threshold_caution + '%;', 2, module_code])
                     if status_switch < 1:
                         status_switch = 1
 
@@ -993,24 +1004,25 @@ class QAData(object):
             Object of class Measurement
         """
 
-        n_transects = len(meas.transects)
-        # Initialize dictionaries for each data type
-        self.w_vel['q_total_caution'] = np.tile(False, (n_transects, 6))
-        self.w_vel['q_max_run_caution'] = np.tile(False, (n_transects, 6))
-        self.w_vel['q_total_warning'] = np.tile(False, (n_transects, 6))
-        self.w_vel['q_max_run_warning'] = np.tile(False, (n_transects, 6))
-        self.w_vel['all_invalid'] = np.tile(False, n_transects)
-        self.w_vel['q_total'] = np.tile(np.nan, (n_transects, 6))
-        self.w_vel['q_max_run'] = np.tile(np.nan, (n_transects, 6))
-        self.w_vel['messages'] = []
-        status_switch = 0
-
         # Initialize filter labels and indices
         prefix = ['All: ', 'Original: ', 'ErrorVel: ', 'VertVel: ', 'Other: ', '3Beams: ', 'SNR:']
         if meas.transects[0].adcp.manufacturer is 'TRDI':
             filter_index = [0, 1, 2, 3, 4, 5]
         else:
             filter_index = [0, 1, 2, 3, 4, 5, 7]
+
+        n_transects = len(meas.transects)
+        n_filters = len(filter_index) + 1
+        # Initialize dictionaries for each data type
+        self.w_vel['q_total_caution'] = np.tile(False, (n_transects, n_filters))
+        self.w_vel['q_max_run_caution'] = np.tile(False, (n_transects, n_filters))
+        self.w_vel['q_total_warning'] = np.tile(False, (n_transects, n_filters))
+        self.w_vel['q_max_run_warning'] = np.tile(False, (n_transects, n_filters))
+        self.w_vel['all_invalid'] = np.tile(False, n_transects)
+        self.w_vel['q_total'] = np.tile(np.nan, (n_transects, n_filters))
+        self.w_vel['q_max_run'] = np.tile(np.nan, (n_transects, n_filters))
+        self.w_vel['messages'] = []
+        status_switch = 0
 
         # TODO if meas had a property checked as list it would save creating that list multiple times
         checked = []
@@ -1050,13 +1062,13 @@ class QAData(object):
 
                         # Check total invalid discharge in ensembles for warning
                         if q_total_percent > self.q_total_threshold_warning:
-                            self.w_vel['q_total_warning'] = True
+                            self.w_vel['q_total_warning'][n, filter_idx] = True
 
                         # Apply run or cluster thresholds
                         if q_max_run_percent > self.q_run_threshold_warning:
-                            self.w_vel['q_max_run_warning'] = True
+                            self.w_vel['q_max_run_warning'][n, filter_idx] = True
                         elif q_max_run_percent > self.q_run_threshold_caution:
-                            self.w_vel['q_max_run_caution'] = True
+                            self.w_vel['q_max_run_caution'][n, filter_idx] = True
 
                         # Compute percent discharge interpolated for both cells and ensembles
                         # This approach doesn't exclude original data
@@ -1067,16 +1079,16 @@ class QAData(object):
                         q_invalid_total_percent = (q_invalid_total / meas.discharge[n].total) * 100
 
                         if q_invalid_total_percent > self.q_total_threshold_caution:
-                            self.w_vel['q_total_caution'] = True
+                            self.w_vel['q_total_caution'][n, filter_idx] = True
 
                 # Generate messages for ensemble run or clusters
-                if np.any(self.w_vel['q_max_run_warning']):
+                if np.any(self.w_vel['q_max_run_warning'][:, filter_idx]):
                     self.w_vel['messages'].append(['WT-' + prefix[prefix_idx]
                                                    + 'Int. Q for consecutive invalid ensembles exceeds '
                                                    + '%3.0f' % self.q_run_threshold_warning
                                                    + '%;', 1, 11])
                     status_switch = 2
-                elif np.any(self.w_vel['q_max_run_caution']):
+                elif np.any(self.w_vel['q_max_run_caution'][:, filter_idx]):
                     self.w_vel['messages'].append(['wt-' + prefix[prefix_idx]
                                                    + 'Int. Q for consecutive invalid ensembles exceeds '
                                                    + '%3.0f' % self.q_run_threshold_caution
@@ -1085,13 +1097,13 @@ class QAData(object):
                         status_switch = 1
 
                 # Generate message for total_invalid Q
-                if np.any(self.w_vel['q_total_warning']):
+                if np.any(self.w_vel['q_total_warning'][:, filter_idx]):
                     self.w_vel['messages'].append(['WT-' + prefix[prefix_idx]
                                                    + 'Int. Q for invalid ensembles in a transect exceeds '
                                                    + '%3.0f' % self.q_total_threshold_warning
                                                    + '%;', 1, 11])
                     status_switch = 2
-                elif np.any(self.w_vel['q_max_run_caution']):
+                elif np.any(self.w_vel['q_total_caution'][:, filter_idx]):
                     self.w_vel['messages'].append(['wt-' + prefix[prefix_idx]
                                                    + 'Int. Q for invalid cells and ensembles in a transect exceeds '
                                                    + '%3.0f' % self.q_total_threshold_caution

@@ -301,7 +301,7 @@ class Python2Matlab(object):
                          'low_narrow': 'ln',
                          'low_wide': 'lw',
                          'mag_error': 'magError',
-                         'mag_orig_deg': 'magVarOrig_deg',
+                         'mag_var_orig_deg': 'magVarOrig_deg',
                          'mag_var_deg': 'magVar_deg',
                          'man_bot': 'manBot',
                          'man_exp': 'manExp',

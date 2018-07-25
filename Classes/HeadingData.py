@@ -77,8 +77,14 @@ class HeadingData(object):
         self.mag_var_orig_deg = magvar
         self.align_correction_deg = align
         self.mag_error = mag_error
-        self.pitch_limit = pitch_limit
-        self.roll_limit = roll_limit
+        if pitch_limit is not None and len(pitch_limit.shape) > 1:
+            self.pitch_limit = pitch_limit[0, :]
+        else:
+            self.pitch_limit = pitch_limit
+        if roll_limit is not None and len(roll_limit.shape) > 1:
+            self.roll_limit = roll_limit [0, :]
+        else:
+            self.roll_limit = roll_limit
 
         # Correct the original data for the magvar and alignment
         self.data = self.original_data + self.mag_var_deg + self.align_correction_deg

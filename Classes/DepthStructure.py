@@ -1,6 +1,5 @@
 from Classes.DepthData import DepthData
 import numpy as np
-from numpy.matlib import repmat
 
 
 class DepthStructure(object):
@@ -104,7 +103,6 @@ class DepthStructure(object):
                 vb_filtered[np.squeeze(np.equal(self.vb_depths.valid_data, False))] = np.nan
             else:
                 vb_filtered = np.tile(np.nan, n_ensembles)
-
                   
             # Prepare depth sounder data, using only data prior to interpolation
             if self.ds_depths is not None:

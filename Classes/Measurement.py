@@ -431,10 +431,12 @@ class Measurement(object):
             transect.apply_averaging_method(setting='Simple')
             transect.process_depths(update=False, interpolation_method='HoldLast')
             transect.update_water()
-            transect.wt_filters(wt_depth=True)
-            transect.wt_interpolations(target='Ensembles', interp_type='None')
-            transect.wt_interpolations(target='Cells', interp_type='TRDI')
+            # Filter water data
+            transect.w_vel.apply_filter(transect=transect, wt_depth=True)
 
+            # Interpolate water data
+            transect.w_vel.apply_interpolation(transect=transect, target='Ensembles', interp_type='None')
+            transect.w_vel.apply_interpolation(transect=transect, target='Cells', interp_type='TRDI')
     def qaqc_sontek(self, pathname):
         """Reads and stores system tests, compass calibrations, and moving-bed tests.
 
@@ -461,8 +463,8 @@ class Measurement(object):
             for file in compass_cal_files:
                 with open(os.path.join(compass_cal_folder, file)) as f:
                     cal_data = f.read()
-                    cal = CompassCal()
-                    cal.populate_data(time_stamp, cal_data)
+                    cal = PreMeasurement()
+                    cal.populate_data(time_stamp, cal_data, 'SCC')
                     self.compass_cal.append(cal)
 
         # System Test
@@ -474,9 +476,9 @@ class Measurement(object):
                     with open(os.path.join(system_test_folder, file)) as f:
                         test_data = f.read()
                         test_data = test_data.replace('\x00', '')
-                    time_stamp = file[18:20] + ':' + file[20:22] + ':' + file[22:24]
-                    sys_test = SystemTest()
-                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data)
+                    time_stamp = file[10:24]
+                    sys_test = PreMeasurement()
+                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data, data_type='SST')
                     self.system_test.append(sys_test)
 
         # Moving-bed tests
@@ -736,6 +738,8 @@ class Measurement(object):
             else:
                 bt_kwargs['vertical'] = settings['BTwFilter']
 
+            # Apply beam filter
+                bt_kwargs['beam'] = settings['BTbeamFilter']
             # Apply BT settings
             transect.boat_filters(update=False, **bt_kwargs)
 
@@ -848,6 +852,10 @@ class Measurement(object):
                                                target='Cells',
                                                interp_type=settings['WTCellInterpolation'])
 
+        self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
+        self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
+
+        for transect in self.transects:
             q = QComp()
             q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
             self.discharge.append(q)

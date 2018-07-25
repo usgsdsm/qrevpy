@@ -711,7 +711,7 @@ class TransectData(object):
         # Because Matlab pads arrays with zeros and RR data has variable
         # number of bins, the raw data may be padded with zeros.  The next
         # four statements changes those to nan.
-        vel[vel == 0] = np.nan
+        # vel[vel == 0] = np.nan
         ref_water = 'None'
         ref_coord = None
 
@@ -766,7 +766,7 @@ class TransectData(object):
                                  coord_sys_in=ref_coord,
                                  nav_ref_in=ref_water,
                                  rssi_in=snr,
-                                 rssi_units_in=rsdata.System.Units.SNR,
+                                 rssi_units_in='SNR',
                                  excluded_dist_in=excluded_distance,
                                  cells_above_sl_in=cells_above_sl,
                                  sl_cutoff_per_in=sl_cutoff_percent,
@@ -936,6 +936,7 @@ class TransectData(object):
         # External heading
         ext_heading = rsdata.System.GPS_Compass_Heading
         if np.nansum(np.abs(np.diff(ext_heading))) > 0:
+            self.sensors.heading_deg.external = HeadingData()
             self.sensors.heading_deg.external.populate_data(data_in=ext_heading,
                                                             source_in='GPS',
                                                             magvar=rsdata.Setup.magneticDeclination,
@@ -986,14 +987,16 @@ class TransectData(object):
         speed_of_sound = Sensors.speed_of_sound(temperature=temperature, salinity=rsdata.Setup.userSalinity)
         self.sensors.speed_of_sound_mps.internal = SensorData()
         self.sensors.speed_of_sound_mps.internal.populate_data(data_in=speed_of_sound, source_in='QRev')
+        # Set selected salinity
+        self.sensors.speed_of_sound_mps.selected = 'internal'
 
         # Ensemble times
         ensemble_delta_time = np.append([0], np.diff(rsdata.System.Time))
         idx_missing = np.where(ensemble_delta_time > 1.5)
-        if idx_missing[0]:
+        if len(idx_missing) > 0:
             number_missing = np.sum(ensemble_delta_time[idx_missing]) - len(idx_missing)
             error_str = self.file_name + ' is missing ' + str(number_missing) + ' samples'
-            raise ValueError(error_str)
+            # raise ValueError(error_str)
 
         start_serial_time = rsdata.System.Time[0] + ((30 * 365) + 7) * 24 * 60 * 60 + 1 + 4 * 60 * 60
         end_serial_time = rsdata.System.Time[-1] + ((30 * 365) + 7) * 24 * 60 * 60 + 1 + 4 * 60 * 60
