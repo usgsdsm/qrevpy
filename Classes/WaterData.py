@@ -34,7 +34,7 @@ class WaterData(object):
         raw_vel_mps: np.array(float)
             Contains the raw unfiltered velocity data in m/s.  1st index 1-4 are beams 1,2,3,4 if beam or
             u,v,w,d if otherwise.
-        frequency_khz: np.array(float)
+        frequency: np.array(float)
             Defines ADCP frequency used for velocity measurement, in kHz.
         orig_coord_sys: str
             Defines the original raw data velocity coordinate system "Beam", "Inst", "Ship", "Earth".
@@ -140,7 +140,7 @@ class WaterData(object):
         # Data input to this class
         self.raw_vel_mps = None  # Contains the raw unfiltered velocity data in m/s.  Rows 1-4 are
                                  # beams 1,2,3,4 if beam or u,v,w,d if otherwise
-        self.frequency_khz = None  # Defines ADCP frequency used for velocity measurement
+        self.frequency = None  # Defines ADCP frequency used for velocity measurement
         self.orig_coord_sys = None  # Defines the original velocity coordinate system Beam, Inst, Ship, Earth
         self.orig_nav_ref = None  # Defines the original taw data naviagation reference: None, BT, GGA, VTG
         self.corr = None  # Correlation values for WT, if available
@@ -250,7 +250,7 @@ class WaterData(object):
         """
 
         # Set object properties from input data standard for all ADCPs
-        self.frequency_khz = freq_in
+        self.frequency = freq_in
         self.orig_coord_sys = coord_sys_in
         self.coord_sys = coord_sys_in
         self.orig_nav_ref = nav_ref_in
@@ -492,7 +492,7 @@ class WaterData(object):
                         
                         # Determine frequency index for transformation
                         if len(t_matrix.shape) > 2:
-                            idx_freq = np.where(t_matrix_freq == self.frequency_khz[ii])
+                            idx_freq = np.where(t_matrix_freq == self.frequency[ii])
                             t_mult = np.copy(t_matrix[:, :, idx_freq])
                         else:
                             t_mult = np.copy(t_matrix)

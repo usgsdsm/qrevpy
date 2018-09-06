@@ -11,7 +11,7 @@ class QComp(object):
     top: float
         Transect total extrapolated top discharge
     middle: float
-        Transect toal measured middle discharge including interpolations
+        Transect total measured middle discharge including interpolations
     bottom: float
         Transect total extrapolated bottom discharge
     top_ens: np.array(float)

@@ -1,7 +1,7 @@
 import numpy as np
 import datetime as datetime
 import scipy.io as sio
-
+import copy as copy
 
 class Python2Matlab(object):
     """Converts python meas class to Matlab structure.
@@ -13,24 +13,39 @@ class Python2Matlab(object):
     """
 
     def __init__(self, meas):
+        """Intitialize dictionaries and convert Python data to Matlab structures.
+
+        Parameters
+        ----------
+        meas: Measurement
+            Object of class Measurement
+        """
+
+        # Create Python to Matlab variable name conversion dictionary
         py_2_mat_dict = self.create_py_2_mat_dict()
+
+        # Initialize Matlab dictionary
         self.matlab_dict = dict()
 
-        self.matlab_dict['stationName'] = meas.station_name
-        self.matlab_dict['stationNumber'] = meas.station_number
-        self.matlab_dict['processing'] = meas.processing
-        self.matlab_dict['extTempChk'] = meas.ext_temp_chk
-        self.matlab_dict['initialSettings'] = meas.initial_settings
-        self.matlab_dict['comments'] = self.comment2struct(meas.comments)
-        self.matlab_dict['compassCal'] = self.listobj2struct(meas.compass_cal, py_2_mat_dict)
-        self.matlab_dict['compassEval'] = self.listobj2struct(meas.compass_eval, py_2_mat_dict)
-        self.matlab_dict['discharge'] = self.listobj2struct(meas.discharge, py_2_mat_dict)
-        self.matlab_dict['sysTest'] = self.listobj2struct(meas.system_test, py_2_mat_dict)
-        self.matlab_dict['transects'] = self.listobj2struct(meas.transects, py_2_mat_dict)
-        self.matlab_dict['extrapFit'] = self.listobj2struct([meas.extrap_fit], py_2_mat_dict)
-        self.matlab_dict['mbTests'] = self.listobj2struct(meas.mb_tests, py_2_mat_dict)
-        self.matlab_dict['uncertainty'] = self.listobj2struct([meas.uncertainty], py_2_mat_dict)
-        self.matlab_dict['qa'] = self.listobj2struct([meas.qa], py_2_mat_dict)
+        # Apply conversion of Python data to be compatible with Matlab conventions
+        meas_mat = self.data2matlab(meas)
+
+        # Convert Python data structure to Matlab
+        self.matlab_dict['stationName'] = meas_mat.station_name
+        self.matlab_dict['stationNumber'] = meas_mat.station_number
+        self.matlab_dict['processing'] = meas_mat.processing
+        self.matlab_dict['extTempChk'] = meas_mat.ext_temp_chk
+        self.matlab_dict['initialSettings'] = meas_mat.initial_settings
+        self.matlab_dict['comments'] = self.comment2struct(meas_mat.comments)
+        self.matlab_dict['compassCal'] = self.listobj2struct(meas_mat.compass_cal, py_2_mat_dict)
+        self.matlab_dict['compassEval'] = self.listobj2struct(meas_mat.compass_eval, py_2_mat_dict)
+        self.matlab_dict['discharge'] = self.listobj2struct(meas_mat.discharge, py_2_mat_dict)
+        self.matlab_dict['sysTest'] = self.listobj2struct(meas_mat.system_test, py_2_mat_dict)
+        self.matlab_dict['transects'] = self.listobj2struct(meas_mat.transects, py_2_mat_dict)
+        self.matlab_dict['extrapFit'] = self.listobj2struct([meas_mat.extrap_fit], py_2_mat_dict)
+        self.matlab_dict['mbTests'] = self.listobj2struct(meas_mat.mb_tests, py_2_mat_dict)
+        self.matlab_dict['uncertainty'] = self.listobj2struct([meas_mat.uncertainty], py_2_mat_dict)
+        self.matlab_dict['qa'] = self.listobj2struct([meas_mat.qa], py_2_mat_dict)
 
     @staticmethod
     def listobj2struct(list_in, new_key_dict=None):
@@ -48,7 +63,10 @@ class Python2Matlab(object):
         struct: np.array
             Structured array
         """
+
+        # Verify that list_in exists
         if list_in:
+
             # Create data type for each variable in object
             keys = list(vars(list_in[0]).keys())
             data_type = []
@@ -64,10 +82,14 @@ class Python2Matlab(object):
 
             # Populate the structure with data from the objects
             for n, item in enumerate(list_in):
+
                 if type(item) is list:
+                    # If item is a list apply recursion
                     struct = Python2Matlab.listobj2struct(item, new_key_dict)
                 else:
+                    # If item is not a list convert it to a dictionary
                     new_dict = Python2Matlab.obj2dict(item, new_key_dict)
+                    # Change name for consistency with Matlab is necessary
                     for key in new_dict:
                         if new_key_dict is not None and key in new_key_dict:
                             struct[new_key_dict[key]][n] = new_dict[key]
@@ -75,12 +97,15 @@ class Python2Matlab(object):
                             struct[key][n] = new_dict[key]
         else:
             struct=np.array([np.nan])
+
         return struct
 
     @staticmethod
     def change_dict_keys(dict_in, new_key_dict):
-        """Recursively changes the name of dictionary keys.
+        """Recursively changes the name of dictionary keys and checks for str data types and converts them to arrays.
 
+        Parameters
+        ----------
         dict_in: dict
             Dictionary with keys that need a name change
         new_key_dict: dict
@@ -90,9 +115,18 @@ class Python2Matlab(object):
         dict_out = dict()
 
         for key in dict_in:
+            # Iterate on nested dictionaries
             if type(dict_in[key]) is dict:
                 dict_in[key] = Python2Matlab.change_dict_keys(dict_in[key], new_key_dict)
 
+            # If a list contains a str variable, such as messages, convert the string to an array
+            if type(dict_in[key]) is list:
+                for line in range(len(dict_in[key])):
+                    for col in range(len(dict_in[key][line])):
+                        if type(dict_in[key][line][col]) is str:
+                            dict_in[key][line][col] = np.array([list(dict_in[key][line][col])])
+
+            # Change key if needed
             if new_key_dict is not None and key in new_key_dict:
                 dict_out[new_key_dict[key]] = dict_in[key]
             else:
@@ -127,7 +161,7 @@ class Python2Matlab(object):
             # If variable is a list of objects convert to dictionary
             elif type(obj_dict[key]) is list and len(obj_dict[key]) > 0 \
                     and str(type(obj_dict[key][0]))[8:13] == 'Class':
-                obj_dict[key] = Python2Matlab.listobj2dict(obj_dict[key], new_key_dict)
+                obj_dict[key] = Python2Matlab.listobj2struct(obj_dict[key], new_key_dict)
 
             elif type(obj_dict[key]) is dict:
                 obj_dict[key] = Python2Matlab.change_dict_keys(obj_dict[key], new_key_dict)
@@ -148,12 +182,19 @@ class Python2Matlab(object):
 
     @staticmethod
     def comment2struct(comments):
-        data_type = [('comment', list)]
-        dt = np.dtype(data_type)
-        struct = np.zeros((len(comments),), dt)
+        struct = np.zeros((len(comments),), dtype=np.object)
+        cell = np.zeros((1,), dtype=np.object)
         for n, line in enumerate(comments):
-            struct['comment'][n] = line
+            cell[0] = line
+            struct[n] = cell
         return struct
+
+    @staticmethod
+    def comment2cell(comments):
+        cell_out = []
+        for n, line in enumerate(comments):
+            cell_out.append(np.array([list(line)]))
+        return cell_out
 
     @staticmethod
     def listobj2dict(list_in, new_key_dict=None):
@@ -206,7 +247,7 @@ class Python2Matlab(object):
                          'bt_vel': 'btVel',
                          'cell_depth_normalized': 'cellDepthNormalized',
                          'cells_above_sl': 'cellsAboveSL',
-                         'cells_above_sl_bt': 'cellsAboveSL_bt',
+                         'cells_above_sl_bt': 'cellsAboveSLbt',
                          'compass_cal': 'compassCal',
                          'compass_diff_deg': 'compassDiff_deg',
                          'compass_eval': 'compassEval',
@@ -215,11 +256,12 @@ class Python2Matlab(object):
                          'corr_table': 'corrTable',
                          'correction_factor': 'correctionFactor',
                          'cov_95': 'cov95',
-                         'cov_user': 'cov95User',
+                         'cov_95_user': 'cov95User',
                          'cust_coef': 'custCoef',
                          'd_filter': 'dFilter',
                          'd_filter_threshold': 'dFilterThreshold',
                          'data_extent': 'dataExtent',
+                         'data_orig': 'dataOrig',
                          'data_type': 'dataType',
                          'date_time': 'dateTime',
                          'depth_beams_m': 'depthBeams_m',
@@ -228,9 +270,9 @@ class Python2Matlab(object):
                          'depth_cell_size_m': 'depthCellSize_m',
                          'depth_cell_size_orig_m': 'depthCellSizeOrig_m',
                          'depth_depth_m': 'depthCellDepth_m',
-                         'depth_ens': 'depthSourceEns',
-                         'depth_hz': 'depthFreq_Hz',
-                         'depth_index': 'depthInvalidIndex',
+                         'depth_source_ens': 'depthSourceEns',
+                         'depth_freq_kHz': 'depthFreq_Hz',
+                         'depth_invalid_index': 'depthInvalidIndex',
                          'depth_orig_m': 'depthOrig_m',
                          'depth_processed_m': 'depthProcessed_m',
                          'depth_source': 'depthSource',
@@ -242,7 +284,7 @@ class Python2Matlab(object):
                          'draft_use_m': 'draftUse_m',
                          'ds_depths': 'dsDepths',
                          'edges_95': 'edges95',
-                         'edges_user': 'edges95User',
+                         'edges_95_user': 'edges95User',
                          'end_serial_time': 'endSerialTime',
                          'ens_duration_sec': 'ensDuration_sec',
                          'excluded_dist_m': 'excludedDist',
@@ -263,12 +305,13 @@ class Python2Matlab(object):
                          'ext_vtg_speed_mps': 'extVTGSpeed_mps',
                          'extrap_fit': 'extrapFit',
                          'extrapolation_95': 'extrapolation95',
-                         'extrapolation_user': 'extrapolation95User',
+                         'extrapolation_95_user': 'extrapolation95User',
                          'file_name': 'fileName',
                          'filter_type': 'filterType',
                          'fit_method': 'fitMethod',
                          'fit_r2': 'fitrsqr',
                          'flow_dir_deg': 'flowDir_deg',
+                         'flow_dir': 'flowDir_deg',
                          'flow_spd_mps': 'flowSpd_mps',
                          'frequency_khz': 'frequency_hz',
                          'gga_lat_ens_deg': 'ggaLatEns_deg',
@@ -279,7 +322,7 @@ class Python2Matlab(object):
                          'gga_velocity_ens_mps': 'ggaVelocityEns_mps',
                          'gga_velocity_method': 'ggaVelocityMethod',
                          'gps_HDOP_filter': 'gpsHDOPFilter',
-                         'gps_HDOP_filter_change ': 'gpsHDOPFilterChange',
+                         'gps_HDOP_filter_change': 'gpsHDOPFilterChange',
                          'gps_HDOP_filter_max': 'gpsHDOPFilterMax',
                          'gps_altitude_filter': 'gpsAltitudeFilter',
                          'gps_altitude_filter_change': 'gpsAltitudeFilterChange',
@@ -292,11 +335,12 @@ class Python2Matlab(object):
                          'initial_settings': 'initialSettings',
                          'int_cells': 'intCells',
                          'int_ens': 'intEns',
+                         'interp_type': 'interpType',
                          'interpolate_cells': 'interpolateCells',
                          'interpolate_ens': 'interpolateEns',
                          'invalid_95': 'invalid95',
                          'invalid_index': 'invalidIndex',
-                         'invalid_user': 'invalid95User',
+                         'invalid_95_user': 'invalid95User',
                          'left_idx': 'leftidx',
                          'low_narrow': 'ln',
                          'low_wide': 'lw',
@@ -306,7 +350,7 @@ class Python2Matlab(object):
                          'man_bot': 'manBot',
                          'man_exp': 'manExp',
                          'man_top': 'manTop',
-                         'mb_dir_deg': 'mbDir_deg',
+                         'mb_dir': 'mbDir_deg',
                          'mb_spd_mps': 'mbSpd_mps',
                          'mb_tests': 'mbTests',
                          'meas': 'meas_struct',
@@ -314,11 +358,11 @@ class Python2Matlab(object):
                          'middle_ens': 'middleEns',
                          'moving_bed': 'movingBed',
                          'moving_bed_95': 'movingBed95',
-                         'moving_user': 'movingBed95User',
+                         'moving_bed_95_user': 'movingBed95User',
                          'n_failed': 'nFailed',
                          'n_tests': 'nTests',
                          'nav_ref': 'navRef',
-                         'near_speed_mps': 'nearBedSpeed_mps',
+                         'near_bed_speed_mps': 'nearBedSpeed_mps',
                          'noise_floor': 'noiseFloor',
                          'norm_data': 'normData',
                          'ns_exp': 'nsExponent',
@@ -328,6 +372,7 @@ class Python2Matlab(object):
                          'number_ensembles': 'numEns2Avg',
                          'orig_coord_sys': 'origCoordSys',
                          'orig_ref': 'origNavRef',
+                         'orig_nav_ref': 'origNavRef',
                          'orig_sys': 'origCoordSys',
                          'original_data': 'originalData',
                          'per_good_ens': 'perGoodEns',
@@ -343,10 +388,10 @@ class Python2Matlab(object):
                          'q_cns_per_diff': 'qCNSperdiff',
                          'q_man_mean': 'qManmean',
                          'q_man_per_diff': 'qManperdiff',
-                         'q_ns_mean': 'q3pNSmean',
-                         'q_ns_opt_mean': 'q3pNSoptmean',
-                         'q_ns_opt_per_diff': 'q3pNSoptperdiff',
-                         'q_ns_per_diff': 'q3pNSperdiff',
+                         'q_3p_ns_mean': 'q3pNSmean',
+                         'q_3p_ns_opt_mean': 'q3pNSoptmean',
+                         'q_3p_ns_opt_per_diff': 'q3pNSoptperdiff',
+                         'q_3p_ns_per_diff': 'q3pNSperdiff',
                          'q_pp_mean': 'qPPmean',
                          'q_pp_opt_mean': 'qPPoptmean',
                          'q_pp_opt_per_diff': 'qPPoptperdiff',
@@ -367,10 +412,10 @@ class Python2Matlab(object):
                          'raw_gga_num_sats': 'rawGGANumSats',
                          'raw_vel_mps': 'rawVel_mps',
                          'raw_vtg_course_deg': 'rawVTGCourse_deg',
-                         'raw_vtg_delta_time': 'rawVTGDeltatTime',
+                         'raw_vtg_delta_time': 'rawVTGDeltaTime',
                          'raw_vtg_mode_indicator': 'rawVTGModeIndicator',
                          'raw_vtg_speed_mps': 'rawVTGSpeed_mps',
-                         'rec_method': 'recEdgeMethod',
+                         'rec_edge_method': 'recEdgeMethod',
                          'right_idx': 'rightidx',
                          'roll_limit': 'rollLimit',
                          'rssi_units': 'rssiUnits',
@@ -400,7 +445,7 @@ class Python2Matlab(object):
                          'systematic_user': 'systematicUser',
                          't_matrix': 'tMatrix',
                          'temperature': 'temperature',
-                         'temperature_c': 'temperature_degC',
+                         'temperature_deg_c': 'temperature_degC',
                          'test_quality': 'testQuality',
                          'time_stamp': 'timeStamp',
                          'top_ens': 'topEns',
@@ -412,12 +457,12 @@ class Python2Matlab(object):
                          'top_r2': 'topr2',
                          'total_95': 'total95',
                          'total_uncorrected': 'totalUncorrected',
-                         'total_user': 'total95User',
+                         'total_95_user': 'total95User',
                          'transect_duration_sec': 'transectDuration_sec',
                          'u_auto': 'uAuto',
                          'u_processed_mps': 'uProcessed_mps',
                          'u_earth_no_ref_mps': 'uEarthNoRef_mps',
-                         'unit_normalize_dz': 'unitNormalizedz',
+                         'unit_normalized_z': 'unitNormalizedz',
                          'unit_normalized': 'unitNormalized',
                          'unit_normalized_25': 'unitNormalized25',
                          'unit_normalized_75': 'unitNormalized75',
@@ -432,7 +477,7 @@ class Python2Matlab(object):
                          'v_earth_no_ref_mps': 'vEarthNoRef_mps',
                          'valid_beams': 'validBeams',
                          'valid_data': 'validData',
-                         'valid_method': 'validDataMethod',
+                         'valid_data_method': 'validDataMethod',
                          'vb_depths': 'vbDepths',
                          'vel_method': 'velMethod',
                          'vtg_vel': 'vtgVel',
@@ -460,7 +505,7 @@ class Python2Matlab(object):
         """
 
         # Convert Python objects to Matlab structure
-        mat_struct = {'py2mat_struct': Python2Matlab(meas).matlab_dict}
+        mat_struct = {'meas_struct': Python2Matlab(meas).matlab_dict, 'version': 'QRevPy - 0'}
         sio.savemat(file_name=file_name,
                     mdict=mat_struct,
                     appendmat=True,
@@ -468,3 +513,55 @@ class Python2Matlab(object):
                     long_field_names=True,
                     do_compression=False,
                     oned_as='row')
+
+    @staticmethod
+    def data2matlab(meas):
+        """Apply changes to the Python data to replicate QRev for Matlab conventions.
+
+        Parameters
+        ----------
+        meas: Measurement
+            object of class Measurement
+
+        Returns
+        -------
+            meas_mat: Measurement
+                Deepcopy of meas with changes to replicate QRev for Matlab conventions
+        """
+
+        # Make copy to prevent changing Python meas data
+        meas_mat = copy.deepcopy(meas)
+
+        # Process changes for each transect
+        for transect in meas_mat.transects:
+
+            # Change selected boat velocity identification
+            if transect.boat_vel.selected == 'bt_vel':
+                transect.boat_vel.selected = 'btVel'
+            elif transect.boat_vel.selected == 'gga_vel':
+                transect.boat_vel.selected = 'ggaVel'
+            elif transect.boat_vel.selected == 'vtg_vel':
+                transect.boat_vel.selected = 'vtgVel'
+
+            # Change selected depth identification
+            if transect.depths.selected == 'bt_depths':
+                transect.depths.selected = 'btDepths'
+            elif transect.depths.selected == 'vb_depths':
+                transect.depths.selected = 'vbDepths'
+            elif transect.depths.selected == 'ds_depths':
+                transect.depths.selected = 'dsDepths'
+
+            # Adjust in transect number for 1 base rather than 0 base
+            transect.in_transect_idx = transect.in_transect_idx + 1
+
+            # Adjust arrangement of 3-D arrays for consistency with Matlab
+            transect.w_vel.raw_vel_mps = np.moveaxis(transect.w_vel.raw_vel_mps, 0, 2)
+            transect.w_vel.corr = np.moveaxis(transect.w_vel.corr, 0, 2)
+            transect.w_vel.rssi = np.moveaxis(transect.w_vel.rssi, 0, 2)
+            transect.w_vel.valid_data = np.moveaxis(transect.w_vel.valid_data, 0, 2)
+
+            # Adjust serial time to Matlab convention
+            transect.date_time.start_serial_time = transect.date_time.start_serial_time / (60 * 60 * 24) + 719528.833334606
+            transect.date_time.end_serial_time = transect.date_time.end_serial_time / (60 * 60 * 24) + 719528.833334606
+
+        return meas_mat

@@ -85,7 +85,7 @@ class Measurement(object):
         self.qa = None
         self.user_rating = None
         self.comments = []
-        self.ext_temp_chk = {}
+        self.ext_temp_chk = {'user': [], 'units': 'C', 'adcp': []}
 
         # Load data from selected source
         if source == 'QRev':
@@ -182,6 +182,7 @@ class Measurement(object):
         # Get external temperature
         self.ext_temp_chk['user'] = mmt.site_info['Water_Temperature']
         self.ext_temp_chk['units'] = 'C'
+
 
         # Initialize thresholds settings dictionary
         threshold_settings = dict()
@@ -385,7 +386,7 @@ class Measurement(object):
         transect.boat_vel.bt_vel.apply_filter(transect, **settings['bt_settings'])
 
         # Apply depth settings
-        transect.depths.valid_data_method = settings['depth_settings']['depth_valid_method']
+        transect.depths.bt_depths.valid_data_method = settings['depth_settings']['depth_valid_method']
         transect.depths.depth_filter(transect=transect, filter_method=settings['depth_settings']['depth_screening'])
         transect.depths.bt_depths.compute_avg_bt_depth(method=settings['depth_settings']['depth_weighting'])
 

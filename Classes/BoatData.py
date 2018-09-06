@@ -67,8 +67,8 @@ class BoatData(object):
             Max acceptable value for HDOP.
         gps_HDOP_filter_change: float
             Maximum change allowed from mean.
-        smooth_filter: bool
-            Setting to use filter based on smoothing function.
+        smooth_filter: str
+            Setting to use filter based on smoothing function ("On", "Off")
         smooth_speed: np.array(float)
             Smoothed boat speed.
         smooth_upper_limit: np.array(float)
@@ -1143,7 +1143,7 @@ class BoatData(object):
         ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
 
         # Determine if smooth filter should be applied
-        if self.smooth_filter:
+        if self.smooth_filter == 'On':
 
             # Boat velocity components
             b_vele = np.copy(self.u_mps)

@@ -33,8 +33,8 @@ class MovingBedTests(object):
         Magnitude of moving=bed velocity, in mps
     percent_mb: float
         Potential error due to moving bed, in percent
-    moving_bed: bool
-        Moving-bed determined (True or False)
+    moving_bed: str
+        Moving-bed determined ("Yes" or "No")
     user_valid: bool
         Boolean to allow user to determine if test should be considered a valid test (True or False)
     test_quality: str

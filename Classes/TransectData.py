@@ -956,7 +956,7 @@ class TransectData(object):
             roll = rsdata.Compass.Roll
         elif hasattr(rsdata.System, 'Pitch'):
             pitch = rsdata.System.Pitch
-            roll = rsdata.system.Roll
+            roll = rsdata.System.Roll
         self.sensors.pitch_deg.internal = SensorData()
         self.sensors.pitch_deg.internal.populate_data(data_in=pitch, source_in='internal')
         self.sensors.pitch_deg.selected = 'internal'
@@ -968,7 +968,7 @@ class TransectData(object):
         if rsdata.System.Units.Temperature == 'degC':
             temperature = rsdata.System.Temperature
         else:
-            temperature = (5. / 9.) * (rsdata.Temperature - 32)
+            temperature = (5. / 9.) * (rsdata.System.Temperature - 32)
         self.sensors.temperature_deg_c.internal = SensorData()
         self.sensors.temperature_deg_c.internal.populate_data(data_in=temperature, source_in='internal')
         self.sensors.temperature_deg_c.selected = 'internal'
@@ -1438,7 +1438,7 @@ class TransectData(object):
         if valid_method is None:
             valid_method = self.depths.bt_depths.valid_data_method
 
-        self.depths.valid_data_method = valid_method
+        self.depths.bt_depths.valid_data_method = valid_method
         self.depths.bt_depths.avg_method = avg_method
         self.depths.depth_filter(transect=self, filter_method=filter_method)
         self.depths.depth_interpolation(transect=self, method=interpolation_method)

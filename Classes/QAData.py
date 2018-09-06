@@ -554,7 +554,7 @@ class QAData(object):
                 # No independent temperature reading
                 check[1] = 2
                 self.temperature['messages'].append(['Temperature: No independent temperature reading;', 2, 5])
-            elif 'adcp' in meas.ext_temp_chk:
+            elif meas.ext_temp_chk['adcp']:
                 # Compare user to manually entered ADCP temperature
                 diff = np.abs(user - meas.ext_temp_chk['adcp'])
                 if diff < 2:
