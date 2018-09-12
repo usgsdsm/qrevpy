@@ -1155,7 +1155,7 @@ class WaterData(object):
             # Set valid data row 3 for difference velocity filter results
             bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(w_vel, w_vel_max_ref),
                                                   np.less(w_vel, w_vel_min_ref)))
-            valid = np.copy(self.cells_above_sl)
+            valid = copy.deepcopy(self.cells_above_sl)
             if len(bad_idx_rows) > 0:
                 valid[bad_idx_rows, bad_idx_cols] = False
             self.valid_data[3, :, :] = valid
