@@ -43,7 +43,7 @@ class BoatData(object):
             Horizontal velocity in x-direction filtered and interpolated.
         v_processed_mps: np.array(float)
             Horizontal velocity in y-direction filtered and interpolated.
-        processed_source: str
+        processed_source: np.array(object)
             Source of velocity: BT, VTG, GGA, INT.
 
     Settings variables
@@ -206,9 +206,9 @@ class BoatData(object):
         # Preallocate arrays
         n_ensembles = vel_in.shape[1]
         self.valid_data = repmat([True], 6, n_ensembles)
-        self.smooth_speed = repmat([np.nan], 1, n_ensembles)
-        self.smooth_upper_limit = repmat([np.nan], 1, n_ensembles)
-        self.smooth_lower_limit = repmat([np.nan], 1, n_ensembles)
+        self.smooth_speed = np.nan
+        self.smooth_upper_limit = np.nan
+        self.smooth_lower_limit = np.nan
 
         # Determine number of raw invalid
         # --------------------------------
@@ -225,7 +225,7 @@ class BoatData(object):
         # Combine all filter data to composite valid data
         self.valid_data[0, :] = np.all(self.valid_data[1:, :], 0)
         self.num_invalid = np.sum(self.valid_data[0, :] == False)
-        self.processed_source = np.tile('', self.u_mps.shape)
+        self.processed_source = np.array([''] * self.u_mps.shape[0], dtype=object)
         self.processed_source[np.where(self.valid_data[0, :] == True)] = nav_ref_in
         self.processed_source[np.where(self.valid_data[0, :] == False)] = "INT"
 
@@ -256,8 +256,8 @@ class BoatData(object):
 
         if self.orig_coord_sys.strip() != new_coord_sys.strip():
             # Assign the transformation matrix and retrieve the sensor data
-            t_matrix = adcp.t_matrix.matrix
-            t_matrix_freq = adcp.frequency_khz
+            t_matrix = copy.deepcopy(adcp.t_matrix.matrix)
+            t_matrix_freq = copy.deepcopy(adcp.frequency_khz)
 
             # DSM changed 2/6/2018
             # pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
@@ -486,8 +486,8 @@ class BoatData(object):
                 # Assign results to object
                 self.u_mps = -1 * vel_changed[0, :]
                 self.v_mps = -1 * vel_changed[1, :]
-                self.w_mps = -1 * vel_changed[2, :]
-                self.d_mps = -1 * vel_changed[3, :]
+                self.w_mps = vel_changed[2, :]
+                self.d_mps = vel_changed[3, :]
                 self.coord_sys = new_coord_sys
                 self.u_processed_mps = np.copy(self.u_mps)
                 self.v_processed_mps = np.copy(self.v_mps)
@@ -875,12 +875,16 @@ class BoatData(object):
             # Apply automatic filter
             # ----------------------
             # Find all 3 beam solutions
-            temp = copy.deepcopy(self)
-            temp.filter_beam(4)
-            temp3 = copy.deepcopy(temp)
-            temp3.filter_beam(3)
-            valid_3_beams = temp3.valid_data[5, :] - temp.valid_data[5, :]
-            n_ens = len(temp.valid_data[5, :])
+            # temp = copy.deepcopy(self)
+            #             # temp.filter_beam(4)
+            #             # temp3 = copy.deepcopy(temp)
+            self.filter_beam(3)
+            beam_3_valid_data = copy.deepcopy(self.valid_data)
+            self.filter_beam(4)
+            # temp3 = copy.deepcopy(self)
+            # temp3.filter_beam(3)
+            valid_3_beams = beam_3_valid_data[5, :] - self.valid_data[5, :]
+            n_ens = len(self.valid_data[5, :])
             idx = np.where(valid_3_beams == True)[0]
 
             # If 3 beam solutions exist evaluate there validity
@@ -898,32 +902,32 @@ class BoatData(object):
 
                         # Find nearest 4 beam solutions before and after
                         # 3 beam solution
-                        ref_idx_before = np.where(temp.valid_data[5, :idx[m]] == True)[0]
+                        ref_idx_before = np.where(self.valid_data[5, :idx[m]] == True)[0]
                         if len(ref_idx_before) > 0:
                             ref_idx_before = ref_idx_before[-1]
                         else:
                             ref_idx_before = None
 
-                        ref_idx_after = np.where(temp.valid_data[5, idx[m]:] == True)[0]
+                        ref_idx_after = np.where(self.valid_data[5, idx[m]:] == True)[0]
                         if len(ref_idx_after) > 0:
                             ref_idx_after = idx[m] + ref_idx_after[0]
                         else:
                             ref_idx_after = None
 
                         if (ref_idx_after is not None) and (ref_idx_before is not None):
-                            u_ratio = (temp.u_mps[idx[m]]) / ((temp.u_mps[ref_idx_before]
-                                                               + temp.u_mps[ref_idx_after]) / 2.) - 1
-                            v_ratio = (temp.v_mps[idx[m]]) / ((temp.v_mps[ref_idx_before]
-                                                               + temp.v_mps[ref_idx_after]) / 2.) - 1
+                            u_ratio = (self.u_mps[idx[m]]) / ((self.u_mps[ref_idx_before]
+                                                               + self.u_mps[ref_idx_after]) / 2.) - 1
+                            v_ratio = (self.v_mps[idx[m]]) / ((self.v_mps[ref_idx_before]
+                                                               + self.v_mps[ref_idx_after]) / 2.) - 1
                         else:
                             u_ratio = 1
                             v_ratio = 1
 
                         # If 3-beam differs from 4-beam by more than 50% mark it invalid
                         if (np.abs(u_ratio) > 0.5) or (np.abs(v_ratio) > 0.5):
-                            temp.valid_data[5, idx[m]] = True
+                            self.valid_data[5, idx[m]] = False
                         else:
-                            temp.valid_data[5, idx[m]] = False
+                            self.valid_data[5, idx[m]] = True
 
             self.beam_filter = -1
 
@@ -979,7 +983,7 @@ class BoatData(object):
             d_vel_filtered[d_vel_filtered == 0] = np.nan
 
             # Initialize variables
-            std_diff = np.repeat(1, 1000)
+            std_diff = np.repeat(1., 1000)
             k = 0
 
             # Loop until no additional data are removed
@@ -1044,6 +1048,7 @@ class BoatData(object):
 
         # Set filter characteristics
         multiplier = 5
+        minimum_window = 0.01
 
         # Intialize variables
         w_vel = np.copy(self.w_mps)
@@ -1073,9 +1078,14 @@ class BoatData(object):
                 # Compute inner quartile range
                 w_vel_std = iqr(w_vel_filtered)
 
+                # Compute threshold window
+                threshold_window = multiplier * w_vel_std
+                if threshold_window < minimum_window:
+                    threshold_window = minimum_window
+
                 # Compute maximum and minimum thresholds
-                w_vel_max_ref = np.nanmedian(w_vel_filtered) + multiplier * w_vel_std
-                w_vel_min_ref = np.nanmedian(w_vel_filtered) - multiplier * w_vel_std
+                w_vel_max_ref = np.nanmedian(w_vel_filtered) + threshold_window
+                w_vel_min_ref = np.nanmedian(w_vel_filtered) - threshold_window
 
                 # Identify valid and invalid data
                 w_vel_less_idx = np.where(w_vel_filtered <= w_vel_max_ref)[0]
@@ -1144,6 +1154,10 @@ class BoatData(object):
 
         # Determine if smooth filter should be applied
         if self.smooth_filter == 'On':
+             # Initialize arrays
+            self.smooth_speed = repmat([np.nan], 1, n_ensembles)
+            self.smooth_upper_limit = repmat([np.nan], 1, n_ensembles)
+            self.smooth_lower_limit = repmat([np.nan], 1, n_ensembles)
 
             # Boat velocity components
             b_vele = np.copy(self.u_mps)

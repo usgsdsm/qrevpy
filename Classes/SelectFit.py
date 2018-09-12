@@ -312,8 +312,8 @@ class SelectFit(object):
         self.exponent = update_fd.exponent
         self.coef = update_fd.coef
         self.u = update_fd.u
-        self.u_auto = update_auto.u_auto
-        self.z_auto = update_auto.z_auto
+        self.u_auto = update_auto.u
+        self.z_auto = update_auto.z
         self.z = update_fd.z
         self.exp_method = update_fd.exp_method
         self.residuals = update_fd.residuals

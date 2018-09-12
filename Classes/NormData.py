@@ -1,5 +1,6 @@
 import numpy as np
 from MiscLibs.common_functions import cart2pol, pol2cart
+import scipy.stats as sp
 
 
 class NormData(object):
@@ -33,7 +34,7 @@ class NormData(object):
         Type of data (v, q, V, or Q)
     data_extent: list
         Defines percent of data from start of transect to use, default [0, 100]
-    valid_data: np.array(bool)
+    valid_data: np.array(int)
         Index of median values with point count greater than threshold cutoff
     """
     
@@ -100,7 +101,7 @@ class NormData(object):
             
         # Compute normalized cell depth by average depth in each ensemble
         norm_cell_depth = np.divide(cell_depth, depth_ens)
-        
+        norm_cell_depth[norm_cell_depth < 0] = np.nan
         # If data type is discharge compute unit discharge for each cell
         if data_type.lower() == 'q':
             # Compute the cross product for each cell
@@ -181,11 +182,11 @@ class NormData(object):
         avg_interval = np.arange(0, 1.05, .05)
 
         # Intialize variables to nan
-        unit_norm_med = np.tile([np.nan], len(avg_interval))
-        unit_norm_med_no = np.tile([np.nan], len(avg_interval))
-        unit_25 = np.tile([np.nan], len(avg_interval))
-        unit_75 = np.tile([np.nan], len(avg_interval))
-        avgz = np.tile([np.nan], len(avg_interval))
+        unit_norm_med = np.tile([np.nan], len(avg_interval) - 1)
+        unit_norm_med_no = np.tile([np.nan], len(avg_interval) - 1)
+        unit_25 = np.tile([np.nan], len(avg_interval) - 1)
+        unit_75 = np.tile([np.nan], len(avg_interval) - 1)
+        avgz = np.tile([np.nan], len(avg_interval) - 1)
 
         # Process each normalized increment
         for i in range(len(avg_interval) - 1):
@@ -194,10 +195,9 @@ class NormData(object):
             condition_3 = np.isnan(self.unit_normalized) == False
             condition_all = np.logical_and(np.logical_and(condition_1, condition_2), condition_3)
 
-            unit_norm_med[i] = np.nanmedian(self.unit_normalized[condition_all])
+            unit_25[i], unit_norm_med[i], unit_75[i] = sp.mstats.mquantiles(self.unit_normalized[condition_all],
+                                                                            alphap=0.5, betap=0.5)
             unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[condition_all]) == False)
-            unit_25[i] = np.nanpercentile(self.unit_normalized, 25)
-            unit_75[i] = np.nanpercentile(self.unit_normalized, 75)
             avgz[i] = 1 - np.nanmean(self.cell_depth_normalized[condition_all])
 
         # Mark increments invalid if they do not have sufficient data

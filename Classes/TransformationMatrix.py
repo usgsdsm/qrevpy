@@ -93,7 +93,8 @@ class TransformationMatrix(object):
             if idx != -1:
                 cell_matrix = np.fromstring(data_in[idx + 50:idx + 356], dtype=np.float64, sep=' ')
                 try:
-                    self.matrix = np.random.permutation(cell_matrix.reshape([8, 4]))
+                    self.matrix = np.reshape(cell_matrix,(-1,8))[:, 0:4]
+
                     self.source = 'ADCP'
                 except ValueError:
                     pass

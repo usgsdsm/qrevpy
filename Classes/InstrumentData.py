@@ -96,13 +96,24 @@ class InstrumentData(object):
 
         if model_switch == 10:
             self.model = 'Rio Grande'
+            if 'Fixed_Commands' in mmt_config.keys():
+                self.configuration_commands = np.array(['Fixed'], dtype=object)
+                self.configuration_commands = np.append(self.configuration_commands, mmt_config['Fixed_Commands'])
 
         elif model_switch == 31:
             self.model = 'StreamPro'
             self.frequency_khz = 2000
+            if 'Fixed_Commands_StreamPro' in mmt_config.keys():
+                self.configuration_commands = np.array(['Fixed'], dtype=object)
+                self.configuration_commands = np.append(self.configuration_commands,
+                                                        mmt_config['Fixed_Commands_StreamPro'])
 
         elif model_switch == 44:
             self.model = 'RiverRay'
+            if 'Fixed_Commands_RiverRay' in mmt_config.keys():
+                self.configuration_commands = np.array(['Fixed'], dtype=object)
+                self.configuration_commands = np.append(self.configuration_commands,
+                                                        mmt_config['Fixed_Commands_RiverRay'])
 
         elif model_switch == 56:
             self.model = 'RiverPro'
@@ -113,23 +124,20 @@ class InstrumentData(object):
                         self.model = 'RioPro'
 
             if 'Fixed_Commands_RiverPro' in mmt_config.keys():
-                fixed_commands = mmt_config['Fixed_Commands_RiverPro']
-            else:
-                fixed_commands = ' '
+                self.configuration_commands = np.array(['Fixed'], dtype=object)
+                self.configuration_commands = np.append(self.configuration_commands,
+                                                        mmt_config['Fixed_Commands_RiverPro'])
 
-            if 'Wizard_Commands' in mmt_config.keys():
-                wizard_commands = mmt_config['Wizard_Commands']
-            else:
-                wizard_commands = ' '
+        if 'Wizard_Commands' in mmt_config.keys():
+            self.configuration_commands = np.append(self.configuration_commands, ['Wizard'])
+            self.configuration_commands = np.append(self.configuration_commands,
+                                                    mmt_config['Wizard_Commands'])
 
-            if 'User_Commands' in mmt_config.keys():
-                user_commands = mmt_config['User_Commands']
-            else:
-                user_commands = ' '
+        if 'User_Commands' in mmt_config.keys():
+            self.configuration_commands = np.append(self.configuration_commands, ['User'])
+            self.configuration_commands = np.append(self.configuration_commands,
+                                                    mmt_config['User_Commands'])
 
-            self.configuration_commands = {'Fixed': fixed_commands,
-                                           'Wizard': wizard_commands,
-                                           'User': user_commands}
 
         # Obtain transformation matrix from one of the available sources
         if not np.isnan(pd0.Inst.t_matrix[0, 0]):

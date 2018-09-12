@@ -1,10 +1,10 @@
 import numpy as np
-import datetime as datetime
 import scipy.io as sio
 import copy as copy
 
+
 class Python2Matlab(object):
-    """Converts python meas class to Matlab structure.
+    """Converts python meas class to QRev for Matlab structure.
 
     Attributes
     ----------
@@ -96,7 +96,7 @@ class Python2Matlab(object):
                         else:
                             struct[key][n] = new_dict[key]
         else:
-            struct=np.array([np.nan])
+            struct = np.array([np.nan])
 
         return struct
 
@@ -560,8 +560,19 @@ class Python2Matlab(object):
             transect.w_vel.rssi = np.moveaxis(transect.w_vel.rssi, 0, 2)
             transect.w_vel.valid_data = np.moveaxis(transect.w_vel.valid_data, 0, 2)
 
+            # Adjust 2-D array to be row based
+            transect.adcp.configuration_commands = transect.adcp.configuration_commands.reshape(-1, 1)
+
             # Adjust serial time to Matlab convention
-            transect.date_time.start_serial_time = transect.date_time.start_serial_time / (60 * 60 * 24) + 719528.833334606
-            transect.date_time.end_serial_time = transect.date_time.end_serial_time / (60 * 60 * 24) + 719528.833334606
+            time_correction = (60 * 60 * 24) + 719528.833334606
+            transect.date_time.start_serial_time = transect.date_time.start_serial_time / time_correction
+            transect.date_time.end_serial_time = transect.date_time.end_serial_time / time_correction
+
+        # Adjust 2-D array to be row based
+        for fit in meas_mat.extrap_fit.sel_fit:
+            fit.u = fit.u.reshape(-1, 1)
+            fit.u_auto = fit.u_auto.reshape(-1, 1)
+            fit.z = fit.z.reshape(-1, 1)
+            fit.z_auto = fit.z_auto.reshape(-1, 1)
 
         return meas_mat

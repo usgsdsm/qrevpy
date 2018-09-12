@@ -15,8 +15,8 @@ class DepthStructure(object):
         Object of DepthData for vertical beam based depths.
     ds_depths: DepthData
         Object of DepthData for depth sounder based depths.
-    composite: bool
-        Indicates use of composite depths.
+    composite: str
+        Indicates use of composite depths ("On" or "Off".
     """
     
     def __init__(self):
@@ -26,7 +26,7 @@ class DepthStructure(object):
         self.bt_depths = None  # object of DepthData for by depth data
         self.vb_depths = None  # object of DepthData for vertical beam depth data
         self.ds_depths = None  # object of DepthData for depth sounder depth data
-        self.composite = True  # Turn composite depths "on" or "off"
+        self.composite = "On"  # Turn composite depths "on" or "off"
 
     def add_depth_object(self, depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in):
         """Adds a DepthData object to the depth structure for the specified type of depths.
@@ -59,7 +59,7 @@ class DepthStructure(object):
             self.ds_depths = DepthData()
             self.ds_depths.populate_data(depth_in, source_in, freq_in, draft_in, cell_depth_in, cell_size_in)
 
-    def composite_depths(self, transect, setting=False):
+    def composite_depths(self, transect, setting="Off"):
         """Depth composite is based on the following assumptions
         
         1. If a depth sounder is available the user must have assumed the ADCP beams
@@ -77,8 +77,8 @@ class DepthStructure(object):
         ----------
         transect: TransectData
             Transect object containing all data.
-        setting: bool
-            Setting to use (True) or not use (False) composite depths.
+        setting: str
+            Setting to use ("On") or not use ("Off") composite depths.
         """
         
         if setting is None:
@@ -90,7 +90,7 @@ class DepthStructure(object):
         ref = self.selected
         comp_depth = np.array([])
 
-        if setting:
+        if setting == 'On':
             # Prepare vector of valid BT averages, which are defined as having at least 2 valid beams
             bt_valid = self.bt_depths.valid_data
             n_ensembles = bt_valid.shape[-1]

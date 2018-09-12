@@ -353,7 +353,7 @@ class QAData(object):
                         else:
                             # Check results of evaluation
                             try:
-                                if float(meas.compass_cal[-1].result['compass']['error']) <= 1:
+                                if float(meas.compass_eval[-1].result['compass']['error']) <= 1:
                                     self.compass['status1'] = 'good'
                                 else:
                                     self.compass['status1'] = 'caution'

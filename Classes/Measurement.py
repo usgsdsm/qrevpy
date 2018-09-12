@@ -927,7 +927,7 @@ class Measurement(object):
                 settings['ggaAltitudeFilter'] = 'Off'
                 settings['ggaAltitudeFilterChange'] = []
                 
-                settings['ggaSmoothFilter'] = []
+                settings['ggaSmoothFilter'] = 'Off'
                 if 'GPSInterpolation' not in settings.keys():
                     settings['GPSInterpolation'] = 'None'
                 if 'GPSHDOPFilter' not in settings.keys():
@@ -987,15 +987,17 @@ class Measurement(object):
         settings['NavRef'] = self.transects[0].boat_vel.selected
 
         # Composite tracks
-        settings['CompTracks'] = False
+        settings['CompTracks'] = 'Off'
 
         # Water track filter settings
         settings['WTbeamFilter'] = -1
+        #TODO Temporary setting for comparison with Matlab since interpolation is different
+        # settings['WTbeamFilter'] = 3
         settings['WTdFilter'] = 'Auto'
         settings['WTdFilterThreshold'] = np.nan
         settings['WTwFilter'] = 'Auto'
         settings['WTwFilterThreshold'] = np.nan
-        settings['WTsmoothFilter'] = False
+        settings['WTsmoothFilter'] = 'Off'
         if self.transects[0].adcp.manufacturer == 'TRDI':
             settings['WTsnrFilter'] = 'Off'
         else:
@@ -1009,11 +1011,13 @@ class Measurement(object):
 
         # Bottom track filter settings
         settings['BTbeamFilter'] = -1
+        #TODO Temporary setting for comparison with Matlab since interpolation is different
+        # settings['BTbeamFilter'] = 3
         settings['BTdFilter'] = 'Auto'
         settings['BTdFilterThreshold'] = np.nan
         settings['BTwFilter'] = 'Auto'
         settings['BTwFilterThreshold'] = np.nan
-        settings['BTsmoothFilter'] = False
+        settings['BTsmoothFilter'] = 'Off'
 
         # GGA Filter settings
         settings['ggaDiffQualFilter'] = 2
@@ -1021,13 +1025,13 @@ class Measurement(object):
         settings['ggaAltitudeFilterChange'] = np.nan
 
         # VTG filter settings
-        settings['vtgsmoothFilter'] = np.nan
+        settings['vtgsmoothFilter'] = 'Off'
 
         # GGA and VTG filter settings
         settings['GPSHDOPFilter'] = 'Auto'
         settings['GPSHDOPFilterMax'] = np.nan
         settings['GPSHDOPFilterChange'] = np.nan
-        settings['GPSSmoothFilter'] = False
+        settings['GPSSmoothFilter'] = 'Off'
 
         # Depth Averaging
         settings['depthAvgMethod'] = 'IDW'
@@ -1039,7 +1043,7 @@ class Measurement(object):
         settings['depthReference'] = 'bt_depths'
         # Depth settings
         settings['depthFilterType'] = 'Smooth'
-        settings['depthComposite'] = True
+        settings['depthComposite'] = 'On'
 
         # Interpolation settings
         settings = self.qrev_default_interpolation_methods(settings)
@@ -1064,7 +1068,7 @@ class Measurement(object):
         settings['NavRef'] = self.transects[0].boatVel.selected
 
         # Composite tracks
-        settings['CompTracks'] = False
+        settings['CompTracks'] = 'Off'
 
         # Water track filter settings
         settings['WTbeamFilter'] = 3
@@ -1072,7 +1076,7 @@ class Measurement(object):
         settings['WTdFilterThreshold'] = np.nan
         settings['WTwFilter'] = 'Off'
         settings['WTwFilterThreshold'] = np.nan
-        settings['WTsmoothFilter'] = False
+        settings['WTsmoothFilter'] = 'Off'
         settings['WTsnrFilter'] = 'Off'
 
         temp = [x.w_vel for x in self.transects]
@@ -1086,7 +1090,7 @@ class Measurement(object):
         settings['BTdFilterThreshold'] = np.nan
         settings['BTwFilter'] = 'Off'
         settings['BTwFilterThreshold'] = np.nan
-        settings['BTsmoothFilter'] = False
+        settings['BTsmoothFilter'] = 'Off'
 
         # GGA filter settings
         settings['ggaDiffQualFilter'] = 1
@@ -1094,7 +1098,7 @@ class Measurement(object):
         settings['ggaAltitudeFilterChange'] = np.nan
 
         # VTG filter settings
-        settings['vtgsmoothFilter'] = np.nan
+        settings['vtgsmoothFilter'] = 'Off'
 
         # GGA and VTG filter settings
         settings['GPSHDOPFilter'] = 'Off'
@@ -1149,7 +1153,7 @@ class Measurement(object):
         settings['WTCellInterpolation'] = 'TRDI'
         settings['GPSInterpolation'] = 'Linear'
         settings['depthInterpolation'] = 'Linear'
-        settings['WTwDepthFilter'] = True
+        settings['WTwDepthFilter'] = 'On'
 
         return settings
 

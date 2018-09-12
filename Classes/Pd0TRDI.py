@@ -271,7 +271,7 @@ class Pd0TRDI(object):
                             elif val == 1:
                                 self.Inst.pat[i_ens] = 'Convex'
                             else:
-                                self.Inst.pat[i_ens] = 'N/a'
+                                self.Inst.pat[i_ens] = 'n/a'
 
                             self.Inst.sensor_CFG[i_ens] = int(bitls[2:3], 2) + 1
 
@@ -281,7 +281,7 @@ class Pd0TRDI(object):
                             elif val == 1:
                                 self.Inst.xducer[i_ens] = 'Attached'
                             else:
-                                self.Inst.xducer[i_ens] = 'N/a'
+                                self.Inst.xducer[i_ens] = 'n/a'
 
                             val = int(bitls[0], 2)
                             if val == 0:
@@ -289,7 +289,7 @@ class Pd0TRDI(object):
                             elif val == 1:
                                 self.Sensor.orient[i_ens] = 'Up'
                             else:
-                                self.Sensor.orient[i_ens] = 'N/a'
+                                self.Sensor.orient[i_ens] = 'n/a'
 
                             bitms = np.fromfile(f, np.uint8, count=1)[0]
                             bitms = "{0:08b}".format(bitms)
@@ -1603,19 +1603,19 @@ class Inst(object):
         Angle of transducers in degrees
     beams: np.array(int)
         Number of beams used for velocity
-    data_type: np.array(str)
+    data_type: list
         Data type
     firm_ver: np.array(str)
         Firmware version
     freq: np.array(int)
         Frequency of ADCP in kHz
-    pat = np.array(str)
+    pat = list
         Beam pattern
     res_RDI:
         Reserved for TRDI
     sensor_CFG: np.array(int)
         Sensor configuration
-    xducer: np.array(str)
+    xducer: list
         Indicates if transducer is attached
     t_matrix: np.array(float)
         Transformation matrix
@@ -1633,13 +1633,13 @@ class Inst(object):
         """
         self.beam_ang = nans(n_ensembles)
         self.beams = nans(n_ensembles)
-        self.data_type = nans([n_ensembles, 4], dtype=np.str)
+        self.data_type = [''] * n_ensembles
         self.firm_ver = nans(n_ensembles)
         self.freq = nans(n_ensembles)
-        self.pat = nans(n_ensembles, dtype=np.str)
+        self.pat = [''] * n_ensembles
         self.res_RDI = 0
         self.sensor_CFG = nans(n_ensembles)
-        self.xducer = nans(n_ensembles, dtype=np.str)
+        self.xducer = [''] * n_ensembles
         self.t_matrix = np.tile([np.nan], [4, 4])
         self.demod = nans(n_ensembles)
 

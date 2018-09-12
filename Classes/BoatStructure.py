@@ -29,8 +29,8 @@ class BoatStructure(object):
         BoatData object for gga velocity
     vtg_vel: BoatData
         BoatData object for vtg velocity
-    composite: bool
-        Setting to use (True) or not (False) composite tracks.
+    composite: str
+        Setting to use ("On") or not ("Off") composite tracks.
     """
     
     def __init__(self):
@@ -42,7 +42,7 @@ class BoatStructure(object):
         
         # Composite track information is not currently provided by the manufacturers.
         # Future versions may try to determine this setting from SonTek data
-        self.composite = False  # Setting for compositir tracks
+        self.composite = 'Off'  # Setting for compositir tracks
         
     def add_boat_object(self, source, vel_in, freq_in=None, coord_sys_in=None, nav_ref_in=None,
                         min_beams=3, bottom_mode='Variable'):
@@ -158,7 +158,7 @@ class BoatStructure(object):
             self.composite = setting
             
         # Composite depths turned on
-        if setting:
+        if setting == 'On':
             # Intialize variables
             u_bt = np.array([])
             v_bt = np.array([])

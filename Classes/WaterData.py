@@ -133,7 +133,6 @@ class WaterData(object):
             Type of cutoff method "Percent" or "Number".
     """
     # TODO check water mode for TRDI is it an array, should it be?
-    # TODO filters switch on and off should probably be bool
     # TODO how is number of bins for sl cutoff implemented by SonTek?
 
     def __init__(self):
@@ -189,7 +188,7 @@ class WaterData(object):
         self.smooth_upper_limit = None  # Smooth function upper limit of window
         self.smooth_lower_limit = None  # Smooth function lower limit of window
         self.snr_filter = 'Off'  # SNR filter for SonTek data
-        self.snr_rng = None  # Range of beam averaged SNR
+        self.snr_rng = []  # Range of beam averaged SNR
         self.wt_depth_filter = None  # WT in ensembles with invalid WT are marked invalid
         self.interpolate_ens = None  # Type of interpolation: "None", "TRDI", "Linear"
         self.interpolate_cells = None  # Type of cell interpolation: "None", "TRDI", "Linear"
@@ -300,18 +299,6 @@ class WaterData(object):
         self.w_mps = np.copy(self.raw_vel_mps)[2, :, :]
         self.d_mps = np.copy(self.raw_vel_mps)[3, :, :]
 
-        # if self.raw_vel_mps.shape[2] < 2:
-        #     self.u_mps = self.u_mps.reshape(-1, 1)
-        #     self.v_mps = self.v_mps.reshape(-1, 1)
-        #     self.w_mps = self.w_mps.reshape(-1, 1)
-        #     self.d_mps = self.d_mps.reshape(-1, 1)
-        #
-        # if self.raw_vel_mps.shape[1] < 2:
-        #     self.u_mps = self.u_mps.reshape(-1, 1).T
-        #     self.v_mps = self.v_mps.reshape(-1, 1).T
-        #     self.w_mps = self.w_mps.reshape(-1, 1).T
-        #     self.d_mps = self.d_mps.reshape(-1, 1).T
-
         self.water_mode = wm_in
         self.excluded_dist_m = excluded_dist_in
 
@@ -418,8 +405,8 @@ class WaterData(object):
         if o_coord_sys != new_coord_sys:
             
             # Assign the transformation matrix and retrieve the sensor data
-            t_matrix = adcp.t_matrix.matrix
-            t_matrix_freq = adcp.frequency_khz
+            t_matrix = copy.deepcopy(adcp.t_matrix.matrix)
+            t_matrix_freq = copy.deepcopy(adcp.frequency_khz)
 
             # DSM changed 2/6/2018
             # pitch_select = getattr(sensors.pitch_deg, sensors.pitch_deg.selected)
@@ -931,7 +918,7 @@ class WaterData(object):
             
             # Determine how many beams or transformed coordinates are valid
             valid_vel_sum = np.sum(valid_vel, 0)
-            valid = np.copy(self.cells_above_sl)
+            valid = copy.deepcopy(self.cells_above_sl)
             
             # Compare number of valid beams or velocity coordinates to filter value
             valid[(valid_vel_sum < self.beam_filter) & (valid_vel_sum > 2)] = False
@@ -957,7 +944,7 @@ class WaterData(object):
             valid[temp.cells_above_sl == False] = np.nan
             
             # Find cells with 3 beams solutions
-            rows_3b, cols_3b = np.where(valid == 0)
+            rows_3b, cols_3b = np.where(np.abs(valid) == 0)
             if len(rows_3b) > 0:
                 # # Find cells with 4 beams solutions
                 valid_rows, valid_cols = np.where(valid == 1)
@@ -1081,10 +1068,12 @@ class WaterData(object):
         # Set valid data row 2 for difference velocity filter results
         bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
                                               np.less(d_vel, d_vel_min_ref)))
-        valid = np.copy(self.cells_above_sl)
+        valid = copy.deepcopy(self.cells_above_sl)
         if len(bad_idx_rows) > 0:
             valid[bad_idx_rows, bad_idx_cols] = False
-        valid[np.isnan(self.d_mps)] = True
+        #TODO Seems like if the difference velocity doesn't exist due to a 3-beam solution it shouldn't be flagged as invalid
+        # however this is the way it was in Matlab. Suggest changing this after comparisons complete.
+        # valid[np.isnan(self.d_mps)] = True
         self.valid_data[2, :, :] = valid
         
         # Set threshold property
@@ -1710,10 +1699,11 @@ class WaterData(object):
 
     def compute_snr_rng(self):
         """Computes the range between the average snr for all beams.
-
-        The average is computed using only data above the side lobe cutoff."""
-        cells_above_sl = np.copy(self.cells_above_sl.astype(float))
-        cells_above_sl[cells_above_sl < 0.5] = np.nan
-        snr_adjusted = self.rssi * cells_above_sl
-        snr_average = np.nanmean(snr_adjusted, 1)
-        self.snr_rng = np.nanmax(snr_average, 0) - np.nanmin(snr_average, 0)
+        The average is computed using only data above the side lobe cutoff.
+        """
+        if self.rssi_units == 'SNR':
+            cells_above_sl = np.copy(self.cells_above_sl.astype(float))
+            cells_above_sl[cells_above_sl < 0.5] = np.nan
+            snr_adjusted = self.rssi * cells_above_sl
+            snr_average = np.nanmean(snr_adjusted, 1)
+            self.snr_rng = np.nanmax(snr_average, 0) - np.nanmin(snr_average, 0)

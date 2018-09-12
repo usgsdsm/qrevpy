@@ -24,7 +24,7 @@ class DepthData(object):
             Index of depths marked invalid.
         depth_source: str
             Source of depth data ("BT", "VB", "DS").
-        depth_source_ens: str
+        depth_source_ens: np.array(object)
             Source of each depth value ("BT", "VB", "DS", "IN").
         draft_orig_m: float
             Original draft from data files, in meters.
@@ -106,7 +106,7 @@ class DepthData(object):
         self.depth_orig_m = depth_in
         self.depth_beams_m = depth_in
         self.depth_source = source_in
-        self.depth_source_ens = np.array([source_in] * depth_in.shape[-1])
+        self.depth_source_ens = np.array([source_in] * depth_in.shape[-1], dtype=object)
         self.depth_freq_kHz = freq_in
         self.draft_orig_m = draft_in
         self.draft_use_m = draft_in
@@ -196,13 +196,13 @@ class DepthData(object):
             self.filter_type = filter_type
 
         # Compute selected filter
-        if self.filter_type == 'None':
+        if filter_type == 'None':
             # No filter
             self.filter_none()
-        elif self.filter_type == 'Smooth':
+        elif filter_type == 'Smooth':
             # Lowess smooth filter
             self.filter_smooth(transect)
-        elif self.filter_type == 'TRDI':
+        elif filter_type == 'TRDI':
             # TRDI filter for multiple returns
             self.filter_trdi()
             self.filter_type = 'TRDI'

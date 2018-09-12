@@ -109,28 +109,27 @@ class FitData(object):
                 zc = np.nan
                 uc = np.nan
             elif fit_combo == 'ConstantPower':
-                self.z = np.arange(0, np.max(avg_z[idxz])+0.01, 0.01)
+                self.z = np.arange(0, np.max(avg_z[idxz]), 0.01)
                 self.z = np.hstack([self.z, np.nan])
-                zc = np.arange(np.max(avg_z[idxz] + 0.01), 1.01, 0.01)
+                zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.0, 0.01)
                 uc = np.tile(y[idxz[0]], zc.shape)
             elif fit_combo == '3-PointPower':
-                self.z = np.arange(0, np.max(avg_z[idxz]) + 0.01, 0.01)
+                self.z = np.arange(0, np.max(avg_z[idxz]), 0.01)
                 self.z = np.hstack([self.z, np.nan])
                 # If less than 6 bins use constant at the top
                 if len(idxz) < 6:
-                    zc = np.arange(np.max(idxz) + 0.01, 1.01, 0.01)
-                    # zc = zc.T
+                    zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.0, 0.01)
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
                     p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
-                    zc = np.max([avg_z[idxz] + 0.01, 1.01, 0.01])
+                    zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.0, 0.01)
                     # zc = zc.T
                     uc = zc * p[0] + p[1]
 
             elif fit_combo == 'ConstantNo Slip':
                 # Optimize constant / no slip if sufficient cells are available
                 if method.lower() == 'optimize':
-                    idx = idxz[int(1+len(idxz) - np.floor(len(avg_z[idxz])) / 3) - 1::]
+                    idx = idxz[int(1+len(idxz) - np.floor(len(avg_z[idxz]) / 3) - 1)::]
                     if len(idx) < 4:
                         method = 'default'
 
@@ -145,10 +144,10 @@ class FitData(object):
 
                 # Configures u and z arrays
                 idxns = np.array([idx]).T
-                self.z = np.arange(0, avg_z[idxns[0]] + 0.01, 0.01)
+                self.z = np.arange(0, avg_z[idxns[0]], 0.01)
                 self.z = np.hstack([self.z, [np.nan]])
                 idx_power = idx
-                zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.01, 0.01)
+                zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.00, 0.01)
                 uc = np.tile(y[idxz[0]], zc.shape)
 
             elif fit_combo == '3-PointNo Slip':
@@ -169,17 +168,17 @@ class FitData(object):
 
                 # Configures u and z arrays
                 idxns = np.array([idx]).T
-                self.z = np.arange(0, avg_z[idxns[0]] + 0.01, 0.01)
+                self.z = np.arange(0, avg_z[idxns[0]], 0.01)
                 self.z = np.hstack([self.z, [np.nan]])
                 idx_power = idx
                 # If less than 6 bins use constant at the top
                 if len(idxz) < 6:
-                    zc = np.arange(np.max(idxz) + 0.01, 1.01, 0.01)
+                    zc = np.arange(np.max(idxz) + 0.01, 1.0, 0.01)
                     # zc = zc.T
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
                     p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
-                    zc = np.max([avg_z[idxz] + 0.01, 1.01, 0.01])
+                    zc = np.max([avg_z[idxz] + 0.01, 1.0, 0.01])
                     # zc = zc.T
                     uc = zc * p[0] + p[1]
 
@@ -241,7 +240,7 @@ class FitData(object):
 
                     n = len(zfit)    # number of data points
 
-                    t_val = t.ppf(.975, n-1)
+                    t_val = t.ppf(.975, n-2)
 
                     # Get 95% confidence intervals
                     lower = (popt[-1] - t_val * np.sqrt(np.diag(pcov)[-1]))
@@ -268,9 +267,9 @@ class FitData(object):
 
             # Compute values (velocity or discharge) based on exponent and compute coefficient
             self.u = self.coef * self.z**self.exponent
-            if type(zc) is float and zc == np.nan:
-                self.u = np.hstack([self.u, [uc]])
-                self.z = np.hstack([self.z, [zc]])
+            if type(zc) == np.ndarray:
+                self.u = np.append(self.u, uc)
+                self.z = np.append(self.z, zc)
 
             # Assign variables to object properties
             self.file_name = norm_data.file_name

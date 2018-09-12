@@ -134,7 +134,7 @@ class PreMeasurement(object):
                     pt3['hard_limit']['high_wide']['corr_table'] = corr_data
                     pt3['hard_limit']['high_wide']['sdc'] = sin_array[0:4]
                     pt3['hard_limit']['high_wide']['cdc'] = cos_array[0:4]
-                    pt3['hard_limit']['high_wide']['noise_floor'] = rssi_array
+                    pt3['hard_limit']['high_wide']['noise_floor'] = rssi_array[0:4]
 
                 # 4 tests arranged in groups of 2. All data are hard limited.
                 elif bm_count == 2 and correl_count == 4:

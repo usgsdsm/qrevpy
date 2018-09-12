@@ -264,7 +264,7 @@ class TransectData(object):
                 self.w_vel = WaterData()
                 self.w_vel.populate_data(vel_in=pd0_data.Wt.vel_mps,
                                          freq_in=pd0_data.Inst.freq.T,
-                                         coord_sys_in=pd0_data.Cfg.coord_sys,
+                                         coord_sys_in=pd0_data.Cfg.coord_sys[0],
                                          nav_ref_in='None',
                                          rssi_in=pd0_data.Wt.rssi,
                                          rssi_units_in='Counts',
@@ -340,8 +340,8 @@ class TransectData(object):
             vtg_method = 'Mindt'
             
             # If valid gps data exist, process the data
-            if (np.sum(np.sum(np.isnan(raw_gga_lat) == False)) > 0) \
-                    or (np.sum(np.sum(np.isnan(raw_vtg_speed) == False)) > 0):
+            if (np.sum(np.sum(np.abs(raw_gga_lat))) > 0) \
+                    or (np.sum(np.sum(np.abs(raw_vtg_speed))) > 0):
                 
                 # Process raw GPS data
                 self.gps = GPSData()
@@ -371,14 +371,14 @@ class TransectData(object):
                                        vtg_method=vtg_method)
                 
                 # If valid gga data exists create gga boat velocity object
-                if np.sum(np.sum(np.isnan(raw_gga_lat) == False)) > 0:
+                if np.sum(np.sum(np.abs(raw_gga_lat))) > 0:
                     self.boat_vel.add_boat_object(source='TRDI',
                                                   vel_in=self.gps.gga_velocity_ens_mps,
                                                   coord_sys_in='Earth',
                                                   nav_ref_in='GGA')
 
                 # If valid vtg data exist create vtg boat velocity object
-                if np.sum(np.sum(np.isnan(raw_vtg_speed) == False)) > 0:
+                if np.sum(np.sum(np.abs(raw_vtg_speed))) > 0:
                     self.boat_vel.add_boat_object(source='TRDI',
                                                   vel_in=self.gps.vtg_velocity_ens_mps,
                                                   coord_sys_in='Earth',
@@ -1011,7 +1011,7 @@ class TransectData(object):
         self.checked = True
 
         # Set composite depths as this is the only option in RiverSurveyor Live
-        self.depths.composite_depths(transect=self, setting=True)
+        self.depths.composite_depths(transect=self, setting="On")
 
     @staticmethod
     def compute_cell_data(pd0):
@@ -1295,8 +1295,8 @@ class TransectData(object):
         ----------
         update: bool
             Setting to control if water data are updated.
-        setting: bool
-            Sets composite tracks (on or off).
+        setting: str
+            Sets composite tracks ("On" or "Off").
         """
         
         # Determine if setting is specified
@@ -1413,8 +1413,8 @@ class TransectData(object):
             Filter method to be used (None, Smooth, TRDI).
         interpolation_method: str
             Interpolation method to be used (None, HoldLast, Smooth, Linear).
-        composite_setting: bool
-            Specifies use of composite depths.
+        composite_setting: str
+            Specifies use of composite depths ("On" or "Off").
         avg_method: str
             Defines averaging method: "Simple", "IDW", only applicable to bottom track.
         valid_method:
