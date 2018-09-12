@@ -1,6 +1,17 @@
 📦 setup.py (for humans)
 ========================
 
+Status
+======
+QRevPy is currently under development. As of 9/12/2018 there is no GUI developed. To run QRevPy you can run dsm.py which will provide the ability to open and process files and save them but there is no viewing options. 
+
+The saved file is in the same format as QRev Matlab and can be opened and processed in Matlab.
+
+Computed discharges are close to those from QRev Matlab but differ due to the difference in interpolation algorithms. A common algorithm is being developed to resolve this problem.
+
+Description
+===========
+
 QRev is a Matlab program developed by OSW to to compute the discharge from a moving-boat ADCP measurement using data collected with any of the Teledyne RD Instrument (TRDI) or SonTek bottom tracking ADCPs. QRev improves the consistency and efficiency of processing streamflow measurements by providing:
 
 - Automated data quality checks with feedback to the user
