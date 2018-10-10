@@ -548,7 +548,7 @@ class QAData(object):
         if 'user' in meas.ext_temp_chk:
             try:
                 user = float(meas.ext_temp_chk['user'])
-            except ValueError:
+            except (ValueError, TypeError) as e:
                 user = None
             if user is None:
                 # No independent temperature reading

@@ -9,7 +9,7 @@ from Classes.MovingBedTests import MovingBedTests
 from Classes.QComp import QComp
 from Classes.MatSonTek import MatSonTek
 from Classes.CompassCal import CompassCal
-from Classes.SystemTest import SystemTest
+# from Classes.SystemTest import SystemTest
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 from Classes.Uncertainty import Uncertainty

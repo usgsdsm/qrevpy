@@ -9,6 +9,7 @@ from Classes.Measurement import Measurement
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.QComp import QComp
 from Classes.Python2Matlab import Python2Matlab
+from Classes.CommonDataComp import CommonDataComp
 
 class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
@@ -35,7 +36,8 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             self.meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
-
+            dsm = CommonDataComp()
+            dsm.compute_cell_locations(self.meas)
             print('TRDI')
         elif self.select.type == 'QRev':
             self.meas = Measurement(in_file=self.select.fullName, source='QRev')
