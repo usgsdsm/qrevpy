@@ -883,7 +883,7 @@ class BoatData(object):
             self.filter_beam(4)
             # temp3 = copy.deepcopy(self)
             # temp3.filter_beam(3)
-            valid_3_beams = beam_3_valid_data[5, :] - self.valid_data[5, :]
+            valid_3_beams = np.logical_xor(beam_3_valid_data[5, :], self.valid_data[5, :])
             n_ens = len(self.valid_data[5, :])
             idx = np.where(valid_3_beams == True)[0]
 

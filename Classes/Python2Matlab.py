@@ -568,7 +568,7 @@ class Python2Matlab(object):
             transect.date_time.start_serial_time = transect.date_time.start_serial_time / time_correction
             transect.date_time.end_serial_time = transect.date_time.end_serial_time / time_correction
 
-        # Adjust 2-D array to be row based
+        # Adjust 1-D array to be row based
         for fit in meas_mat.extrap_fit.sel_fit:
             fit.u = fit.u.reshape(-1, 1)
             fit.u_auto = fit.u_auto.reshape(-1, 1)
