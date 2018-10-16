@@ -81,7 +81,8 @@ class FitData(object):
 
         avg_z = norm_data.unit_normalized_z
         y = norm_data.unit_normalized_med
-        idxz = np.squeeze(norm_data.valid_data)
+        # idxz = np.squeeze(norm_data.valid_data)
+        idxz = norm_data.valid_data
         zc = np.nan
 
         lower_bound = [-np.inf, 0.01]

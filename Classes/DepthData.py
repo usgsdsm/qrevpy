@@ -669,9 +669,10 @@ class DepthData(object):
             Data for which the IQR is computed
         """
         npts = len(data)
-        
+        half_width = int(half_width)
+
         if npts < 20:
-            half_width = np.floor(npts/2)
+            half_width = int(np.floor(npts/2))
         
         iqr_array = []
          
