@@ -37,7 +37,6 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             self.meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
-            self.meas.change_extrapolation(top='Constant', bot='NoSlip', exp=0.1)
             print('TRDI')
         elif self.select.type == 'QRev':
             self.meas = Measurement(in_file=self.select.fullName, source='QRev')
