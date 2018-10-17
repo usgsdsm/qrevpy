@@ -1,15 +1,16 @@
 import os
 from PyQt5 import QtWidgets
 import scipy.io as sio
-from Classes.stickysettings import StickySettings as SSet
-import dsm_gui
+# from Classes.stickysettings import StickySettings as SSet
+import Panels.dsm_gui as dsm_gui
 import sys
 from Panels.selectFile import OpenMeasurementDialog, SaveMeasurementDialog
 from Classes.Measurement import Measurement
-from Classes.ComputeExtrap import ComputeExtrap
-from Classes.QComp import QComp
+# from Classes.ComputeExtrap import ComputeExtrap
+# from Classes.QComp import QComp
 from Classes.Python2Matlab import Python2Matlab
-from Classes.CommonDataComp import CommonDataComp
+# from Classes.CommonDataComp import CommonDataComp
+
 
 class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
@@ -36,8 +37,7 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             self.meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
-            dsm = CommonDataComp()
-            dsm.compute_cell_locations(self.meas)
+            self.meas.change_extrapolation(top='Constant', bot='NoSlip', exp=0.1)
             print('TRDI')
         elif self.select.type == 'QRev':
             self.meas = Measurement(in_file=self.select.fullName, source='QRev')

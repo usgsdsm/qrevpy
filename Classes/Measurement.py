@@ -856,6 +856,7 @@ class Measurement(object):
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
 
+        self.discharge = []
         for transect in self.transects:
             q = QComp()
             q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
@@ -1170,15 +1171,19 @@ class Measurement(object):
             Exponent for power or no slip methods
         """
 
-        if top is not None:
+        if top is None:
             top = self.extrap_fit.sel_fit[-1].top_method
-        if bot is not None:
+        if bot is None:
             bot = self.extrap_fit.sel_fit[-1].bot_method
-        if exp is not None:
+        if exp is None:
             exp = self.extrap_fit.sel_fit[-1].exponent
 
+        self.discharge = []
         for transect in self.transects:
             transect.extrap.set_extrap_data(top=top, bot=bot, exp=exp)
+            q = QComp()
+            q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
+            self.discharge.append(q)
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
