@@ -438,6 +438,7 @@ class Measurement(object):
             # Interpolate water data
             transect.w_vel.apply_interpolation(transect=transect, target='Ensembles', interp_type='None')
             transect.w_vel.apply_interpolation(transect=transect, target='Cells', interp_type='TRDI')
+
     def qaqc_sontek(self, pathname):
         """Reads and stores system tests, compass calibrations, and moving-bed tests.
 
@@ -834,14 +835,17 @@ class Measurement(object):
             top = self.extrap_fit.sel_fit[-1].top_method
             bot = self.extrap_fit.sel_fit[-1].bot_method
             exp = self.extrap_fit.sel_fit[-1].exponent
-            self.change_extrapolation(top=top, bot=bot, exp=exp)
+            self.change_extrapolation(self.extrap_fit.fit_method, top=top, bot=bot, exp=exp)
         else:
             if 'extrapTop' not in settings.keys():
                 settings['extrapTop'] = self.extrap_fit.sel_fit[-1].top_method
                 settings['extrapBot'] = self.extrap_fit.sel_fit[-1].bot_method
                 settings['extrapExp'] = self.extrap_fit.sel_fit[-1].exponent
 
-            self.change_extrapolation(top=settings['extrapTop'], bot=settings['extrapBot'], exp=settings['extrapExp'])
+            self.change_extrapolation(self.extrap_fit.fit_method,
+                                      top=settings['extrapTop'],
+                                      bot=settings['extrapBot'],
+                                      exp=settings['extrapExp'])
 
         for transect in self.transects:
 
@@ -856,13 +860,8 @@ class Measurement(object):
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
 
-        self.discharge = []
-        for transect in self.transects:
-            q = QComp()
-            q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
-            self.discharge.append(q)
+        self.compute_discharge()
 
-        print('Yea!')
         # TODO add uncertainty
         # TODO add quality assurance
 
@@ -1134,6 +1133,13 @@ class Measurement(object):
 
         return settings
 
+    def compute_discharge(self):
+        self.discharge = []
+        for transect in self.transects:
+            q = QComp()
+            q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
+            self.discharge.append(q)
+
     @staticmethod
     def qrev_default_interpolation_methods(settings):
         """Adds QRev default interpolation settings to existing settings data structure
@@ -1158,17 +1164,23 @@ class Measurement(object):
 
         return settings
 
-    def change_extrapolation(self, top=None, bot=None, exp=None):
+    def change_extrapolation(self, method, top=None, bot=None, exp=None, extents=None, threshold=None):
         """Applies the selected extrapolation method to each transect.
 
         Parameters
         ----------
+        method: str
+            Method of computation Automatic or Manual
         top: str
             Top extrapolation method
         bot: str
             Bottom extrapolation method
         exp: float
             Exponent for power or no slip methods
+        threshold: float
+            Threshold as a percent for determining if a median is valid
+        extents: list
+            Percent of discharge, does not account for transect direction
         """
 
         if top is None:
@@ -1177,16 +1189,32 @@ class Measurement(object):
             bot = self.extrap_fit.sel_fit[-1].bot_method
         if exp is None:
             exp = self.extrap_fit.sel_fit[-1].exponent
+        if extents is not None:
+            self.extrap_fit.subsection = extents
+        if threshold is not None:
+            self.extrap_fit.threshold = threshold
 
-        self.discharge = []
-        for transect in self.transects:
-            transect.extrap.set_extrap_data(top=top, bot=bot, exp=exp)
-            q = QComp()
-            q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
-            self.discharge.append(q)
+        data_type = self.extrap_fit.norm_data[-1].data_type
+        if data_type is None:
+            data_type = 'q'
+
+        if method == 'Manual':
+            self.extrap_fit.fit_method = 'Manual'
+            for transect in self.transects:
+                transect.extrap.set_extrap_data(top=top, bot=bot, exp=exp)
+            self.extrap_fit.process_profiles(transects=self.transects, data_type=data_type)
+        else:
+            self.extrap_fit.fit_method = 'Automatic'
+            self.extrap_fit.process_profiles(transects=self.transects, data_type=data_type)
+            for transect in self.transects:
+                transect.extrap.set_extrap_data(top=self.extrap_fit.sel_fit[-1].top_method,
+                                                bot=self.extrap_fit.sel_fit[-1].bot_method,
+                                                exp=self.extrap_fit.sel_fit[-1].exponent)
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
+
+        self.compute_discharge()
 
     @staticmethod
     def save_matlab_file(self, file_name):
