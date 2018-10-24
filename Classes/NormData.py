@@ -137,7 +137,7 @@ class NormData(object):
             
             # Unit discharge is computed here because the unit norm could be based on velocity
             unit = np.multiply(w_vel_x, bt_vel_y) - np.multiply(w_vel_y, bt_vel_x)
-            unit_ens = np.nansum(unit)
+            unit_ens = np.nansum(unit, 0)
             unit_total = np.nancumsum(unit_ens)
             
             # Adjust so total discharge is positive
@@ -194,11 +194,11 @@ class NormData(object):
             condition_2 = self.cell_depth_normalized <= avg_interval[i + 1]
             condition_3 = np.isnan(self.unit_normalized) == False
             condition_all = np.logical_and(np.logical_and(condition_1, condition_2), condition_3)
-
-            unit_25[i], unit_norm_med[i], unit_75[i] = sp.mstats.mquantiles(self.unit_normalized[condition_all],
-                                                                            alphap=0.5, betap=0.5)
-            unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[condition_all]) == False)
-            avgz[i] = 1 - np.nanmean(self.cell_depth_normalized[condition_all])
+            if np.any(condition_all):
+                unit_25[i], unit_norm_med[i], unit_75[i] = sp.mstats.mquantiles(self.unit_normalized[condition_all],
+                                                                                alphap=0.5, betap=0.5)
+                unit_norm_med_no[i] = np.sum(np.isnan(self.unit_normalized[condition_all]) == False)
+                avgz[i] = 1 - np.nanmean(self.cell_depth_normalized[condition_all])
 
         # Mark increments invalid if they do not have sufficient data
         cutoff = np.nanmedian(unit_norm_med_no[unit_norm_med_no > 0]) * (threshold / 100)

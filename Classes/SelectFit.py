@@ -290,7 +290,9 @@ class SelectFit(object):
 
         if fit_method == 'Manual':
 
+            # Check to see if any of the parameters differ from None
             if len({top, bot, exponent}) == 1:
+                # All parameters are None
                 trans_data = transect
                 update_fd = FitData()
                 update_fd.populate_data(norm_data=normalized,
@@ -299,6 +301,7 @@ class SelectFit(object):
                                         method=fit_method,
                                         exponent=trans_data.extrap.exponent)
             else:
+                # At least one parameter is not None
                 update_fd = FitData()
                 update_fd.populate_data(norm_data=normalized,
                                         top=top,

@@ -69,6 +69,7 @@ class ComputeExtrap(object):
         """
 
         # Compute normalized data for each transect
+        self.norm_data = []
         for transect in transects:
             norm_data = NormData()
             norm_data.populate_data(transect=transect,
@@ -84,12 +85,14 @@ class ComputeExtrap(object):
         sel_fit = None
 
         # Compute the fit for the selected  method
-        for n in range(len(self.norm_data)):
-            if self.fit_method == 'Manual':
+        self.sel_fit = []
+        if self.fit_method == 'Manual':
+            for n in range(len(transects)):
                 sel_fit = SelectFit()
                 sel_fit.populate_data(normalized=self.norm_data[n], fit_method=self.fit_method, transect=transects[n])
                 self.sel_fit.append(sel_fit)
-            else:
+        else:
+            for n in range(len(self.norm_data)):
                 sel_fit = SelectFit()
                 sel_fit.populate_data(self.norm_data[n], self.fit_method)
                 self.sel_fit.append(sel_fit)
@@ -112,23 +115,23 @@ class ComputeExtrap(object):
         # self.q_sensitivity = ExtrapQSensitivity()
         # self.q_sensitivity.populate_data(trans_data, self.sel_fit)
         
-    def change_threshold(self, trans_data, data_type, threshold):
+    def change_threshold(self, transects, data_type, threshold):
         """Function to change the threshold for accepting the increment median as valid.  The threshold
         is in percent of the median number of points in all increments"""
         
         self.threshold = threshold
-        self.process_profiles(trans_data, data_type)
+        self.process_profiles(transects=transects, data_type=data_type)
         self.q_sensitivity = ExtrapQSensitivity()
-        self.q_sensitivity.populate_data(trans_data, self.sel_fit)
+        self.q_sensitivity.populate_data(transects=transects, extrap_fits=self.sel_fit)
         
-    def change_extents(self, trans_data, data_type, extents):
+    def change_extents(self, transects, data_type, extents):
         """Function allows the data to be subsection by specifying the percent cumulative discharge
         for the start and end points.  Currently this function does not consider transect direction"""
         
         self.subsection = extents
-        self.process_profiles(trans_data, data_type)
+        self.process_profiles(transects=transects, data_type=data_type)
         self.q_sensitivity = ExtrapQSensitivity()
-        self.q_sensitivity.populate_data(trans_data, self.sel_fit)
+        self.q_sensitivity.populate_data(transects=transects, extrap_fits=self.sel_fit)
         
     def change_data_type(self, trans_data, data_type):
         self.process_profiles(trans_data, data_type)
