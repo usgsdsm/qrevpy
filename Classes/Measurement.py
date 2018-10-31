@@ -815,7 +815,7 @@ class Measurement(object):
             wt_kwargs['beam'] = settings['WTbeamFilter']
             wt_kwargs['other'] = settings['WTsmoothFilter']
             wt_kwargs['snr'] = settings['WTsnrFilter']
-            wt_kwargs['wt_depth'] = settings['WTwDepthFilter']
+            wt_kwargs['wt_depth'] = settings['WTwtDepthFilter']
             wt_kwargs['excluded'] = settings['WTExcludedDistance']
 
             transect.w_vel.apply_filter(transect=transect, **wt_kwargs)
@@ -896,7 +896,7 @@ class Measurement(object):
         settings['WTsmoothFilter'] = transect.w_vel.smooth_filter
         settings['WTsnrFilter'] = transect.w_vel.snr_filter
         settings['WTwtDepthFilter'] = transect.w_vel.wt_depth_filter
-        settings['WTensInterpolation'] = transect.w_vel.interpolate_ens
+        settings['WTEnsInterpolation'] = transect.w_vel.interpolate_ens
         settings['WTCellInterpolation'] = transect.w_vel.interpolate_cells
         settings['WTExcludedDistance'] = transect.w_vel.excluded_dist_m
         
@@ -1160,7 +1160,7 @@ class Measurement(object):
         settings['WTCellInterpolation'] = 'TRDI'
         settings['GPSInterpolation'] = 'Linear'
         settings['depthInterpolation'] = 'Linear'
-        settings['WTwDepthFilter'] = 'On'
+        settings['WTwtDepthFilter'] = 'On'
 
         return settings
 

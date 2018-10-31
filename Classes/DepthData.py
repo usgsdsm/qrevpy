@@ -347,8 +347,6 @@ class DepthData(object):
         
         """
 
-        depth_res = np.array([])
-
         # If the smoothed depth has not been computed
         if self.smooth_depth is None:
             
@@ -459,6 +457,7 @@ class DepthData(object):
             n_ensembles = self.depth_orig_m.shape[0]
             depth_raw = np.reshape(self.depth_orig_m, (1, n_ensembles))
 
+        depth_res = repmat([np.nan], n_beams, n_ensembles)
         # Set bad depths to nan
         depth = repmat(np.nan, depth_raw.shape[0], depth_raw.shape[1])
         depth[depth_raw > 0] = depth_raw[depth_raw > 0]
