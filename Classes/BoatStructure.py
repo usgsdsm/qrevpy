@@ -355,3 +355,44 @@ class BoatStructure(object):
                     self.vtg_vel.apply_composite(u_composite=self.vtg_vel.u_processed_mps,
                                                  v_composite=self.vtg_vel.v_processed_mps,
                                                  composite_source=comp_source)
+
+
+    @staticmethod
+    def compute_boat_track(transect):
+        """Computes the shiptrack coordinates, along track distance, and distance made
+        good for the selected boat reference.
+
+        Parameters
+        ----------
+        transect: TransectData
+            Object of TransectData
+
+        Returns
+        -------
+            boat_track: dict
+                Dictionary containing shiptrack coordinates (track_x_m, track_y_m), along track distance (distance_m),
+                and distance made good (dmg_m)
+        """
+
+        # Initialize dictionary
+        boat_track = {'track_x_m': np.nan, 'track_y_m': np.nan, 'distance_m': np.nan, 'dmg_m': np.nan}
+
+        # Compute incremental track coordinates
+        boat_vel_selected = getattr(transect.boat_vel, transect.boat_vel.selected)
+        if boat_vel_selected is not None:
+            track_x = boat_vel_selected.u_processed_mps * transect.date_time.ens_duration_sec
+            track_y = boat_vel_selected.v_processed_mps * transect.date_time.ens_duration_sec
+        else:
+            track_x = np.nan
+            track_y = np.nan
+
+        # Check for any valid data
+        idx = np.where(np.logical_not(np.isnan(track_x)))
+        if len(idx[0]) < 1:
+            # Compute variables
+            boat_track['distance_m'] = np.nancumsum(np.sqrt(track_x ** 2 + track_y ** 2))
+            boat_track['track_x_m'] = np.nancumsum(track_x)
+            boat_track['track_y_m'] = np.nancumsum(track_y)
+            boat_track['dmg_m'] = np.sqrt(track_x ** 2 + track_y ** 2)
+
+        return boat_track

@@ -1620,6 +1620,7 @@ class TransectData(object):
         # Correct depths
         self.depths.sos_corrections(ratio=ratio)
 
+
     # def sos_user(self, kargs = None):
     #     """Compute new speed of sound from temperature and salinity
     #
