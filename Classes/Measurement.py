@@ -991,8 +991,6 @@ class Measurement(object):
 
         # Water track filter settings
         settings['WTbeamFilter'] = -1
-        #TODO Temporary setting for comparison with Matlab since interpolation is different
-        # settings['WTbeamFilter'] = 3
         settings['WTdFilter'] = 'Auto'
         settings['WTdFilterThreshold'] = np.nan
         settings['WTwFilter'] = 'Auto'

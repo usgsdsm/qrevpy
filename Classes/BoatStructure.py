@@ -388,7 +388,7 @@ class BoatStructure(object):
 
         # Check for any valid data
         idx = np.where(np.logical_not(np.isnan(track_x)))
-        if len(idx[0]) < 1:
+        if len(idx[0]) > 1:
             # Compute variables
             boat_track['distance_m'] = np.nancumsum(np.sqrt(track_x ** 2 + track_y ** 2))
             boat_track['track_x_m'] = np.nancumsum(track_x)

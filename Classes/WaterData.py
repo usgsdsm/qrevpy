@@ -23,6 +23,7 @@ from MiscLibs.lowess import lowess
 from Classes.BoatData import BoatData
 from scipy import interpolate
 import copy
+from MiscLibs.abba_2d_interpolation import abba_idw_interpolation
 
 
 class WaterData(object):
@@ -138,7 +139,7 @@ class WaterData(object):
     def __init__(self):
         # Data input to this class
         self.raw_vel_mps = None  # Contains the raw unfiltered velocity data in m/s.  Rows 1-4 are
-                                 # beams 1,2,3,4 if beam or u,v,w,d if otherwise
+                                    # beams 1,2,3,4 if beam or u,v,w,d if otherwise
         self.frequency = None  # Defines ADCP frequency used for velocity measurement
         self.orig_coord_sys = None  # Defines the original velocity coordinate system Beam, Inst, Ship, Earth
         self.orig_nav_ref = None  # Defines the original taw data naviagation reference: None, BT, GGA, VTG
@@ -759,7 +760,7 @@ class WaterData(object):
         if len({beam, difference, difference_threshold, vertical, vertical_threshold, other, excluded, snr,
                 wt_depth}) > 1:
             if beam is not None:
-                self.filter_beam(setting=beam)
+                self.filter_beam(setting=beam, transect=transect)
             if difference is not None:
                 if difference == 'Manual':
                     self.filter_diff_vel(setting=difference, threshold=difference_threshold)
@@ -886,19 +887,19 @@ class WaterData(object):
         valid[sum_filters < 1] = False
         self.valid_data[0] = valid
         
-    def filter_beam(self, setting):
+    def filter_beam(self, setting, transect=None):
         """Applies beam filter to water velocity data.
 
         The determination of invalid data depends on whether
         3-beam or 4-beam solutions are acceptable.  This function can be applied by
         specifying 3 or 4 beam solutions and setting self.beam_filter to -1
         which will trigger an automatic mode.  The automatic mode will find all 3 beam
-        solutions and them compare the velocity of the 2 beam solutions to nearest 4
-        beam solution before and ager the 2 beam solution.  If the 3 beam solution is
-        within 50% of the average of the neighboring 2 beam solutions the data are deemed
-        valid if not invalid.  Thus in automatic mode only those data from 2 beam solutions
-        that appear sufficiently more than the 4 beam solutions are marked invalid.  The process
-        happens for each ensemble.  If the number of beams is specified manually, it is applied
+        solutions and them compare the velocity of the 3 beam solutions to nearest 4
+        beam solutions.  If the 3 beam solution is within 50% of the average of the
+        neighboring 4 beam solutions the data are deemed valid, if not they are marked
+        invalid.  Thus in automatic mode only those data from 3 beam solutions
+        that are sufficiently different from  the 4 beam solutions are marked invalid.
+        If the number of beams is specified manually, it is applied
         uniformly for the whole transect.
 
         Parameters
@@ -927,161 +928,145 @@ class WaterData(object):
             self.valid_data[5, :, :] = valid
         
         else:
+
             # Apply automatic filter
+            self.automatic_beam_filter_abba_interpolation(transect)
 
-            # Create temporary object
-            temp = copy.deepcopy(self)
+    def automatic_beam_filter_abba_interpolation(self, transect):
+        # Create array indicating which cells do not have 4-beam solutions and all cells below side lobe are nan
+        temp = copy.deepcopy(self)
+        temp.filter_beam(4)
+        valid_bool = temp.valid_data[5, :, :]
+        valid = valid_bool.astype(float)
+        valid[temp.cells_above_sl == False] = np.nan
 
-            # Apply beam filter to temporary object
-            temp.filter_beam(4)
+        # Find indices of cells with 3 beams solutions
+        rows_3b, cols_3b = np.where(np.abs(valid) == 0)
 
-            # determine number of ensembles (NOT NECESSARY?)
-            # n_ens = len(temp.valid_data[5,:,:])
-            
-            # Create matrix of valid data with nan below side lobe
-            valid_bool = temp.valid_data[5, :, :]
-            valid = valid_bool.astype(float)
-            valid[temp.cells_above_sl == False] = np.nan
-            
-            # Find cells with 3 beams solutions
-            rows_3b, cols_3b = np.where(np.abs(valid) == 0)
-            if len(rows_3b) > 0:
-                # # Find cells with 4 beams solutions
-                valid_rows, valid_cols = np.where(valid == 1)
-                #
-                # # Valid water u and v for cells with 4 beam solutions
-                # valid_u = np.tile(np.nan, valid.shape)
-                # valid_v = np.tile(np.nan, valid.shape)
-                # valid_u[valid_rows, valid_cols] = temp.u_mps[valid_rows, valid_cols]
-                # valid_v[valid_rows, valid_cols] = temp.v_mps[valid_rows, valid_cols]
-                valid_u = temp.u_mps[valid == 1]
-                valid_v = temp.v_mps[valid == 1]
-                # Use interpolate water velocity of cells with 3 beam solutions
-                # TODO check out
+        # Check for presence of 3-beam solutions
+        if len(rows_3b) > 0:
 
-                # The following code duplicates Matlab scatteredInterpolant which seems to only estimate along columns
-                # as long as there is data in the ensemble above and below the value being estimated.
-                row_numbers = np.linspace(0, valid.shape[0] - 1, valid.shape[0])
-                # # est_u=temp.u_mps
-                n = 0
-                for col in cols_3b:
-                    # If the cell has valid data above and below it linearly interpolate using data in that ensemble.
-                    # If not, use other means of interpolation.
-                    if np.any(valid_bool[rows_3b[n]+1::, col]) and np.any(valid_bool[0:rows_3b[n], col]):
-                        est_u = np.interp(x=rows_3b[n],
-                                          xp=row_numbers[valid_bool[:, col]],
-                                          fp=temp.u_mps[valid_bool[:, col], col])
+            # Data needed for interpolation
+            distance_along_shiptrack = transect.boat_vel.compute_boat_track(transect)['distance_m']
+            depth_selected = getattr(transect.depths, transect.depths.selected)
 
-                        est_v = np.interp(x=rows_3b[n],
-                                          xp=row_numbers[valid_bool[:, col]],
-                                          fp=temp.v_mps[valid_bool[:, col], col])
-                    else:
-                        est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
-                        est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
+            # Interpolate values for cells with 3-beam solutions from neighboring data
+            interpolated_data = abba_idw_interpolation(data_list=[temp.u_mps, temp.v_mps],
+                                                       valid_data=temp.valid_data[5, :, :],
+                                                       cells_above_sl=temp.cells_above_sl,
+                                                       y_centers=depth_selected.depth_cell_depth_m,
+                                                       y_cell_size=depth_selected.depth_cell_size_m,
+                                                       y_normalize=depth_selected.depth_processed_m,
+                                                       x_shiptrack=distance_along_shiptrack)
 
-                    u_ratio = (temp.u_mps[rows_3b[n], col] / est_u) - 1
-                    v_ratio = (temp.v_mps[rows_3b[n], col] / est_v) - 1
-                    if np.abs(u_ratio) < 0.5 or np.abs(v_ratio) < 0.5:
-                        valid_bool[rows_3b[n], col] = True
-                    else:
-                        valid_bool[rows_3b[n], col] = False
-                    n += 1
-                self.valid_data[5, :, :] = valid_bool
-            else:
-                self.valid_data[5, :, :] = temp.valid_data[5, :, :]
-
-        # Combine all filter data and update processed properties
-        self.all_valid_data()
-                
-    def filter_diff_vel(self, setting, threshold=None):
-        """Applies filter to difference velocity.
-
-        Applies either manual or automatic filtering of the difference (error)
-        velocity.  The automatic mode is based on the following:  This filter is
-        based on the assumption that the water error velocity should follow a gaussian
-        distribution.  Therefore, 5 standard deviations should encompass all of the
-        valid data.  The standard deviation and limits (multiplier*std dev) are computed
-        in an iterative process until filtering out additional data does not change the
-        computed standard deviation.
-
-        Parameters
-        ----------
-        setting: str
-            Filter setting (Auto, Off, Manual)
-        threshold: float
-            Threshold value for Manual setting.
-        """
-        
-        # Set difference filter properties
-        self.d_filter = setting
-        if threshold is not None:
-            self.d_filter_threshold = threshold
-
-        # Set multiplier
-        multiplier = 5
-
-        # Get difference data from object
-        d_vel = copy.deepcopy(self.d_mps)
-
-        d_vel_min_ref = None
-        d_vel_max_ref = None
-        
-        # Apply selected method
-        if self.d_filter == 'Manual':
-            d_vel_max_ref = np.abs(self.d_filter_threshold)
-            d_vel_min_ref = -1 * d_vel_max_ref
-        elif self.d_filter == 'Off':
-            d_vel_max_ref = np.nanmax(np.nanmax(d_vel)) + 1
-            d_vel_min_ref = np.nanmin(np.nanmin(d_vel)) - 1
-        elif self.d_filter == 'Auto':
-            # Initialize variables
-            d_vel_filtered = copy.deepcopy(d_vel)
-            std_diff = 1
-            i = -1
-            # Loop until no additional data are removed
-            while std_diff != 0 and i < 1000:
-                i = i+1
-                
-                # Compute standard deviation
-                d_vel_std = iqr(d_vel_filtered)
-                
-                # Compute maximum and minimum thresholds
-                d_vel_max_ref = np.nanmedian(d_vel_filtered) + multiplier * d_vel_std
-                d_vel_min_ref = np.nanmedian(d_vel_filtered) - multiplier * d_vel_std
-                
-                # Identify valid and invalid data
-                d_vel_bad_rows, d_vel_bad_cols = np.where(np.logical_or(np.greater(d_vel_filtered, d_vel_max_ref),
-                                                       np.less(d_vel_filtered, d_vel_min_ref)))
-                d_vel_good_rows, d_vel_good_cols = np.where(np.logical_or(np.less_equal(d_vel_filtered, d_vel_max_ref),
-                                                            np.greater_equal(d_vel_filtered, d_vel_min_ref)))
-                
-                # Update filtered data array
-                d_vel_filtered[d_vel_bad_rows, d_vel_bad_cols] = np.nan
-
-                # Determine differences due to last filter iteration
-                if len(d_vel_filtered) > 0:
-                    d_vel_std2 = iqr(d_vel_filtered)
-                    std_diff = d_vel_std2 - d_vel_std
+            # Compute interpolated to measured ratios and apply filter criteria
+            for n in range(len(interpolated_data[0])):
+                u_ratio = (temp.u_mps[interpolated_data[0][n][0]] / interpolated_data[0][n][1]) - 1
+                v_ratio = (temp.v_mps[interpolated_data[1][n][0]] / interpolated_data[1][n][1]) - 1
+                if np.abs(u_ratio) < 0.5 or np.abs(v_ratio) < 0.5:
+                    valid_bool[interpolated_data[0][n][0]] = True
                 else:
-                    std_diff = 0
-                
-        # Set valid data row 2 for difference velocity filter results
-        bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
-                                              np.less(d_vel, d_vel_min_ref)))
-        valid = copy.deepcopy(self.cells_above_sl)
-        if len(bad_idx_rows) > 0:
-            valid[bad_idx_rows, bad_idx_cols] = False
-        #TODO Seems like if the difference velocity doesn't exist due to a 3-beam solution it shouldn't be flagged as invalid
-        # however this is the way it was in Matlab. Suggest changing this after comparisons complete.
-        # valid[np.isnan(self.d_mps)] = True
-        self.valid_data[2, :, :] = valid
-        
-        # Set threshold property
-        self.d_filter_threshold = d_vel_max_ref
-        
+                    valid_bool[interpolated_data[0][n][0]] = False
+                n += 1
+
+            # Update object with filter results
+            self.valid_data[5, :, :] = valid_bool
+        else:
+            self.valid_data[5, :, :] = temp.valid_data[5, :, :]
+
         # Combine all filter data and update processed properties
         self.all_valid_data()
-            
+
+
+    def filter_diff_vel(self, setting, threshold=None):
+            """Applies filter to difference velocity.
+
+            Applies either manual or automatic filtering of the difference (error)
+            velocity.  The automatic mode is based on the following:  This filter is
+            based on the assumption that the water error velocity should follow a gaussian
+            distribution.  Therefore, 5 standard deviations should encompass all of the
+            valid data.  The standard deviation and limits (multiplier*std dev) are computed
+            in an iterative process until filtering out additional data does not change the
+            computed standard deviation.
+
+            Parameters
+            ----------
+            setting: str
+                Filter setting (Auto, Off, Manual)
+            threshold: float
+                Threshold value for Manual setting.
+            """
+
+            # Set difference filter properties
+            self.d_filter = setting
+            if threshold is not None:
+                self.d_filter_threshold = threshold
+
+            # Set multiplier
+            multiplier = 5
+
+            # Get difference data from object
+            d_vel = copy.deepcopy(self.d_mps)
+
+            d_vel_min_ref = None
+            d_vel_max_ref = None
+
+            # Apply selected method
+            if self.d_filter == 'Manual':
+                d_vel_max_ref = np.abs(self.d_filter_threshold)
+                d_vel_min_ref = -1 * d_vel_max_ref
+            elif self.d_filter == 'Off':
+                d_vel_max_ref = np.nanmax(np.nanmax(d_vel)) + 1
+                d_vel_min_ref = np.nanmin(np.nanmin(d_vel)) - 1
+            elif self.d_filter == 'Auto':
+                # Initialize variables
+                d_vel_filtered = copy.deepcopy(d_vel)
+                std_diff = 1
+                i = -1
+                # Loop until no additional data are removed
+                while std_diff != 0 and i < 1000:
+                    i = i+1
+
+                    # Compute standard deviation
+                    d_vel_std = iqr(d_vel_filtered)
+
+                    # Compute maximum and minimum thresholds
+                    d_vel_max_ref = np.nanmedian(d_vel_filtered) + multiplier * d_vel_std
+                    d_vel_min_ref = np.nanmedian(d_vel_filtered) - multiplier * d_vel_std
+
+                    # Identify valid and invalid data
+                    d_vel_bad_rows, d_vel_bad_cols = np.where(np.logical_or(np.greater(d_vel_filtered, d_vel_max_ref),
+                                                           np.less(d_vel_filtered, d_vel_min_ref)))
+                    d_vel_good_rows, d_vel_good_cols = np.where(np.logical_or(np.less_equal(d_vel_filtered, d_vel_max_ref),
+                                                                np.greater_equal(d_vel_filtered, d_vel_min_ref)))
+
+                    # Update filtered data array
+                    d_vel_filtered[d_vel_bad_rows, d_vel_bad_cols] = np.nan
+
+                    # Determine differences due to last filter iteration
+                    if len(d_vel_filtered) > 0:
+                        d_vel_std2 = iqr(d_vel_filtered)
+                        std_diff = d_vel_std2 - d_vel_std
+                    else:
+                        std_diff = 0
+
+            # Set valid data row 2 for difference velocity filter results
+            bad_idx_rows, bad_idx_cols = np.where(np.logical_or(np.greater(d_vel, d_vel_max_ref),
+                                                  np.less(d_vel, d_vel_min_ref)))
+            valid = copy.deepcopy(self.cells_above_sl)
+            if len(bad_idx_rows) > 0:
+                valid[bad_idx_rows, bad_idx_cols] = False
+            #TODO Seems like if the difference velocity doesn't exist due to a 3-beam solution it shouldn't be flagged as invalid
+            # however this is the way it was in Matlab. Suggest changing this after comparisons complete.
+            # valid[np.isnan(self.d_mps)] = True
+            self.valid_data[2, :, :] = valid
+
+            # Set threshold property
+            self.d_filter_threshold = d_vel_max_ref
+
+            # Combine all filter data and update processed properties
+            self.all_valid_data()
+
     def filter_vert_vel(self, setting, threshold=None):
         """Applies filter to vertical velocity.
 
@@ -1707,3 +1692,63 @@ class WaterData(object):
             snr_adjusted = self.rssi * cells_above_sl
             snr_average = np.nanmean(snr_adjusted, 1)
             self.snr_rng = np.nanmax(snr_average, 0) - np.nanmin(snr_average, 0)
+
+    def automated_beam_filter_old(self, transect):
+
+        # Create array indicating which cells do not have 4-beam solutions and all cells below side lobe are nan
+        temp = copy.deepcopy(self)
+        temp.filter_beam(4)
+        valid_bool = temp.valid_data[5, :, :]
+        valid = valid_bool.astype(float)
+        valid[temp.cells_above_sl == False] = np.nan
+
+        # Find cells with 3 beams solutions
+        rows_3b, cols_3b = np.where(np.abs(valid) == 0)
+        if len(rows_3b) > 0:
+            # # Find cells with 4 beams solutions
+            valid_rows, valid_cols = np.where(valid == 1)
+            #
+            # # Valid water u and v for cells with 4 beam solutions
+            # valid_u = np.tile(np.nan, valid.shape)
+            # valid_v = np.tile(np.nan, valid.shape)
+            # valid_u[valid_rows, valid_cols] = temp.u_mps[valid_rows, valid_cols]
+            # valid_v[valid_rows, valid_cols] = temp.v_mps[valid_rows, valid_cols]
+            valid_u = temp.u_mps[valid == 1]
+            valid_v = temp.v_mps[valid == 1]
+            # Use interpolate water velocity of cells with 3 beam solutions
+            # TODO check out
+
+            # The following code duplicates Matlab scatteredInterpolant which seems to only estimate along columns
+            # as long as there is data in the ensemble above and below the value being estimated.
+            row_numbers = np.linspace(0, valid.shape[0] - 1, valid.shape[0])
+            # # est_u=temp.u_mps
+            n = 0
+            for col in cols_3b:
+                # If the cell has valid data above and below it linearly interpolate using data in that ensemble.
+                # If not, use other means of interpolation.
+                if np.any(valid_bool[rows_3b[n] + 1::, col]) and np.any(valid_bool[0:rows_3b[n], col]):
+                    est_u = np.interp(x=rows_3b[n],
+                                      xp=row_numbers[valid_bool[:, col]],
+                                      fp=temp.u_mps[valid_bool[:, col], col])
+
+                    est_v = np.interp(x=rows_3b[n],
+                                      xp=row_numbers[valid_bool[:, col]],
+                                      fp=temp.v_mps[valid_bool[:, col], col])
+                else:
+                    est_u = interpolate.griddata(np.array((valid_rows, valid_cols)).T, valid_u, (col, rows_3b[n]))
+                    est_v = interpolate.griddata(np.array((valid_cols, valid_rows)).T, valid_v, (col, rows_3b[n]))
+
+                u_ratio = (temp.u_mps[rows_3b[n], col] / est_u) - 1
+                v_ratio = (temp.v_mps[rows_3b[n], col] / est_v) - 1
+                if np.abs(u_ratio) < 0.5 or np.abs(v_ratio) < 0.5:
+                    valid_bool[rows_3b[n], col] = True
+                else:
+                    valid_bool[rows_3b[n], col] = False
+                n += 1
+            self.valid_data[5, :, :] = valid_bool
+        else:
+            self.valid_data[5, :, :] = temp.valid_data[5, :, :]
+
+        # Combine all filter data and update processed properties
+
+        self.all_valid_data()
