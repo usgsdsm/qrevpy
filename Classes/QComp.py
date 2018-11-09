@@ -691,7 +691,7 @@ class QComp(object):
 
         for n in range(n_ensembles):
             # Identifying bottom most valid cell
-            idx_temp = np.where(valid_data[:, n] == True)[0]
+            idx_temp = np.where(np.logical_not(np.isnan(x_prod[:, n])))[0]
             if len(idx_temp) > 0:
                 idx_temp = idx_temp[-1]
                 idx_bot[n] = idx_temp

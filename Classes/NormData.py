@@ -79,13 +79,13 @@ class NormData(object):
         in_transect_idx = transect.in_transect_idx
 
         depths_selected = getattr(transect.depths, transect.depths.selected)
-        cell_depth = depths_selected.depth_cell_depth_m[:, in_transect_idx]
+        cell_depth = np.copy(depths_selected.depth_cell_depth_m[:, in_transect_idx])
         cells_above_sl = transect.w_vel.cells_above_sl[:, in_transect_idx]
         cell_depth[cells_above_sl == False] = np.nan
-        depth_ens = depths_selected.depth_processed_m[in_transect_idx]
+        depth_ens = np.copy(depths_selected.depth_processed_m[in_transect_idx])
 
-        w_vel_x = transect.w_vel.u_processed_mps[:, in_transect_idx]
-        w_vel_y = transect.w_vel.v_processed_mps[:, in_transect_idx]
+        w_vel_x = np.copy(transect.w_vel.u_processed_mps[:, in_transect_idx])
+        w_vel_y = np.copy(transect.w_vel.v_processed_mps[:, in_transect_idx])
 
         invalid_data = np.logical_not(transect.w_vel.valid_data[0, :, in_transect_idx]).T
         w_vel_x[invalid_data] = np.nan
@@ -93,8 +93,8 @@ class NormData(object):
         
         boat_select = getattr(transect.boat_vel, transect.boat_vel.selected)
         if boat_select is not None:
-            bt_vel_x = boat_select.u_processed_mps[in_transect_idx]
-            bt_vel_y = boat_select.v_processed_mps[in_transect_idx]
+            bt_vel_x = np.copy(boat_select.u_processed_mps[in_transect_idx])
+            bt_vel_y = np.copy(boat_select.v_processed_mps[in_transect_idx])
         else:
             bt_vel_x = np.tile([np.nan], transect.boat_vel.bt_vel.u_processed_mps[in_transect_idx].shape)
             bt_vel_y = np.tile([np.nan], transect.boat_vel.bt_vel.u_processed_mps[in_transect_idx].shape)

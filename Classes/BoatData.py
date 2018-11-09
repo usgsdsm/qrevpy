@@ -875,14 +875,9 @@ class BoatData(object):
             # Apply automatic filter
             # ----------------------
             # Find all 3 beam solutions
-            # temp = copy.deepcopy(self)
-            #             # temp.filter_beam(4)
-            #             # temp3 = copy.deepcopy(temp)
             self.filter_beam(3)
             beam_3_valid_data = copy.deepcopy(self.valid_data)
             self.filter_beam(4)
-            # temp3 = copy.deepcopy(self)
-            # temp3.filter_beam(3)
             valid_3_beams = np.logical_xor(beam_3_valid_data[5, :], self.valid_data[5, :])
             n_ens = len(self.valid_data[5, :])
             idx = np.where(valid_3_beams == True)[0]
@@ -980,7 +975,7 @@ class BoatData(object):
             d_vel_filtered = copy.deepcopy(d_vel)
 
             # Fix to zeros in Sontek M9 data
-            d_vel_filtered[d_vel_filtered == 0] = np.nan
+            # d_vel_filtered[d_vel_filtered == 0] = np.nan
 
             # Initialize variables
             std_diff = np.repeat(1., 1000)
@@ -1090,7 +1085,7 @@ class BoatData(object):
                 # Identify valid and invalid data
                 w_vel_less_idx = np.where(w_vel_filtered <= w_vel_max_ref)[0]
                 w_vel_greater_idx = np.where(w_vel_filtered >= w_vel_min_ref)[0]
-                w_vel_good_idx = list(set(np.hstack((w_vel_less_idx, w_vel_greater_idx))))
+                w_vel_good_idx = list(np.intersect1d(w_vel_less_idx, w_vel_greater_idx))
 
                 # Update filtered data array
                 w_vel_filtered = np.copy(w_vel_filtered[w_vel_good_idx])

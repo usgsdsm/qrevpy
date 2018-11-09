@@ -1009,8 +1009,6 @@ class Measurement(object):
 
         # Bottom track filter settings
         settings['BTbeamFilter'] = -1
-        #TODO Temporary setting for comparison with Matlab since interpolation is different
-        # settings['BTbeamFilter'] = 3
         settings['BTdFilter'] = 'Auto'
         settings['BTdFilterThreshold'] = np.nan
         settings['BTwFilter'] = 'Auto'
@@ -1154,8 +1152,8 @@ class Measurement(object):
         """
 
         settings['BTInterpolation'] = 'Linear'
-        settings['WTEnsInterpolation'] = 'Linear'
-        settings['WTCellInterpolation'] = 'TRDI'
+        settings['WTEnsInterpolation'] = 'abba'
+        settings['WTCellInterpolation'] = 'abba'
         settings['GPSInterpolation'] = 'Linear'
         settings['depthInterpolation'] = 'Linear'
         settings['WTwtDepthFilter'] = 'On'

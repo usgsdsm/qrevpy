@@ -297,13 +297,12 @@ def idw_interpolation(data, neighbor_indices, distances):
         Value of target cell interpolated from neighbors
     """
 
-    # Compute sum of weights
-    sum_of_weights = sum(distances)
-
     # Compute weighted sum or neighbor values
+    sum_of_weights = 0
     weighted_sum = 0
     for n, index in enumerate(neighbor_indices):
-        weighted_sum = weighted_sum + data[index] * distances[n]
+        sum_of_weights = sum_of_weights + (1/distances[n])
+        weighted_sum = weighted_sum + data[index] * (1/distances[n])
 
     # Compute interpolated value
     interpolated_value = weighted_sum / sum_of_weights

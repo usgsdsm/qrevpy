@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import poly1d
 from scipy.optimize.minpack import curve_fit
 from scipy.stats import t
 
@@ -122,7 +121,7 @@ class FitData(object):
                     zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.0, 0.01)
                     uc = np.tile(y[idxz[0]], zc.shape)
                 else:
-                    p = poly1d(avg_z[idxz[0:3]], y[idxz[0:3]])
+                    p = np.polyfit(avg_z[idxz[0:3]], y[idxz[0:3]], 1)
                     zc = np.arange(np.max(avg_z[idxz]) + 0.01, 1.0, 0.01)
                     # zc = zc.T
                     uc = zc * p[0] + p[1]

@@ -486,7 +486,7 @@ class WaterData(object):
                             t_mult = np.copy(t_matrix)
                             
                         # Get velocity data
-                        vel_beams = self.raw_vel_mps[:, :, ii]
+                        vel_beams = np.copy(self.raw_vel_mps[:, :, ii])
                         
                         # Apply transformation matrix for 4 beam solutions
                         temp_t = t_mult.dot(vel_beams)
@@ -524,7 +524,7 @@ class WaterData(object):
                             
                     else:
                         # Get velocity data
-                        vel_raw = np.squeeze(self.raw_vel_mps[:, :, ii])
+                        vel_raw = np.copy(np.squeeze(self.raw_vel_mps[:, :, ii]))
                         temp_thpr = np.array(hpr_matrix).dot(vel_raw[:3, :])
                         temp_thpr = np.vstack([temp_thpr, vel_raw[3, :]])
                         
@@ -696,38 +696,43 @@ class WaterData(object):
         ens_interp = self.interpolate_ens
         cells_interp = self.interpolate_cells
 
-        if ens_interp == 'None':
-            # Sets invalid data to nan with no interpolation
-            self.interpolate_ens_none()
-        elif ens_interp == 'ExpandedT':
-            # Sets interpolate to None as the interpolation is done in class QComp
-            self.interpolate_ens_next()
-        elif ens_interp == 'Hold9':
-            # Interpolates using SonTek's method of holding last valid for up to 9 samples
-            self.interpolate_ens_hold_last_9()
-        elif ens_interp == 'Hold':
-            # Interpolates by holding last valid indefinitely
-            self.interpolate_ens_hold_last()
-        elif ens_interp == 'Linear':
-            # Interpolates using linear interpolation
-            self.interpolate_ens_linear(transect)
-        elif ens_interp == 'TRDI':
-            # TRDI is applied in discharge
-            self.interpolate_ens_none()
-            self.interpolate_ens = ens_interp
+        if ens_interp == 'abba' or cells_interp == 'abba':
+            self.interpolate_ens = 'abba'
+            self.interpolate_cells = 'abba'
+            self.interpolate_abba(transect)
+        else:
+            if ens_interp == 'None':
+                # Sets invalid data to nan with no interpolation
+                self.interpolate_ens_none()
+            elif ens_interp == 'ExpandedT':
+                # Sets interpolate to None as the interpolation is done in class QComp
+                self.interpolate_ens_next()
+            elif ens_interp == 'Hold9':
+                # Interpolates using SonTek's method of holding last valid for up to 9 samples
+                self.interpolate_ens_hold_last_9()
+            elif ens_interp == 'Hold':
+                # Interpolates by holding last valid indefinitely
+                self.interpolate_ens_hold_last()
+            elif ens_interp == 'Linear':
+                # Interpolates using linear interpolation
+                self.interpolate_ens_linear(transect)
+            elif ens_interp == 'TRDI':
+                # TRDI is applied in discharge
+                self.interpolate_ens_none()
+                self.interpolate_ens = ens_interp
 
-        # Apply specified cell interpolation method
-        if cells_interp == 'None':
-            # Sets invalid data to nan with no interpolation
-            self.interpolate_cells_none()
-        elif cells_interp == 'TRDI':
-            # Use TRDI method to interpolate invalid interior cells
-            self.interpolate_cells_trdi(transect)
-        elif cells_interp == 'Linear':
-            # Uses linear interpolation to interpolate velocity for all
-            # invalid bins including those in invalid ensembles
-            # up to 9 samples
-            self.interpolate_cells_linear(transect)
+            # Apply specified cell interpolation method
+            if cells_interp == 'None':
+                # Sets invalid data to nan with no interpolation
+                self.interpolate_cells_none()
+            elif cells_interp == 'TRDI':
+                # Use TRDI method to interpolate invalid interior cells
+                self.interpolate_cells_trdi(transect)
+            elif cells_interp == 'Linear':
+                # Uses linear interpolation to interpolate velocity for all
+                # invalid bins including those in invalid ensembles
+                # up to 9 samples
+                self.interpolate_cells_linear(transect)
         
     def apply_filter(self, transect, beam=None, difference=None, difference_threshold=None, vertical=None,
                      vertical_threshold=None, other=None, excluded=None, snr=None, wt_depth=None):
@@ -1319,6 +1324,46 @@ class WaterData(object):
         self.excluded_dist_m = setting
         
         self.all_valid_data()
+
+    def interpolate_abba(self, transect):
+        """" Interpolates all data marked invalid using the abba interpolation algorithm.
+        """
+        # Set properties
+        self.interpolate_cells = 'abba'
+        self.interpolate_ens = 'abba'
+
+        # Get valid data based on all filters applied
+        valid = self.valid_data[0, :, :]
+
+        # Initialize processed velocity data variables
+        self.u_processed_mps = copy.deepcopy(self.u_mps)
+        self.v_processed_mps = copy.deepcopy(self.v_mps)
+
+        # Set invalid data to nan in processed velocity data variables
+        self.u_processed_mps[np.logical_not(valid)] = np.nan
+        self.v_processed_mps[np.logical_not(valid)] = np.nan
+
+        # Find cells with invalid data
+        rows, cols = np.where(np.abs(valid) == 0)
+
+        if len(rows) > 0:
+            # Data needed for interpolation
+            distance_along_shiptrack = transect.boat_vel.compute_boat_track(transect)['distance_m']
+            depth_selected = getattr(transect.depths, transect.depths.selected)
+
+            # Interpolate values for cells with 3-beam solutions from neighboring data
+            interpolated_data = abba_idw_interpolation(data_list=[self.u_processed_mps, self.v_processed_mps],
+                                                       valid_data=valid,
+                                                       cells_above_sl=self.cells_above_sl,
+                                                       y_centers=depth_selected.depth_cell_depth_m,
+                                                       y_cell_size=depth_selected.depth_cell_size_m,
+                                                       y_normalize=depth_selected.depth_processed_m,
+                                                       x_shiptrack=distance_along_shiptrack)
+
+            # Compute interpolated to measured ratios and apply filter criteria
+            for n in range(len(interpolated_data[0])):
+                self.u_processed_mps[interpolated_data[0][n][0]]=interpolated_data[0][n][1]
+                self.v_processed_mps[interpolated_data[1][n][0]] = interpolated_data[1][n][1]
 
     def interpolate_ens_next(self):
         """Applies data from the next valid ensemble for ensembles with invalid water velocities."""
