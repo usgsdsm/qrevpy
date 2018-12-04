@@ -305,7 +305,10 @@ def idw_interpolation(data, neighbor_indices, distances):
         weighted_sum = weighted_sum + data[index] * (1/distances[n])
 
     # Compute interpolated value
-    interpolated_value = weighted_sum / sum_of_weights
+    if sum_of_weights > 0:
+        interpolated_value = weighted_sum / sum_of_weights
+    else:
+        interpolated_value = np.nan
 
     return interpolated_value
 

@@ -172,7 +172,7 @@ class DepthData(object):
             self.avg_method = method
 
         # Get valid depths
-        depth = self.depth_beams_m
+        depth = np.copy(self.depth_beams_m)
         depth[self.valid_beams == False] = np.nan
 
         # Compute average depths
@@ -359,7 +359,7 @@ class DepthData(object):
             # Determine number of beams
             if len(self.depth_orig_m.shape) > 1:
                 n_beams, n_ensembles = self.depth_orig_m.shape[0], self.depth_orig_m.shape[1]
-                depth_raw = self.depth_orig_m
+                depth_raw = np.copy(self.depth_orig_m)
             else:
                 n_beams = 1
                 n_ensembles = self.depth_orig_m.shape[0]
@@ -402,7 +402,7 @@ class DepthData(object):
                         # Fit smooth
                         smooth_fit = smoothers_lowess.lowess(endog=depth_filtered[j, :],
                                                              exog=x,
-                                                             frac=10 / len(depth_filtered[j]),
+                                                             frac=15 / len(depth_filtered[j]),
                                                              return_sorted=False)
                         depth_smooth[j, :] = smooth_fit
                     else:

@@ -320,41 +320,41 @@ class BoatStructure(object):
                 # self.gga_vel = self.interpolate_composite()
                 self.gga_vel.apply_composite(u_comp, v_comp, comp_source)
                 self.gga_vel.interpolate_composite(transect)
-            else:
-                # Composite tracks off
+        else:
+            # Composite tracks off
 
-                # Use only interpolations for bt
-                if self.bt_vel is not None:
-                    self.bt_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
-                    comp_source = np.tile(np.nan, self.bt_vel.u_processed_mps.shape)
-                    comp_source[self.bt_vel.valid_data[0, :]] = 1
-                    comp_source[np.isnan(comp_source) and not np.isnan(self.bt_vel.u_processed_mps)] = 0
-                    comp_source[np.isnan(comp_source)] = -1
-                    self.bt_vel.apply_composite(u_composite=self.bt_vel.u_processed_mps,
-                                                v_composite=self.bt_vel.v_processed_mps,
-                                                composite_source=comp_source)
+            # Use only interpolations for bt
+            if self.bt_vel is not None:
+                self.bt_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                comp_source = np.tile(np.nan, self.bt_vel.u_processed_mps.shape)
+                comp_source[self.bt_vel.valid_data[0, :]] = 1
+                comp_source[np.isnan(comp_source) & (np.isnan(self.bt_vel.u_processed_mps) == False)] = 0
+                comp_source[np.isnan(comp_source)] = -1
+                self.bt_vel.apply_composite(u_composite=self.bt_vel.u_processed_mps,
+                                            v_composite=self.bt_vel.v_processed_mps,
+                                            composite_source=comp_source)
 
-                # Use only interpolations for gga
-                if self.gga_vel is not None:
-                    self.gga_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
-                    comp_source = np.tile(np.nan, self.gga_vel.u_processed_mps.shape)
-                    comp_source[self.gga_vel.valid_data[0, :]] = 2
-                    comp_source[np.isnan(comp_source) and not np.isnan(self.gga_vel.u_processed_mps)] = 0
-                    comp_source[np.isnan(comp_source)] = -1
-                    self.gga_vel.apply_composite(u_composite=self.gga_vel.u_processed_mps,
-                                                 v_composite=self.gga_vel.v_processed_mps,
-                                                 composite_source=comp_source)
+            # Use only interpolations for gga
+            if self.gga_vel is not None:
+                self.gga_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                comp_source = np.tile(np.nan, self.gga_vel.u_processed_mps.shape)
+                comp_source[self.gga_vel.valid_data[0, :]] = 2
+                comp_source[np.isnan(comp_source) & (np.isnan(self.gga_vel.u_processed_mps) == False)] = 0
+                comp_source[np.isnan(comp_source)] = -1
+                self.gga_vel.apply_composite(u_composite=self.gga_vel.u_processed_mps,
+                                             v_composite=self.gga_vel.v_processed_mps,
+                                             composite_source=comp_source)
 
-                # Use only interpolations for vtg
-                if self.vtg_vel is not None:
-                    self.vtg_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
-                    comp_source = np.tile(np.nan, self.vtg_vel.u_processed_mps.shape)
-                    comp_source[self.vtg_vel.valid_data[0, :]] = 3
-                    comp_source[np.isnan(comp_source) and not np.isnan(self.vtg_vel.u_processed_mps)] = 0
-                    comp_source[np.isnan(comp_source)] = -1
-                    self.vtg_vel.apply_composite(u_composite=self.vtg_vel.u_processed_mps,
-                                                 v_composite=self.vtg_vel.v_processed_mps,
-                                                 composite_source=comp_source)
+            # Use only interpolations for vtg
+            if self.vtg_vel is not None:
+                self.vtg_vel.apply_interpolation(transect=transect, interpolation_method='Linear')
+                comp_source = np.tile(np.nan, self.vtg_vel.u_processed_mps.shape)
+                comp_source[self.vtg_vel.valid_data[0, :]] = 3
+                comp_source[np.isnan(comp_source) & (np.isnan(self.vtg_vel.u_processed_mps) == False)] = 0
+                comp_source[np.isnan(comp_source)] = -1
+                self.vtg_vel.apply_composite(u_composite=self.vtg_vel.u_processed_mps,
+                                             v_composite=self.vtg_vel.v_processed_mps,
+                                             composite_source=comp_source)
 
 
     @staticmethod

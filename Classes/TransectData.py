@@ -180,43 +180,43 @@ class TransectData(object):
             if 'Proc_River_Depth_Source' in mmt_config:
                 if mmt_config['Proc_River_Depth_Source'] == 0:
                     self.depths.selected = 'bt_depths'
-                    self.depths.composite_depths(self, setting=False)
+                    self.depths.composite_depths(transect=self, setting='Off')
 
                 elif mmt_config['Proc_River_Depth_Source'] == 1:
                     if self.depths.ds_depths is not None:
                         self.depths.selected = 'ds_depths'
                     else:
                         self.depths.selected = 'bt_depths'
-                    self.depths.composite_depths(self, setting=False)
+                    self.depths.composite_depths(transect=self, setting='Off')
 
                 elif mmt_config['Proc_River_Depth_Source'] == 2:
                     if self.depths.vb_depths is not None:
                         self.depths.selected = 'vb_depths'
                     else:
                         self.depths.selected = 'bt_depths'
-                    self.depths.composite_depths(self, setting=False)
+                    self.depths.composite_depths(transect=self, setting='Off')
 
                 elif mmt_config['Proc_River_Depth_Source'] == 3:
                     if self.depths.vb_depths is None:
                         self.depths.selected = 'bt_depths'
-                        self.depths.composite_depths(self, setting=False)
+                        self.depths.composite_depths(transect=self, setting='Off')
                     else:
                         self.depths.selected = 'vb_depths'
-                        self.depths.composite_depths(self, setting=True)
+                        self.depths.composite_depths(transect=self, setting='On')
 
                 elif mmt_config['Proc_River_Depth_Source'] == 4:
                     if self.depths.bt_depths is not None:
                         self.depths.selected = 'bt_depths'
-                        self.depths.composite_depths(self, setting=True)
+                        self.depths.composite_depths(transect=self, setting='On')
                     elif self.depths.vb_depths is not None:
                         self.depths.selected = 'vb_depths'
-                        self.depths.composite_depths(self, setting=True)
+                        self.depths.composite_depths(transect=self, setting='On')
                     elif self.depths.ds_depths is not None:
                         self.depths.selected = 'ds_depths'
-                        self.depths.composite_depths(self, setting=True)
+                        self.depths.composite_depths(transect=self, setting='On')
                 else:
                     self.depths.selected = 'bt_depths'
-                    self.depths.composite_depths(self, setting=False)
+                    self.depths.composite_depths(transect=self, setting='Off')
             else:
                 if mmt_config['DS_Use_Process'] > 0:
                     if self.depths.ds_depths is not None:
@@ -225,7 +225,7 @@ class TransectData(object):
                         self.depths.selected = 'bt_depths'
                 else:
                     self.depths.selected = 'bt_depths'
-                self.depths.composite_depths(self, setting=False)
+                self.depths.composite_depths(transect=self, setting='Off')
                 
             # Create water_data object
             # ------------------------

@@ -582,8 +582,8 @@ class BoatData(object):
         self.processed_source[composite_source == 1] = 'BT'
         self.processed_source[composite_source == 2] = 'GGA'
         self.processed_source[composite_source == 3] = 'VTG'
-        self.processed_source[composite_source == 4] = 'INT'
-        self.processed_source[composite_source == 5] = 'INV'
+        self.processed_source[composite_source == 0] = 'INT'
+        self.processed_source[composite_source == -1] = 'INV'
 
     def sos_correction(self, transect, ratio):
         """Correct boat velocity for a change in speed of sound.
