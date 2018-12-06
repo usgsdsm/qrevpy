@@ -785,7 +785,7 @@ class WaterData(object):
             if wt_depth is not None:
                 self.filter_wt_depth(transect=transect, setting=wt_depth)
         else:
-            self.filter_beam(setting=self.beam_filter)
+            self.filter_beam(setting=self.beam_filter, transect=transect)
             self.filter_diff_vel(setting=self.d_filter, threshold=self.d_filter_threshold)
             self.filter_vert_vel(setting=self.w_filter, threshold=self.w_filter_threshold)
             self.filter_smooth(transect=transect, setting=self.smooth_filter)
