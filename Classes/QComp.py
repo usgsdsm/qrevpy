@@ -443,7 +443,7 @@ class QComp(object):
             n_ensembles = len(delta_t)
             top_value = np.tile([np.nan], n_ensembles)
             for j in range(n_ensembles):
-                if idx_top[j] != np.nan:
+                if idx_top[j] >= 0:
                     top_value[j] = delta_t[j] * component[idx_top[j], j] * top_rng[j]
 
         # Top 3-point extrapolation
@@ -458,7 +458,7 @@ class QComp(object):
 
             for j in range(n_ensembles):
 
-                if (n_bins[j] < 6) and (n_bins[j] > 0) and (idx_top[j] != 0):
+                if (n_bins[j] < 6) and (n_bins[j] > 0) and (idx_top[j] >= 0):
                     top_value[j] = delta_t[j] * component[idx_top[j], j] * top_rng[j]
 
                 # If 6 or more bins use 3-pt at top
@@ -508,8 +508,8 @@ class QComp(object):
 
         # Preallocate variables
         n_ensembles = valid_data.shape[1]
-        idx_top = np.tile(np.nan, valid_data.shape[1]).astype(int)
-        idx_top_3 = np.tile(np.nan, (3, valid_data.shape[1])).astype(int)
+        idx_top = np.tile(-1, valid_data.shape[1]).astype(int)
+        idx_top_3 = np.tile(-1, (3, valid_data.shape[1])).astype(int)
         top_rng = np.tile([np.nan], n_ensembles)
 
         # Loop through ensembles
@@ -634,7 +634,7 @@ class QComp(object):
             component_ok = np.isnan(component) == False
             use_ns = depth_ok * component_ok
             for j in range(len(delta_t)):
-                if idx_bot[j] != 0:
+                if idx_bot[j] >= 0:
                     use_ns[idx_bot[j], j] = 1
 
             # Create cross product and z arrays for the data to be used in
@@ -686,7 +686,7 @@ class QComp(object):
 
         # Preallocate variables
         n_ensembles = valid_data.shape[1]
-        idx_bot = np.zeros((valid_data.shape[1])).astype(int)
+        idx_bot = np.tile(-1,(valid_data.shape[1])).astype(int)
         bot_rng = np.tile([np.nan], n_ensembles)
 
         for n in range(n_ensembles):

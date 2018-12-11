@@ -2,8 +2,7 @@ import copy
 import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.common_functions import cosd, sind, cart2pol, iqr, pol2cart
-from MiscLibs.lowess import lowess
-
+from MiscLibs.robust_loess import rloess
 
 class BoatData(object):
     """Class to process and store boat velocity data.
@@ -168,10 +167,10 @@ class BoatData(object):
         if nav_ref_in == 'BT':
 
             # Boat velocities are referenced to ADCP not the streambed and thus must be reversed
-            self.u_mps = -1 * vel_in[0, :]
-            self.v_mps = -1 * vel_in[1, :]
-            self.w_mps = vel_in[2, :]
-            self.d_mps = vel_in[3, :]
+            self.u_mps = np.copy(-1 * vel_in[0, :])
+            self.v_mps = np.copy(-1 * vel_in[1, :])
+            self.w_mps = np.copy(vel_in[2, :])
+            self.d_mps = np.copy(vel_in[3, :])
 
             # Default filtering applied during initial construction of object
             self.d_filter = 'Off'
@@ -184,8 +183,8 @@ class BoatData(object):
         else:
 
             # GPS referenced boat velocity
-            self.u_mps = vel_in[0, :]
-            self.v_mps = vel_in[1, :]
+            self.u_mps = np.copy(vel_in[0, :])
+            self.v_mps = np.copy(vel_in[1, :])
             self.w_mps = np.nan
             self.d_mps = np.nan
 
@@ -334,7 +333,7 @@ class BoatData(object):
                             t_mult = np.copy(t_matrix)
 
                         # Get velocity data
-                        vel = np.squeeze(self.raw_vel_mps[:, ii])
+                        vel = np.copy(np.squeeze(self.raw_vel_mps[:, ii]))
 
                         # Check for invalid beams
                         idx_3_beam = np.where(np.isnan(vel))
@@ -475,7 +474,7 @@ class BoatData(object):
                     else:
 
                         # Get velocity data
-                        vel = np.squeeze(self.raw_vel_mps[:, ii])
+                        vel = np.copy(np.squeeze(self.raw_vel_mps[:, ii]))
 
                         # Apply heading pitch roll for inst and ship coordinate data
                         temp_thpr = np.array(hpr_matrix).dot(vel[:3])
@@ -689,8 +688,8 @@ class BoatData(object):
         ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
 
         # Apply smooth to each component
-        u_smooth = lowess(ens_time, u, 10/len(u))
-        v_smooth = lowess(ens_time, v, 10/len(v))
+        u_smooth = rloess(ens_time, u, 10)
+        v_smooth = rloess(ens_time, v, 10)
 
         # Save data in object
         self.u_processed_mps = u
@@ -814,7 +813,7 @@ class BoatData(object):
                 else:
                     self.filter_vert_vel(setting=vertical)
 
-            # Filter based on lowess smooth
+            # Filter based on robust loess smooth
             if other is not None:
                 self.filter_smooth(setting=other, transect=transect)
 
@@ -1173,7 +1172,7 @@ class BoatData(object):
             direct, speed = cart2pol(b_vele, b_veln)
 
             # Compute residuals from a robust Loess smooth
-            speed_smooth = lowess(ens_time, speed, filter_width / len(speed))
+            speed_smooth = rloess(ens_time, speed, filter_width)
             speed_res = speed - speed_smooth
 
             # Apply a trimmed standard deviation filter multiple times

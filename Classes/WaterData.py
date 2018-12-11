@@ -19,7 +19,7 @@ Modified DSM 2/8/2018
 import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.common_functions import cart2pol, pol2cart, iqr
-from MiscLibs.lowess import lowess
+from MiscLibs.robust_loess import rloess
 from Classes.BoatData import BoatData
 from scipy import interpolate
 import copy
@@ -1213,7 +1213,7 @@ class WaterData(object):
             _, speed = cart2pol(w_vele_avg, w_veln_avg)
             
             # Compute residuals from a robust Loess smooth
-            speed_smooth = lowess(ens_time, speed, filter_width / len(speed))
+            speed_smooth = rloess(ens_time, speed, filter_width)
             speed_res = speed - speed_smooth
             
             # Apply a trimmed standard deviation filter multiple times

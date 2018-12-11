@@ -1,8 +1,9 @@
 import copy
 import numpy as np
 from numpy.matlib import repmat
-from statsmodels.nonparametric import smoothers_lowess
+
 from MiscLibs.common_functions import iqr
+from MiscLibs.robust_loess import rloess
 
 
 class DepthData(object):
@@ -200,7 +201,7 @@ class DepthData(object):
             # No filter
             self.filter_none()
         elif filter_type == 'Smooth':
-            # Lowess smooth filter
+            # R smooth filter
             self.filter_smooth(transect)
         elif filter_type == 'TRDI':
             # TRDI filter for multiple returns
@@ -329,7 +330,7 @@ class DepthData(object):
         
     def filter_smooth(self, transect):
         """This filter uses a moving InterQuartile Range filter on residuals from a
-        Lowess smooth of the depths in each beam to identify unnatural spikes in the depth
+        Lsmooth of the depths in each beam to identify unnatural spikes in the depth
         measurements from each beam.  Each beam is filtered independently.  The filter
         criteria are set to be the maximum of the IQR filter, 5% of the measured depth, or 0.1 meter
 
@@ -363,7 +364,7 @@ class DepthData(object):
             else:
                 n_beams = 1
                 n_ensembles = self.depth_orig_m.shape[0]
-                depth_raw = np.reshape(self.depth_orig_m, (1, n_ensembles))
+                depth_raw = np.copy(np.reshape(self.depth_orig_m, (1, n_ensembles)))
 
             # Set bad depths to nan
             depth = repmat([np.nan], n_beams, n_ensembles)
@@ -379,16 +380,14 @@ class DepthData(object):
             # Create position array
             boat_vel_selected = getattr(transect.boat_vel, transect.boat_vel.selected)
             if boat_vel_selected is not None:
-                boat_vel_x = boat_vel_selected.u_processed_mps
-                boat_vel_y = boat_vel_selected.v_processed_mps
-                track_x = boat_vel_x * transect.date_time.ens_duration_sec
-                track_y = boat_vel_y * transect.date_time.ens_duration_sec
+                track_x = boat_vel_selected.u_processed_mps * transect.date_time.ens_duration_sec
+                track_y = boat_vel_selected.v_processed_mps * transect.date_time.ens_duration_sec
             else:
                 track_x = np.nan
                 track_y = np.nan
 
             idx = np.where(np.isnan(track_x))
-            if len(idx[0]) < 1:
+            if len(idx[0]) < 2:
                 x = np.nancumsum(np.sqrt(track_x**2+track_y**2))
             else:
                 x = np.nancumsum(transect.date_time.ens_duration_sec)
@@ -397,13 +396,10 @@ class DepthData(object):
             for j in range(n_beams):
                 # At least 50% of the data in a beam must be valid to apply the smooth
                 if np.nansum((np.isnan(depth_filtered[j]) == False) / depth_filtered.shape[0]) > .5:
-                    # Compute residuals based on lowess smooth
+                    # Compute residuals based on robust loess smooth
                     if len(x) > 1:
                         # Fit smooth
-                        smooth_fit = smoothers_lowess.lowess(endog=depth_filtered[j, :],
-                                                             exog=x,
-                                                             frac=15 / len(depth_filtered[j]),
-                                                             return_sorted=False)
+                        smooth_fit = rloess(x, depth_filtered[j, :], 20)
                         depth_smooth[j, :] = smooth_fit
                     else:
                         depth_smooth[j] = depth_filtered[j]
@@ -507,7 +503,7 @@ class DepthData(object):
                 self.depth_processed_m[n] = self.depth_processed_m[n-1]
 
     def interpolate_smooth(self):
-        """Apply interpolation based on the lowess smooth"""
+        """Apply interpolation based on the robust loess smooth"""
         
         self.interp_type = 'Smooth'
         
