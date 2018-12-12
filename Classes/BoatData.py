@@ -1145,7 +1145,7 @@ class BoatData(object):
 
         # Compute ens_time
         ens_time = np.nancumsum(transect.date_time.ens_duration_sec)
-
+        n_ensembles = len(ens_time)
         # Determine if smooth filter should be applied
         if self.smooth_filter == 'On':
              # Initialize arrays
@@ -1504,23 +1504,23 @@ class BoatData(object):
 
         filter_array = []
         # Compute standard deviation for each point
-        for i in range(n_pts):
+        for n in range(n_pts):
 
             # Sample selection for 1st point
-            if i == 0:
-                sample = my_data[1:1+half_width]
+            if n == 0:
+                sample = my_data[1:1 + half_width]
 
             # Sample selection at end of data set
-            elif i+half_width > n_pts:
-                sample = np.hstack((my_data[i-half_width:i-1], my_data[i+1:n_pts]))
+            elif n + half_width > n_pts:
+                sample = np.hstack((my_data[n - half_width - 1:n - 1], my_data[n:n_pts]))
 
             # Sample selection at beginning of data set
-            elif half_width >= i:
-                sample = np.hstack((my_data[:i-1], my_data[i+1:i+half_width]))
+            elif half_width >= n + 1:
+                sample = np.hstack((my_data[0:n], my_data[n + 1:n + half_width + 1]))
 
             # Samples selection in body of data set
             else:
-                sample = np.hstack((my_data[i-half_width:i-1], my_data[i+1:i+half_width]))
+                sample = np.hstack((my_data[n - half_width:n], my_data[n + 1:n + half_width + 1]))
 
             # Sort and ompute trummed standard deviation
             sample = np.sort(sample)

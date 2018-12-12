@@ -1354,7 +1354,7 @@ class WaterData(object):
             # Interpolate values for cells with 3-beam solutions from neighboring data
             interpolated_data = abba_idw_interpolation(data_list=[self.u_processed_mps, self.v_processed_mps],
                                                        valid_data=valid,
-                                                       cells_above_sl=self.cells_above_sl,
+                                                       cells_above_sl=self.valid_data[6, :, :],
                                                        y_centers=depth_selected.depth_cell_depth_m,
                                                        y_cell_size=depth_selected.depth_cell_size_m,
                                                        y_normalize=depth_selected.depth_processed_m,

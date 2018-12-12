@@ -116,7 +116,7 @@ def robust_weights(residuals, max_eps):
     """
 
     # Compute median using only valid data
-    s = np.max([1e8 * max_eps, np.nanmedian(np.abs(residuals))])
+    s = np.nanmax([1e8 * max_eps, np.nanmedian(np.abs(residuals))])
 
     # Compute weights
     weights = bisquare(residuals / (6 * s))
@@ -232,7 +232,7 @@ def rloess(x, y, span):
 
         # Compute residual and apply robust fit
         max_absy_eps = np.max(np.abs(y)) * eps
-        for cycle in range(cycles):
+        for cycle in range(cycles - 1):
             residuals = y - smoothed_values
 
             # Compute robust weights
@@ -244,7 +244,7 @@ def rloess(x, y, span):
                     smoothed_values[n] = smoothed_values[n-1]
                 else:
                     if not np.isnan(smoothed_values[n]):
-                        neighbors_idx = range(lower_bound[n], upper_bound[n] + 1)
+                        neighbors_idx = np.array(list(range(lower_bound[n], upper_bound[n] + 1)))
 
                         if any_nans:
                             neighbors_idx = neighbors_idx[np.logical_not(y_nan[neighbors_idx])]

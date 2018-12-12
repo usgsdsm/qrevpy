@@ -561,7 +561,8 @@ class Python2Matlab(object):
             transect.w_vel.valid_data = np.moveaxis(transect.w_vel.valid_data, 0, 2)
 
             # Adjust 2-D array to be row based
-            transect.adcp.configuration_commands = transect.adcp.configuration_commands.reshape(-1, 1)
+            if transect.adcp.configuration_commands is not None:
+                transect.adcp.configuration_commands = transect.adcp.configuration_commands.reshape(-1, 1)
 
             # Adjust serial time to Matlab convention
             time_correction = (60 * 60 * 24) + 719528.833334606

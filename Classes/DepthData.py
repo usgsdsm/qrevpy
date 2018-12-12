@@ -402,12 +402,12 @@ class DepthData(object):
                         smooth_fit = rloess(x, depth_filtered[j, :], 20)
                         depth_smooth[j, :] = smooth_fit
                     else:
-                        depth_smooth[j] = depth_filtered[j]
+                        depth_smooth[j, :] = depth_filtered[j, :]
                     
-                    depth_res[j] = depth[j] - depth_smooth[j]
+                    depth_res[j, :] = depth[j, :] - depth_smooth[j, :]
                     
                     # Run the filter multiple times
-                    for n in range(cycles):
+                    for n in range(cycles - 1):
                         
                         # Compute inner quartile range
                         fill_array = DepthData.run_iqr(half_width, depth_res[j, :])
@@ -680,15 +680,15 @@ class DepthData(object):
                 
             # Sample selection a end of data set
             elif n + half_width > npts:
-                sample = np.hstack([data[n - half_width:n], data[n + 1:npts]])
+                sample = np.hstack([data[n - half_width - 1:n - 1], data[n:npts]])
                 
             # Sample selection at beginning of data set
-            elif half_width >= n:
+            elif half_width >= n + 1:
                 sample = np.hstack([data[0:n], data[n + 1:n + half_width + 1]])
                 
             # Sample selection in body of data set
             else:
-                sample = np.hstack([data[n - half_width:n], data[n + 1:n + half_width]])
+                sample = np.hstack([data[n - half_width:n], data[n + 1:n + half_width + 1]])
                 
             iqr_array.append(iqr(sample))
             
