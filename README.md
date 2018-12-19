@@ -21,18 +21,13 @@
 ### Source Code
 
 QRevPy is currently being developed using Python 3.6.6 and makes use the following packages:
+
 numpy==1.15.2
-
 PyQt5==5.10.1
-
 pytest==3.8.2
-
 scipy==1.1.0
-
 statsmodels==0.9.0
-
 utm==0.4.2
-
 xmltodict==0.11.0
 
 
