@@ -133,7 +133,7 @@ def test_neighbors_small_cell_invalid():
     assert result[0]['target'] == (2, 1) and result[0]['neighbors'] == [(1, 1), (3, 1), (1, 0), (1, 2)]
 
 
-def test_nieghbors_large_cell_invalid():
+def test_neighbors_large_cell_invalid():
     """ Test finding neighbors for large cell size that is bordered with small cell sizes."""
     y_cell_size, y_cell_centers, y_normalize, valid_data, cells_above_sl, x, data = create_nonuniform_data()
     valid_data[1, 0] = False
