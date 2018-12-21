@@ -5,6 +5,8 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 import Panels.batch as batch
 from Classes.Measurement import Measurement
+import xlsxwriter
+import numpy as np
 
 
 class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
@@ -42,6 +44,7 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
         self.pb_save.clicked.connect(self.save_list)
         self.pb_process.clicked.connect(self.process)
 
+        self.summary = []
     def find_files(self):
         """Finds all files in the folder and subfolder matching the criteria and saves them to a list."""
 
@@ -117,7 +120,8 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
                 path, name = os.path.split(line)
                 self.txt_status.setText('Processing ' + name)
                 QtCore.QCoreApplication.processEvents()
-                Measurement(in_file=line, source='TRDI')
+                meas = Measurement(in_file=line, source='TRDI')
+                self.append_result(path=path, meas=meas)
 
         # Process QRev files
         elif lines[0].endswith('QRev.mat'):
@@ -125,7 +129,8 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
                 path, name = os.path.split(line)
                 self.txt_status.setText('Processing ' + name)
                 QtCore.QCoreApplication.processEvents()
-                Measurement(in_file=line, source='QRev')
+                meas = Measurement(in_file=line, source='QRev')
+                self.append_result(path=path, meas=meas)
 
         # Process SonTek files
         elif lines[0].endswith('r.mat'):
@@ -142,10 +147,48 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
                 folder_name = os.path.basename(path)
                 self.txt_status.setText('Processing ' + folder_name)
                 QtCore.QCoreApplication.processEvents()
-                Measurement(in_file=measurement_files, source='SonTek')
-
+                meas = Measurement(in_file=measurement_files, source='SonTek')
+                self.append_result(path=folder_name, meas=meas)
         self.txt_status.setText('Processing Complete')
+        self.save_excel(excel_name=self.QExcelFile.text())
 
+    def append_result(self, path, meas):
+        for n in range(len(meas.discharge)):
+            summary_list = [path,
+                            meas.transects[n].file_name,
+                            meas.transects[n].boat_vel.selected,
+                            meas.discharge[n].total_uncorrected,
+                            meas.discharge[n].total,
+                            meas.discharge[n].top,
+                            meas.discharge[n].middle,
+                            meas.discharge[n].bottom,
+                            meas.discharge[n].left,
+                            meas.discharge[n].right,
+                            meas.extrap_fit.sel_fit[-1].top_method,
+                            meas.extrap_fit.sel_fit[-1].bot_method,
+                            meas.extrap_fit.sel_fit[-1].exponent]
+            self.summary.append(summary_list)
+
+    def save_excel(self, excel_name):
+
+        workbook = xlsxwriter.Workbook(excel_name+'.xlsx')
+        worksheet = workbook.add_worksheet()
+        column_labels = ['Path', 'File', 'Ref', 'Q_unc', 'Q_corr', 'Q_top', 'Q_middle', 'Q_bottom', 'Q_left', 'Q_right',
+                         'Top_method', 'Bot_method', 'Exp']
+        # Write column labels
+        for col, label in enumerate(column_labels):
+            worksheet.write(0, col, label)
+
+        # Write data
+        for row, sublist in enumerate(self.summary):
+            for col, value in enumerate(sublist):
+                try:
+                    worksheet.write(row + 1, col, value)
+                except:
+                    worksheet.write(row + 1, col, '')
+
+        # Close workbook
+        workbook.close()
 
 app = QtWidgets.QApplication(sys.argv)
 window = BatchDialog()

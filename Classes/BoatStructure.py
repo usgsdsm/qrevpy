@@ -383,8 +383,9 @@ class BoatStructure(object):
             track_x = boat_vel_selected.u_processed_mps * transect.date_time.ens_duration_sec
             track_y = boat_vel_selected.v_processed_mps * transect.date_time.ens_duration_sec
         else:
-            track_x = np.nan
-            track_y = np.nan
+            boat_vel_selected = getattr(transect.boat_vel, 'bt_vel')
+            track_x = boat_vel_selected.u_processed_mps * transect.date_time.ens_duration_sec
+            track_y = boat_vel_selected.v_processed_mps * transect.date_time.ens_duration_sec
 
         # Check for any valid data
         idx = np.where(np.logical_not(np.isnan(track_x)))
