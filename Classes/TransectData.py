@@ -233,7 +233,7 @@ class TransectData(object):
             # Check for RiverRay and RiverPro data
             firmware = str(pd0_data.Inst.firm_ver[0])
             excluded_dist = 0
-            if (firmware[:2] == '56') and (np.nanmax(np.isnan(pd0_data.Sensor.vert_beam_status))):
+            if (firmware[:2] == '56') and (np.nanmax(pd0_data.Sensor.vert_beam_status) < 0.9):
                 excluded_dist = 0.25
                 
             if (firmware[:2] == '44') or (firmware[:2] == '56'):

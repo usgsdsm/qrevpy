@@ -5,11 +5,8 @@ import scipy.io as sio
 from Classes.TransectData import TransectData, allocate_transects
 from Classes.PreMeasurement import PreMeasurement
 from Classes.MovingBedTests import MovingBedTests
-# from Classes.MultiThread import MultiThread
 from Classes.QComp import QComp
 from Classes.MatSonTek import MatSonTek
-from Classes.CompassCal import CompassCal
-# from Classes.SystemTest import SystemTest
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 from Classes.Uncertainty import Uncertainty
@@ -56,18 +53,21 @@ class Measurement(object):
     """
 
     def __init__(self, in_file, source, proc_type='QRev', checked=False):
-        """Initialize instance variables and initiate processing of measurement data.
+        """Initialize instance variables and initiate processing of measurement
+        data.
 
         Parameters
         ----------
         in_file: str or list
-            String containing fullname of mmt file for TRDI data, QRev file for QRev data, or list of files for SonTek
+            String containing fullname of mmt file for TRDI data, QRev file for
+            QRev data, or list of files for SonTek
         source: str
             Source of data. TRDI, SonTek, QRev
         proc_type: str
             Type of processing. QRev, None, Original
         checked: bool
-            Boolean to determine if only checked transects should be load for TRDI data.
+            Boolean to determine if only checked transects should be load for
+            TRDI data.
         """
 
         self.station_name = None
@@ -90,6 +90,7 @@ class Measurement(object):
         # Load data from selected source
         if source == 'QRev':
             self.load_qrev_mat(fullname=in_file)
+
         else:
             if source == 'TRDI':
                 self.load_trdi(in_file, checked=checked)
@@ -111,7 +112,8 @@ class Measurement(object):
 
                 # Process moving-bed tests
                 if self.mb_tests is not None:
-                    self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests)
+                    self.mb_tests = MovingBedTests.auto_use_2_correct(
+                        moving_bed_tests=self.mb_tests)
 
                 # Save initial settings
                 self.initial_settings = self.current_settings()
@@ -130,10 +132,12 @@ class Measurement(object):
                     self.apply_settings(settings)
 
                 elif proc_type == 'Original':
-                    # Processing for original settings from manufacturer software
+                    # Processing for original settings
+                    # from manufacturer software
                     for transect in self.transects:
                         q = QComp()
-                        q.populate_data(data_in=transect, moving_bed_data=self.mb_tests)
+                        q.populate_data(data_in=transect,
+                                        moving_bed_data=self.mb_tests)
                         self.discharge.append(q)
                 self.uncertainty = Uncertainty()
                 self.uncertainty.compute_uncertainty(self)
@@ -164,7 +168,9 @@ class Measurement(object):
 
         # Create transect objects for  TRDI data
         # TODO refactor allocate_transects
-        self.transects = allocate_transects(mmt=mmt, transect_type=transect_type, checked=checked)
+        self.transects = allocate_transects(mmt=mmt,
+                                            transect_type=transect_type,
+                                            checked=checked)
 
         # Create object for pre-measurement tests
         if isinstance(mmt.qaqc, dict) or isinstance(mmt.mbt_transects, list):
@@ -176,13 +182,13 @@ class Measurement(object):
         for t in range(len(self.transects)):
             notes = getattr(mmt.transects[t], 'Notes')
             for note in notes:
-                note_text = ' File: ' + note['NoteFileNo'] + ' ' + note['NoteDate'] + ': ' + note['NoteText']
+                note_text = ' File: ' + note['NoteFileNo'] + ' ' \
+                            + note['NoteDate'] + ': ' + note['NoteText']
                 self.comments.append(note_text)
                 
         # Get external temperature
         self.ext_temp_chk['user'] = mmt.site_info['Water_Temperature']
         self.ext_temp_chk['units'] = 'C'
-
 
         # Initialize thresholds settings dictionary
         threshold_settings = dict()
@@ -191,7 +197,8 @@ class Measurement(object):
         threshold_settings['depth_settings'] = {}
 
         # Water track filter threshold settings
-        threshold_settings['wt_settings']['beam'] = self.set_num_beam_wt_threshold_trdi(mmt.transects[0])
+        threshold_settings['wt_settings']['beam'] = \
+            self.set_num_beam_wt_threshold_trdi(mmt.transects[0])
         threshold_settings['wt_settings']['difference'] = 'Manual'
         threshold_settings['wt_settings']['difference_threshold'] = \
             mmt.transects[0].active_config['Proc_WT_Error_Velocity_Threshold']
@@ -200,7 +207,8 @@ class Measurement(object):
             mmt.transects[0].active_config['Proc_WT_Up_Vel_Threshold']
 
         # Bottom track filter threshold settings
-        threshold_settings['bt_settings']['beam'] = self.set_num_beam_bt_threshold_trdi(mmt.transects[0])
+        threshold_settings['bt_settings']['beam'] = \
+            self.set_num_beam_bt_threshold_trdi(mmt.transects[0])
         threshold_settings['bt_settings']['difference'] = 'Manual'
         threshold_settings['bt_settings']['difference_threshold'] = \
             mmt.transects[0].active_config['Proc_BT_Error_Vel_Threshold']
@@ -209,58 +217,11 @@ class Measurement(object):
             mmt.transects[0].active_config['Proc_BT_Up_Vel_Threshold']
 
         # Depth filter and averaging settings
-        threshold_settings['depth_settings']['depth_weighting'] = self.set_depth_weighting_trdi(mmt.transects[0])
+        threshold_settings['depth_settings']['depth_weighting'] = \
+            self.set_depth_weighting_trdi(mmt.transects[0])
         threshold_settings['depth_settings']['depth_valid_method'] = 'TRDI'
-        threshold_settings['depth_settings']['depth_screening'] = self.set_depth_screening_trdi(mmt.transects[0])
-
-        # # Force no multi-threading until code is completely debugged.
-        # multi_threaded = False
-        #
-        # # Multi-thread code not debugged
-        # if multi_threaded:
-        #     transect_threads = []
-        #
-        #     def process_transect(mt_mmt, mt_transect, idx):
-        #         mt_transect.change_coord_sys('Earth')
-        #
-        #         if 'Reference' in mt_mmt.site_info.keys():
-        #             mt_transect.change_nav_reference(0, mt_mmt.site_info['Reference'])
-        #
-        #         self.thresholds_TRDI(mt_transect, threshold_settings)
-        #
-        #         mt_transect.boat_interpolations(0, 'BT', 'None')
-        #
-        #         if mt_transect.gps is not None:
-        #             mt_transect.boat_interpolations(0, 'GPS', 'HoldLast')
-        #
-        #         mt_transect.update_water()
-        #
-        #         mt_transect.wt_filters(['wt_depth', 'On'])
-        #         mt_transect.wt_interpolations(['Ensembles', 'None'])
-        #
-        #         mmt_sos_method = mt_mmt.transects[idx].active_config['Proc_Speed_of_Sound_Correction']
-        #         if mmt_sos_method == 1:
-        #             self.change_SOS(idx, 'salinity', 'user')
-        #             self.change_SOS(idx, 'sosSrc',' Computed', [])
-        #         elif mmt_sos_method == 2:
-        #             self.change_SOS(idx, 'sosSrc', 'user',
-        #                             mt_mmt.transects[idx].active_config['Proc_Fixed_Speed_of_Sound'])
-        #
-        #     for x in range(len(self.transects)):
-        #         p_thread = MultiThread(thread_id=x,
-        #                                function=process_transect,
-        #                                 args={'mt_mmt': mmt,
-        #                                       'mt_transect': self.transects[x],
-        #                                       'idx': x,
-        #                                       })
-        #         p_thread.start()
-        #         transect_threads.append(p_thread)
-        #
-        #     for x in transect_threads:
-        #         x.join()
-        #
-        #
-        # else:
+        threshold_settings['depth_settings']['depth_screening'] = \
+            self.set_depth_screening_trdi(mmt.transects[0])
 
         # Determine reference used in WR2 if available
         if 'Reference' in mmt.site_info.keys():
@@ -280,9 +241,13 @@ class Measurement(object):
             self.thresholds_trdi(transect, threshold_settings)
 
             # Apply boat interpolations
-            transect.boat_interpolations(update=False, target='BT', method='None')
+            transect.boat_interpolations(update=False,
+                                         target='BT',
+                                         method='None')
             if transect.gps is not None:
-                transect.boat_interpolations(update=False, target='GPS', method='HoldLast')
+                transect.boat_interpolations(update=False,
+                                             target='GPS',
+                                             method='HoldLast')
 
             # Update water data for changes in boat velocity
             transect.update_water()
@@ -291,18 +256,24 @@ class Measurement(object):
             transect.w_vel.apply_filter(transect=transect, wt_depth=True)
 
             # Interpolate water data
-            transect.w_vel.apply_interpolation(transect=transect, target='Ensembles', interp_type='None')
+            transect.w_vel.apply_interpolation(transect=transect,
+                                               ens_interp='None',
+                                               cells_interp='None')
 
             # Apply speed of sound computations as required
-            mmt_sos_method = mmt.transects[transect_idx].active_config['Proc_Speed_of_Sound_Correction']
+            mmt_sos_method = mmt.transects[transect_idx].active_config[
+                'Proc_Speed_of_Sound_Correction']
 
             # Speed of sound computed based on user supplied values
             if mmt_sos_method == 1:
                 transect.change_sos(parameter='salinity')
             elif mmt_sos_method == 2:
                 # Speed of sound set by user
-                speed = mmt.transects[transect_idx].active_config['Proc_Fixed_Speed_of_Sound']
-                transect.change_sos(parameter='sosSrc', selected='user', speed=speed)
+                speed = mmt.transects[transect_idx].active_config[
+                    'Proc_Fixed_Speed_of_Sound']
+                transect.change_sos(parameter='sosSrc',
+                                    selected='user',
+                                    speed=speed)
 
     def qaqc_trdi(self, mmt):
         """Processes qaqc test, calibrations, and evaluations
@@ -320,8 +291,6 @@ class Measurement(object):
                 p_m.populate_data(mmt.qaqc['RG_Test_TimeStamp'][n],
                                   mmt.qaqc['RG_Test'][n], 'TST')
                 self.system_test.append(p_m)
-        # else:
-        #     self.system_test.append(PreMeasurement())
 
         # Compass calibration
         if 'Compass_Calibration' in mmt.qaqc:
@@ -330,8 +299,6 @@ class Measurement(object):
                 cc.populate_data(mmt.qaqc['Compass_Calibration_TimeStamp'][n],
                                  mmt.qaqc['Compass_Calibration'][n], 'TCC')
                 self.compass_cal.append(cc)
-        # else:
-        #     self.compass_cal.append(PreMeasurement())
             
         # Compass evaluation
         if 'Compass_Evaluation' in mmt.qaqc:
@@ -340,8 +307,6 @@ class Measurement(object):
                 ce.populate_data(mmt.qaqc['Compass_Evaluation_TimeStamp'][n],
                                  mmt.qaqc['Compass_Evaluation'][n], 'TCC')
                 self.compass_eval.append(ce)
-        # else:
-        #     self.compass_eval.append(PreMeasurement())
 
         # Check for moving-bed tests
         if len(mmt.mbt_transects) > 0:
@@ -356,13 +321,14 @@ class Measurement(object):
 
                     # Create moving-bed test object
                     mb_test = MovingBedTests()
-                    mb_test.populate_data('TRDI', transects[n], mmt.mbt_transects[n].moving_bed_type)
+                    mb_test.populate_data('TRDI', transects[n],
+                                          mmt.mbt_transects[n].moving_bed_type)
                     
                     # Save notes from mmt files in comments
                     notes = getattr(mmt.mbt_transects[n], 'Notes')
                     for note in notes:
-                        note_text = ' File: ' + note['NoteFileNo'] + ' ' + note['NoteDate'] + ': ' + note[
-                            'NoteText']
+                        note_text = ' File: ' + note['NoteFileNo'] + ' ' \
+                                    + note['NoteDate'] + ': ' + note['NoteText']
                         self.comments.append(note_text)
 
                     self.mb_tests.append(mb_test)
@@ -383,14 +349,19 @@ class Measurement(object):
         transect.w_vel.apply_filter(transect, **settings['wt_settings'])
 
         # Apply BT settings
-        transect.boat_vel.bt_vel.apply_filter(transect, **settings['bt_settings'])
+        transect.boat_vel.bt_vel.apply_filter(transect, **settings[
+            'bt_settings'])
 
         # Apply depth settings
-        transect.depths.bt_depths.valid_data_method = settings['depth_settings']['depth_valid_method']
-        transect.depths.depth_filter(transect=transect, filter_method=settings['depth_settings']['depth_screening'])
-        transect.depths.bt_depths.compute_avg_bt_depth(method=settings['depth_settings']['depth_weighting'])
+        transect.depths.bt_depths.valid_data_method = settings[
+            'depth_settings']['depth_valid_method']
+        transect.depths.depth_filter(transect=transect, filter_method=settings[
+            'depth_settings']['depth_screening'])
+        transect.depths.bt_depths.compute_avg_bt_depth(method=settings[
+            'depth_settings']['depth_weighting'])
 
-        # Apply composite depths as per setting stored in transect from TransectData
+        # Apply composite depths as per setting stored in transect
+        # from TransectData
         transect.depths.composite_depths(transect)
 
     def load_sontek(self, fullnames):
@@ -399,7 +370,8 @@ class Measurement(object):
         Parameters
         ----------
         fullnames: list
-            File names including path for all discharge transects converted to Matlab files.
+            File names including path for all discharge transects converted
+            to Matlab files.
         """
 
         # Initialize variables
@@ -426,42 +398,58 @@ class Measurement(object):
 
         for transect in self.transects:
             transect.change_coord_sys(new_coord_sys='Earth')
-            transect.change_nav_reference(update=False, new_nav_ref=self.transects[0].boat_vel.selected)
-            transect.boat_interpolations(update=False, target='BT', method='Hold9')
-            transect.boat_interpolations(update=False, target='GPS', method='None')
+            transect.change_nav_reference(
+                update=False,
+                new_nav_ref=self.transects[0].boat_vel.selected)
+            transect.boat_interpolations(update=False,
+                                         target='BT',
+                                         method='Hold9')
+            transect.boat_interpolations(update=False,
+                                         target='GPS',
+                                         method='None')
             transect.apply_averaging_method(setting='Simple')
-            transect.process_depths(update=False, interpolation_method='HoldLast')
+            transect.process_depths(update=False,
+                                    interpolation_method='HoldLast')
             transect.update_water()
+
             # Filter water data
             transect.w_vel.apply_filter(transect=transect, wt_depth=True)
 
             # Interpolate water data
-            transect.w_vel.apply_interpolation(transect=transect, target='Ensembles', interp_type='None')
-            transect.w_vel.apply_interpolation(transect=transect, target='Cells', interp_type='TRDI')
+            transect.w_vel.apply_interpolation(transect=transect,
+                                               ens_interp='None',
+                                               cells_interp='None')
+            transect.w_vel.apply_interpolation(transect=transect,
+                                               ens_interp='None',
+                                               cells_interp='TRDI')
 
     def qaqc_sontek(self, pathname):
-        """Reads and stores system tests, compass calibrations, and moving-bed tests.
+        """Reads and stores system tests, compass calibrations,
+        and moving-bed tests.
 
         Parameters
         ----------
         pathname: str
             Path to discharge transect files.
         """
-        # TODO eliminate CompassCal and SystemTest, use PreMeasurement
+
         # Compass Calibration
         compass_cal_folder = os.path.join(pathname, 'CompassCal')
         if os.path.isdir(compass_cal_folder):
             compass_cal_files = []
             for file in os.listdir(compass_cal_folder):
+
                 # G3 compasses
                 if file.endswith('.ccal'):
                     compass_cal_files.append(file)
                     time_stamp = file.split('_')
                     time_stamp = time_stamp[0] + '_' + time_stamp[1]
+
                 # G2 compasses
                 elif file.endswith('.txt'):
                     compass_cal_files.append(file)
                     time_stamp = file.split('l')[1].split('.')[0]
+
             for file in compass_cal_files:
                 with open(os.path.join(compass_cal_folder, file)) as f:
                     cal_data = f.read()
@@ -480,7 +468,9 @@ class Measurement(object):
                         test_data = test_data.replace('\x00', '')
                     time_stamp = file[10:24]
                     sys_test = PreMeasurement()
-                    sys_test.populate_data(time_stamp=time_stamp, data_in=test_data, data_type='SST')
+                    sys_test.populate_data(time_stamp=time_stamp,
+                                           data_in=test_data,
+                                           data_type='SST')
                     self.system_test.append(sys_test)
 
         # Moving-bed tests
@@ -504,17 +494,20 @@ class Measurement(object):
                 if file.lower().startswith('loop'):
                     self.mb_tests.append(MovingBedTests())
                     self.mb_tests[-1].populate_data(source='SonTek',
-                                                    file=os.path.join(pathname, file),
+                                                    file=os.path.join(pathname,
+                                                                      file),
                                                     test_type='Loop')
                 # Process Stationary test
                 elif file.lower().startswith('smba'):
                     self.mb_tests.append(MovingBedTests())
                     self.mb_tests[-1].populate_data(source='SonTek',
-                                                    file=os.path.join(pathname, file),
+                                                    file=os.path.join(pathname,
+                                                                      file),
                                                     test_type='Stationary')
 
     def load_qrev_mat(self, fullname):
-        """Loads and coordinates the mapping of existing QRev Matlab files into Python instance variables.
+        """Loads and coordinates the mapping of existing QRev Matlab files
+        into Python instance variables.
 
         Parameters
         ----------
@@ -523,10 +516,14 @@ class Measurement(object):
         """
 
         # Read Matlab file and extract meas_struct
-        mat_data = sio.loadmat(fullname, struct_as_record=False, squeeze_me=True)
+        mat_data = sio.loadmat(fullname,
+                               struct_as_record=False,
+                               squeeze_me=True)
+
         meas_struct = mat_data['meas_struct']
 
-        # Assign data from meas_struct to associated instance variables in Measurement and associated objects.
+        # Assign data from meas_struct to associated instance variables
+        # in Measurement and associated objects.
         self.station_name = meas_struct.stationName
         self.station_number = meas_struct.stationNumber
         self.processing = meas_struct.processing
@@ -851,11 +848,8 @@ class Measurement(object):
 
             # Water track interpolations
             transect.w_vel.apply_interpolation(transect=transect,
-                                               target='Ensembles',
-                                               interp_type=settings['WTEnsInterpolation'])
-            transect.w_vel.apply_interpolation(transect=transect,
-                                               target='Cells',
-                                               interp_type=settings['WTCellInterpolation'])
+                                               ens_interp=settings['WTEnsInterpolation'],
+                                               cells_interp=settings['WTCellInterpolation'])
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
         self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)

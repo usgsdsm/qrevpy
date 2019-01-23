@@ -127,6 +127,9 @@ class InstrumentData(object):
                 self.configuration_commands = np.array(['Fixed'], dtype=object)
                 self.configuration_commands = np.append(self.configuration_commands,
                                                         mmt_config['Fixed_Commands_RiverPro'])
+            else:
+                self.configuration_commands = np.array(['Fixed'], dtype=object)
+                self.configuration_commands = np.append(self.configuration_commands, ' ')
 
         if 'Wizard_Commands' in mmt_config.keys():
             self.configuration_commands = np.append(self.configuration_commands, ['Wizard'])

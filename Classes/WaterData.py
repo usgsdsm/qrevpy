@@ -1,21 +1,3 @@
-"""
-Created on Jul 31, 2017
-
-@author: gpetrochenkov
-
-Modified DSM 1/29/2018
-    - Added docstrings
-    - Cleaned up PEP8
-    - Removed need for kargs in initial methods
-    - Eliminated private variables and methods
-    - Moved zero velocity check for SonTek data to TransectData class
-Modified DSM 2/8/2018
-    - Cleaned up PEP8
-    - Finished coding missing methods
-    - Removed need for kargs in all methods
-    - Added code to do linear interpolation
-    - Removed use of cosd sind for clarity
-"""
 import numpy as np
 from numpy.matlib import repmat
 from MiscLibs.common_functions import cart2pol, pol2cart, iqr
@@ -33,12 +15,12 @@ class WaterData(object):
     ----------
     Original data provided to the class:
         raw_vel_mps: np.array(float)
-            Contains the raw unfiltered velocity data in m/s.  1st index 1-4 are beams 1,2,3,4 if beam or
+            Contains the raw unfiltered velocity in m/s.  1st index 1-4 are beams 1,2,3,4 if beam or
             u,v,w,d if otherwise.
         frequency: np.array(float)
             Defines ADCP frequency used for velocity measurement, in kHz.
         orig_coord_sys: str
-            Defines the original raw data velocity coordinate system "Beam", "Inst", "Ship", "Earth".
+            Defines the original raw velocity coordinate system "Beam", "Inst", "Ship", "Earth".
         orig_nav_ref: str
             Defines the original taw data naviagation reference: "None", "BT", "GGA", "VTG".
         corr: np.array(float)
@@ -50,9 +32,9 @@ class WaterData(object):
         water_mode: str
             WaterMode for TRDI or 'Variable' for SonTek.
         blanking_distance_m: float
-            Distance below transducer where data is marked invalid dur to potential ringing interference.
+            Distance below transducer where data are marked invalid due to potential ringing.
         cells_above_sl: np.array(bool)
-            Logical array of depth cells above the sidelobe cutoff based on selected depth reference.
+            Logical array of depth cells above sidelobe cutoff based on selected depth reference.
         cells_above_sl_bt: np.array(bool)
             Logical array of depth cells above the sidelobe cutoff based on BT
         sl_lag_effect_m: np.array(float)
@@ -68,9 +50,9 @@ class WaterData(object):
         v_mps: np.array(float)
             Horizontal velocity in y-direction, earth coord, nav referenced, in m/s.
         u_processed_mps: np.array(float)
-            Horizontal velocity in x-direction, earth coord, nav referenced, filtered, and interpolated.
+            Horizontal velocity in x-direction, earth coord, nav ref, filtered, and interpolated.
         v_processed_mps: np.array(float)
-            Horizontal veloctiy in y-direction, earth coord, nav referenced, filtered, and interpolated.
+            Horizontal veloctiy in y-direction, earth coord, nav ref, filtered, and interpolated.
         w_mps: np.array(float)
             Vertical velocity (+ up), in m/s.
         d_mps: np.array(float)
@@ -138,71 +120,59 @@ class WaterData(object):
 
     def __init__(self):
         # Data input to this class
-        self.raw_vel_mps = None  # Contains the raw unfiltered velocity data in m/s.  Rows 1-4 are
-                                    # beams 1,2,3,4 if beam or u,v,w,d if otherwise
-        self.frequency = None  # Defines ADCP frequency used for velocity measurement
-        self.orig_coord_sys = None  # Defines the original velocity coordinate system Beam, Inst, Ship, Earth
-        self.orig_nav_ref = None  # Defines the original taw data naviagation reference: None, BT, GGA, VTG
-        self.corr = None  # Correlation values for WT, if available
-        self.rssi = None  # Returned acoustic signal strength
-        self.rssi_units = None  # Units for returned acoustic signal strength: Counts, dB, SNR
-        self.water_mode = None  # WaterMode for TRDI or 'Variable' for SonTek
-        self.blanking_distance_m = None  # Distance below transducer where data is marked invalid due to potential
-                                         # ringing interference
-        self.cells_above_sl = None  # Bool array of depth cells above the sidelobe cutoff based
-        self.cells_above_sl_bt = None  # Bool array of depth cells above the sidelobe cutoff based on BT
-        self.sl_lag_effect_m = None  # Side lobe distance due to lag and transmit length
+        self.raw_vel_mps = None
+        self.frequency = None
+        self.orig_coord_sys = None
+        self.orig_nav_ref = None
+        self.corr = None
+        self.rssi = None
+        self.rssi_units = None
+        self.water_mode = None
+        self.blanking_distance_m = None
+        self.cells_above_sl = None
+        self.cells_above_sl_bt = None
+        self.sl_lag_effect_m = None
         
         # Data computed in this class
-        self.u_earth_no_ref_mps = None  # Horizontal velocity in x-direction with no boat reference applied, in m/s
-        self.v_earth_no_ref_mps = None  # Horizontal velocity in y-direction with no boat reference applied, in m/s
-        self.u_mps = None  # Horizontal velocity in x-direction, earth coord, nav referenced, in m/s
-        self.v_mps = None  # Horizontal velocity in y-direction, earth coord, nav referneced, in m/s
-        self.u_processed_mps = None  # Horizontal velocity in x-direction, earth coord, nav referenced,
-                                     # filtered, and interpolated
-        self.v_processed_mps = None  # Horizontal veloctiy in y-direction, earth coord, nav referenced,
-                                     # filtered, and interpolated
-        self.w_mps = None  # Vertical velocity (+ up), in m/s
-        self.d_mps = None  # Difference in vertical velocities compute from opposing beam pairs, in m/s
-        self.invalid_index = None  # Index of ensembles with no valid raw velocity data
-        self.num_invalid = []  # Estimated number of depth cells in ensembles with no valid raw velocity data
-        self.valid_data = None   # 3-D logical array of valid data
-                                    # Dim3 0 - composite
-                                    # Dim3 1 - original, cells above side lobe
-                                    # Dim3 2 - dfilter
-                                    # Dim3 3 - wfilter
-                                    # Dim3 4 - smoothFilter
-                                    # Dim3 5 - beamFilter
-                                    # Dim3 6 - excluded
-                                    # Dim3 7 - snrFilter
-                                    # Dim3 8 - validDepthFilter
+        self.u_earth_no_ref_mps = None
+        self.v_earth_no_ref_mps = None
+        self.u_mps = None
+        self.v_mps = None
+        self.u_processed_mps = None
+        self.v_processed_mps = None
+        self.w_mps = None
+        self.d_mps = None
+        self.invalid_index = None
+        self.num_invalid = []
+        self.valid_data = None
                                 
         # Settings
-        self.beam_filter = None  # 3 for 3-beam solutions, 4 for 4-beam solutions
-        self.d_filter = None  # Difference velocity filter "On", "Off"
-        self.d_filter_threshold = None  # Threshold for difference velocity filter
-        self.w_filter = None  # Vertical velocity filter "On", "Off"
-        self.w_filter_threshold = None  # Threshold for vertical velocity filter
-        self.excluded_dist_m = None  # Distance below transducer for which data are ecluded or marked invalid
-        self.smooth_filter = None  # Filter based on smoothing function
-        self.smooth_speed = None  # Smoothed boar speed
-        self.smooth_upper_limit = None  # Smooth function upper limit of window
-        self.smooth_lower_limit = None  # Smooth function lower limit of window
-        self.snr_filter = 'Off'  # SNR filter for SonTek data
-        self.snr_rng = []  # Range of beam averaged SNR
-        self.wt_depth_filter = None  # WT in ensembles with invalid WT are marked invalid
-        self.interpolate_ens = None  # Type of interpolation: "None", "TRDI", "Linear"
-        self.interpolate_cells = None  # Type of cell interpolation: "None", "TRDI", "Linear"
-        self.coord_sys = None  # Defines the velocity coordinate system "Beam", "Inst", "Ship", "Earth"
-        self.nav_ref = None  # Defines the navigation reference: "None", "BT", "GGA", "VTG"
-        self.sl_cutoff_percent = None  # Percent cutoff defined by cos(angle)
-        self.sl_cutoff_number = None  # User specified number of cells to cutoff above slcutoff
-        self.sl_cutoff_type = None  # "Percent" or "Number"
-        
+        self.beam_filter = None
+        self.d_filter = None
+        self.d_filter_threshold = None
+        self.w_filter = None
+        self.w_filter_threshold = None
+        self.excluded_dist_m = None
+        self.smooth_filter = None
+        self.smooth_speed = None
+        self.smooth_upper_limit = None
+        self.smooth_lower_limit = None
+        self.snr_filter = 'Off'
+        self.snr_rng = []
+        self.wt_depth_filter = None
+        self.interpolate_ens = None
+        self.interpolate_cells = None
+        self.coord_sys = None
+        self.nav_ref = None
+        self.sl_cutoff_percent = None
+        self.sl_cutoff_number = None
+        self.sl_cutoff_type = None
+
     def populate_data(self, vel_in, freq_in, coord_sys_in, nav_ref_in, rssi_in, rssi_units_in,
                       excluded_dist_in, cells_above_sl_in, sl_cutoff_per_in, sl_cutoff_num_in,
                       sl_cutoff_type_in, sl_lag_effect_in, wm_in, blank_in, corr_in=None,
-                      surface_vel_in=None, surface_rssi_in=None, surface_corr_in=None, surface_num_cells_in=0):
+                      surface_vel_in=None, surface_rssi_in=None, surface_corr_in=None,
+                      surface_num_cells_in=0):
         
         """Populates the variables with input, computed, or default values.
 
@@ -214,7 +184,7 @@ class WaterData(object):
         freq_in: np.array(float)
             Defines ADCP frequency used for velocity measurement.
         coord_sys_in: str
-            Defines the original raw data velcocity coordinate system "Beam", "Inst", "Ship", "Earth".
+            Defines the original raw  velocity coordinate system "Beam", "Inst", "Ship", "Earth".
         nav_ref_in: str
             Defines the original raw data navigation reference: "None", "BT", "GGA", "VTG".
         rssi_in: np.array(float)
@@ -279,11 +249,14 @@ class WaterData(object):
                 self.corr[:, :max_surf_cells, :] = surface_corr_in[:, :max_surf_cells, :]
 
             for i_ens in range(num_ens):
-                self.raw_vel_mps[:, int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
+                self.raw_vel_mps[:,
+                                 int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
                                  + num_reg_cells, i_ens] = vel_in[:, :num_reg_cells, i_ens]
-                self.rssi[:, int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
+                self.rssi[:,
+                          int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
                           + num_reg_cells, i_ens] = rssi_in[:, :num_reg_cells, i_ens]
-                self.corr[:, int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
+                self.corr[:,
+                          int(surface_num_cells_in[i_ens]):int(surface_num_cells_in[i_ens])
                           + num_reg_cells, i_ens] = corr_in[:, :num_reg_cells, i_ens]
         else:
             # No surface cells
@@ -610,8 +583,12 @@ class WaterData(object):
             self.v_mps = np.add(self.v_earth_no_ref_mps, boat_select.v_processed_mps)
             self.nav_ref = boat_select.nav_ref
         else:
-            self.u_mps = repmat([np.nan], self.u_earth_no_ref_mps.shape[0], self.u_earth_no_ref_mps.shape[1])
-            self.v_mps = repmat([np.nan], self.v_earth_no_ref_mps.shape[0], self.v_earth_no_ref_mps.shape[1])
+            self.u_mps = repmat([np.nan],
+                                self.u_earth_no_ref_mps.shape[0],
+                                self.u_earth_no_ref_mps.shape[1])
+            self.v_mps = repmat([np.nan],
+                                self.v_earth_no_ref_mps.shape[0],
+                                self.v_earth_no_ref_mps.shape[1])
             if boat_vel.selected == 'bt_vel':
                 self.nav_ref = 'BT'
             elif boat_vel.selected == 'gga_vel':
@@ -630,7 +607,8 @@ class WaterData(object):
         self.all_valid_data()
         
     def change_heading(self, boat_vel, heading_chng):
-        """Adjusts the velocity vectors for a change in heading due change in magnetic variation or heading offset.
+        """Adjusts the velocity vectors for a change in heading due change in
+        magnetic variation or heading offset.
 
         Parameters
         ----------
@@ -663,23 +641,24 @@ class WaterData(object):
         u_nr = self.u_earth_no_ref_mps
         v_nr = self.v_earth_no_ref_mps
         direction, mag = cart2pol(u_nr, v_nr)
-        u_nr_rotated, v_nr_rotated = pol2cart(direction - np.deg2rad(repmat(heading, len(mag), 1)), mag)
+        u_nr_rotated, v_nr_rotated = pol2cart(direction
+                                              - np.deg2rad(repmat(heading, len(mag), 1)), mag)
         self.u_earth_no_ref_mps = u_nr_rotated
         self.v_earth_no_ref_mps = v_nr_rotated
         # TODO need to check why this set nav reference for boat
         self.set_nav_reference(boat_vel)
             
-    def apply_interpolation(self, transect, target=None, interp_type=None):
+    def apply_interpolation(self, transect, ens_interp='None', cells_interp='None'):
         """Coordinates the application of water velocity interpolation.
 
         Parameters
         ----------
         transect: TransectData
             Object of TransectData
-        target: str
-            Specifies if interpolation is for Ensembles or Cells
-        interp_type: str
-            Specifies type of interpolation
+        ens_interp: str
+            Specifies type of interpolation for ensembles
+        cells_interp: str
+            Specifies type of interpolation for cells
         """
 
         self.u_processed_mps = np.tile([np.nan], self.u_mps.shape)
@@ -688,13 +667,15 @@ class WaterData(object):
         self.v_processed_mps[self.valid_data[0]] = self.v_mps[self.valid_data[0]]
         
         # Determine interpolation methods to apply
-        if target == 'Ensembles':
-            self.interpolate_ens = interp_type
-        elif target == 'Cells':
-            self.interpolate_cells = interp_type
+        if ens_interp == 'None':
+            ens_interp = self.interpolate_ens
+        else:
+            self.interpolate_ens = ens_interp
 
-        ens_interp = self.interpolate_ens
-        cells_interp = self.interpolate_cells
+        if cells_interp == 'None':
+            cells_interp = self.interpolate_cells
+        else:
+            self.interpolate_cells = cells_interp
 
         if ens_interp == 'abba' or cells_interp == 'abba':
             self.interpolate_ens = 'abba'
@@ -981,7 +962,6 @@ class WaterData(object):
 
         # Combine all filter data and update processed properties
         self.all_valid_data()
-
 
     def filter_diff_vel(self, setting, threshold=None):
             """Applies filter to difference velocity.
@@ -1351,7 +1331,7 @@ class WaterData(object):
             distance_along_shiptrack = transect.boat_vel.compute_boat_track(transect)['distance_m']
             depth_selected = getattr(transect.depths, transect.depths.selected)
 
-            # Interpolate values for cells with 3-beam solutions from neighboring data
+            # Interpolate values for  invalid cells with from neighboring data
             interpolated_data = abba_idw_interpolation(data_list=[self.u_processed_mps, self.v_processed_mps],
                                                        valid_data=valid,
                                                        cells_above_sl=self.valid_data[6, :, :],
@@ -1362,8 +1342,10 @@ class WaterData(object):
 
             # Compute interpolated to measured ratios and apply filter criteria
             for n in range(len(interpolated_data[0])):
-                self.u_processed_mps[interpolated_data[0][n][0]]=interpolated_data[0][n][1]
-                self.v_processed_mps[interpolated_data[1][n][0]] = interpolated_data[1][n][1]
+                self.u_processed_mps[interpolated_data[0][n][0]] = \
+                    interpolated_data[0][n][1]
+                self.v_processed_mps[interpolated_data[1][n][0]] = \
+                    interpolated_data[1][n][1]
 
     def interpolate_ens_next(self):
         """Applies data from the next valid ensemble for ensembles with invalid water velocities."""
@@ -1375,11 +1357,11 @@ class WaterData(object):
         valid = self.valid_data[0]
         self.u_processed_mps = np.copy(self.u_mps)
         self.v_processed_mps = np.copy(self.v_mps)
-        self.u_processed_mps[valid[0] == False] = np.nan
-        self.v_processed_mps[valid[0] == False] = np.nan
+        self.u_processed_mps[valid == False] = np.nan
+        self.v_processed_mps[valid == False] = np.nan
         
         # Identifying ensembles with no valid data
-        valid_ens = np.any(valid)
+        valid_ens = np.any(valid, axis=0)
         n_ens = len(valid_ens)
         
         # Set the invalid ensembles to the data in the next valid ensemble
@@ -1401,11 +1383,11 @@ class WaterData(object):
         self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
-        self.u_processed_mps[valid[0] == False] = np.nan
-        self.v_processed_mps[valid[0] == False] = np.nan
+        self.u_processed_mps[valid == False] = np.nan
+        self.v_processed_mps[valid == False] = np.nan
         
         # Determine ensembles with valid data
-        valid_ens = np.any(valid)
+        valid_ens = np.any(valid, axis=0)
         
         # Process each ensemble beginning with the second ensemble
         n_ens = len(valid_ens)
@@ -1435,11 +1417,11 @@ class WaterData(object):
         self.v_processed_mps = np.copy(self.v_mps)
         
         # Set invalid data to nan in processed velocity data variables
-        self.u_processed_mps[valid[0] == False] = np.nan
-        self.v_processed_mps[valid[0] == False] = np.nan
+        self.u_processed_mps[valid == False] = np.nan
+        self.v_processed_mps[valid == False] = np.nan
         
         # Determine ensembles with valid data
-        valid_ens = np.any(valid)
+        valid_ens = np.any(valid, axis=0)
         
         # Process each ensemble beginning with the second ensemble
         n_ens = len(valid_ens)
@@ -1470,19 +1452,31 @@ class WaterData(object):
         self.v_processed_mps[valid == False] = np.nan
 
     def interpolate_cells_none(self):
-        """Applies no interpolation for invalid cells."""
+        """Applies no interpolation for invalid cells that are not part of
+        an invalid ensemble."""
 
         self.interpolate_cells = 'None'
         
         valid = self.valid_data[0]
 
+        # Determine ensembles with valid data
+        valid_ens = np.any(valid, axis=0)
+
+        # Process each ensemble beginning with the second ensemble
+        n_ens = len(valid_ens)
+
         # Initialize processed velocity data variables
         self.u_processed_mps = np.copy(self.u_mps)
         self.v_processed_mps = np.copy(self.v_mps)
         
-        # Set invalid data to nan in processed velocity data variables
-        self.u_processed_mps[valid == False] = np.nan
-        self.v_processed_mps[valid == False] = np.nan
+        for n in range(n_ens):
+            # If ensemble is invalid fill in with previous ensemble
+            if valid_ens[n]:
+                invalid_cells = np.logical_not(valid[:, n])
+                self.u_processed_mps[invalid_cells,
+                                     n] = np.nan
+                self.v_processed_mps[invalid_cells,
+                                     n] = np.nan
         
     def interpolate_ens_linear(self, transect):
         """Uses 2D linear interpolation to estimate values for invalid ensembles.
