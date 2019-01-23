@@ -10,6 +10,7 @@ from Classes.MatSonTek import MatSonTek
 from Classes.ComputeExtrap import ComputeExtrap
 from Classes.ExtrapQSensitivity import ExtrapQSensitivity
 from Classes.Uncertainty import Uncertainty
+from Classes.Oursin import Oursin
 from Classes.QAData import QAData
 
 
@@ -40,6 +41,8 @@ class Measurement(object):
         List of discharge objects of QComp
     uncertainty: Uncertainty
         Object of Uncertainty
+    oursin: Oursin
+        Object of Oursin         
     initial_settings: dict
         Dictionary of all initial processing settings
     qa: QAData
@@ -81,6 +84,7 @@ class Measurement(object):
         self.processing = None
         self.discharge = []
         self.uncertainty = None
+        self.oursin = None
         self.initial_settings = None
         self.qa = None
         self.user_rating = None
@@ -141,6 +145,10 @@ class Measurement(object):
                         self.discharge.append(q)
                 self.uncertainty = Uncertainty()
                 self.uncertainty.compute_uncertainty(self)
+                
+                self.oursin = Oursin() 
+                self.oursin.compute_oursin(self, mode="Default")  
+                
                 self.qa = QAData(self)
 
     def load_trdi(self, mmt_file, transect_type='Q', checked=False):
@@ -555,6 +563,7 @@ class Measurement(object):
 
         # TODO write uncertainty class
         self.uncertainty = None
+        self.oursin = None
 
         # TODO write qa class
         self.qa = None
@@ -857,6 +866,7 @@ class Measurement(object):
         self.compute_discharge()
 
         # TODO add uncertainty
+        # TODO add oursin uncertainty
         # TODO add quality assurance
 
     def current_settings(self):
