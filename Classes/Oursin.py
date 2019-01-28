@@ -1,17 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 23 09:59:49 2019
-@author: aurelien.despax
-Contact: aurelien.despax@irstea.fr
-"""
-
 import numpy as np
 import pandas as pd
 from scipy.stats import t
 import copy
+#copy.copy()
+#copy.deepcopy()
 
 class Oursin(object):
-    """Similar to Uncertainty object /// Computes the uncertainty of a measurement.
+    """Computes the uncertainty of a measurement.
 
     Attributes
     ----------
@@ -259,7 +254,8 @@ class Oursin(object):
         
         # Compute uncertainties based on simulations using staticmethods
         # TODO refaire le calcul pour u_meas à partir des courbes de Plan ADCP 
-        self.u_meas_list = self.u_ens_list # = [] # uncertainty of measured area (-> PlanADCP)
+        self.u_meas_compute(meas) # = [] # uncertainty of measured area (-> PlanADCP) 
+        #self.u_meas_list = self.u_ens_list
         self.u_ev_list = 100*Oursin.apply_u_rect([self.simu1,self.simu17])/self.simu1
         self.u_badens_list = 100*Oursin.apply_u_rect([self.simu13,self.simu14,self.simu15])/self.simu1 
         self.u_badcell_list = 100*Oursin.apply_u_rect([self.simu18,self.simu19,self.simu20,self.simu21,self.simu22,self.simu23,self.simu24,self.simu25])/self.simu1
@@ -274,6 +270,162 @@ class Oursin(object):
         # Estimate the total measurement uncertainty and the combined uncertainty for each transects
         self.compute_combined_uncertainty()
   
+    def func_pow(x, a=None, b=None, c=None):
+        return a * np.exp(-b * x) + c
+
+    def u_meas_compute(self,meas):
+        u_meas_list=[]
+        ind_transect = 0
+        u_prct_dzi = 0.5 # k=1
+        r_corr = 1 # Correlation between errors of contiguous cells
+        
+        for transect in meas.transects:
+            #print(ind_transect)
+            # ---- Computation of v_boatm by ensemble
+            v_bm_ens_abs = np.absolute(meas.transects[ind_transect].boat_vel.bt_vel.d_mps)
+            v_bm_ens_abs[np.isnan(v_bm_ens_abs)] = 0.00    
+            d_ens = meas.transects[ind_transect].depths.bt_depths.depth_processed_m # depth by ens 
+            freq_v_boat_adcp = np.asarray(list(meas.transects[ind_transect].boat_vel.bt_vel.frequency_khz))    
+            u_prct_v_boatm_ens = 0.01*( (0.03*v_bm_ens_abs)+((1+(0.3*v_bm_ens_abs))/(1+(0.001*d_ens*freq_v_boat_adcp))) ) / v_bm_ens_abs
+            u_prct_v_boatm_ens[u_prct_v_boatm_ens == np.inf] = 0 # replace inf by 0
+            
+            #-----Cell size [m] for each ensemble ARRAY ## meas.transects[ind_transect].depths.bt_depths.depth_cell_size_m # meas.transects[ind_transect].depths.bt_depths.depth_cell_size_m.shape
+            h_cell_mean_ens = np.mean(meas.transects[ind_transect].depths.bt_depths.depth_cell_size_m,axis=0)
+            
+            #-----Mean velocity [m/s] for each ensemble # ARRAY
+            wv_mean_ens = meas.discharge[ind_transect].middle_ens/meas.transects[ind_transect].depths.bt_depths.depth_processed_m
+
+            #-----Computation of v_water by ensembles
+            if meas.transects[0].adcp.manufacturer == 'SonTek': # OTHER fit: a=7.412, b=4.178, c=4.749
+                freq_adcp = None
+                mode_adcp = None
+                water_ping = None
+                #u_prct_v_water_ens=[0.01*self.func_pow(s,7.412,4.178,4.749) for s in list(h_cell_mean_ens)]               
+                u_prct_v_water_ens=np.array([0.01*7.412*np.exp(-4.178 * xi) +4.749 for xi in h_cell_mean_ens])    
+                #u_prct_v_water_ens=[0.01*7.412*np.exp(-4.178 * s) +4.749 for s in list(h_cell_mean_ens)] 
+            elif meas.transects[0].adcp.manufacturer =='TRDI' : 
+                # meas.transects[0].adcp.frequency_khz
+                # meas.transects[0].adcp.configuration_commands
+                #meas.transects[0].adcp.model
+                
+                #meas.transects[0].w_vel.water_mode
+    
+                #-----Criterion 1: water ping
+#                if meas.transects[0].adcp.configuration_commands == None:
+#                    water_ping = 1
+#                    print('Water ping unknown')
+                if [True for s in list(meas.transects[0].adcp.configuration_commands) if "WP" in s]:
+                    water_ping = int([s for s in list(meas.transects[0].adcp.configuration_commands) if "WP" in s][0].split('WP')[1])
+                else:
+                    water_ping = 1
+                    
+                #-----Criterion 2: water mode adcp
+                if int(meas.transects[0].w_vel.water_mode)==1:
+                    mode_adcp = 1
+                    if water_ping ==1:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,a=53.156, 5.553, 3.098) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,53.156, 5.553, 3.098) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*53.156*np.exp(-5.553 * xi) +3.098 for xi in h_cell_mean_ens])
+                    else:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,a=23.805, 5.618, 1.445) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,23.805, 5.618, 1.445) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*23.805*np.exp(-5.618 * xi) +1.445 for xi in h_cell_mean_ens])
+                        
+                elif int(meas.transects[0].w_vel.water_mode)==5:
+                    mode_adcp = 5
+                    if water_ping ==1:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,a=0.719, 10.534, 0.179) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,0.719, 10.534, 0.179) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*0.719*np.exp(-10.534 * xi) +0.179 for xi in h_cell_mean_ens])
+                    else:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,a=0.307, 9.538, 0.080) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,0.307, 9.538, 0.080) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*0.307*np.exp(-9.538 * xi) +0.080 for xi in h_cell_mean_ens])
+                        
+                elif int(meas.transects[0].w_vel.water_mode)==11:
+                    mode_adcp = 11
+                    if water_ping ==1:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,1.512, 9.907, 0.419) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,1.512, 9.907, 0.419) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*1.512*np.exp(-9.907 * xi) +0.419 for xi in h_cell_mean_ens])
+                    else:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,0.719, 10.534, 0.179) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,0.719, 10.534, 0.179) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*0.719*np.exp(-10.534 * xi) +0.179 for xi in h_cell_mean_ens])
+                        
+                elif int(meas.transects[0].w_vel.water_mode)==12:
+                    mode_adcp = 12 
+                    if water_ping ==1:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,21.735, 5.620, 1.320) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,21.735, 5.620, 1.320) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*21.735*np.exp(-5.620 * xi) +1.320 for xi in h_cell_mean_ens])
+                    else:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,9.729, 5.634, 0.594) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,9.729, 5.634, 0.594) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*9.729*np.exp(-5.634 * xi) +0.594 for xi in h_cell_mean_ens])
+                        
+                else: # elif: int(meas.transects[0].w_vel.water_mode)==8 or OTHER water mode
+                    mode_adcp = 8
+                    if water_ping ==1:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,8.298, 10.008, 2.099) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,8.298, 10.008, 2.099) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*8.298*np.exp(-10.008 * xi) +2.099 for xi in h_cell_mean_ens])
+                    else:
+#                        u_prct_v_water_ens=[0.01*self.func_pow(s,3.719, 10.043, 0.939) for s in list(h_cell_mean_ens)]
+#                        u_prct_v_water_ens=np.array([0.01*self.func_pow(xi,3.719, 10.043, 0.939) for xi in h_cell_mean_ens])
+                        u_prct_v_water_ens=np.array([0.01*3.719*np.exp(-10.043 * xi) +0.939 for xi in h_cell_mean_ens])
+                #-----Criterion 3: frequence meas.transects[ind_transect].w_vel.frequency
+                # not taken into account now due to possible variation in frequences with sontek
+                # we should wait for a more explicit equation
+                
+
+
+                #-----Equation 
+#                RG_600_1ping_Mode1 fit: a=53.572, 2.875, c=3.146
+#                RG_600_1ping_Mode5 fit: a=1.387, b=12.760, c=0.255
+#                RG_600_1ping_Mode8 fit: a=10.946, b=10.674, c=2.531
+#                RG_600_1ping_Mode11 fit: a=2.053, b=10.063, c=0.569
+#                RG_600_1ping_Mode12 fit: a=30.460, b=4.608, c=2.415
+#                RG_600_5ping_Mode1 fit: a=30.461, b=4.058, c=2.306
+#                RG_600_5ping_Mode5 fit: a=0.816, b=15.352, c=0.115
+#                RG_600_5ping_Mode8 fit: a=4.842, b=10.598, c=1.133
+#                RG_600_5ping_Mode11 fit: a=0.910, b=9.805, c=0.251
+#                RG_600_5ping_Mode12 fit: a=13.615, b=4.607, c=1.081
+                
+#                RG_1200_1ping_Mode1 fit: a=53.156, b=5.553, c=3.098 ##
+#                RG_1200_1ping_Mode5 fit: a=0.719, b=10.534, c=0.179 ##
+#                RG_1200_1ping_Mode8 fit: a=8.298, b=10.008, c=2.099 ##
+#                RG_1200_1ping_Mode11 fit: a=1.512, b=9.907, c=0.419 ##
+#                RG_1200_1ping_Mode12 fit: a=21.735, b=5.620, c=1.320 ##
+                
+#                RG_1200_5ping_Mode1 fit: a=23.805, b=5.618, c=1.445 ##
+#                RG_1200_5ping_Mode5 fit: a=0.307, b=9.538, c=0.080 ##
+#                RG_1200_5ping_Mode8 fit: a=3.719, b=10.043, c=0.939
+#                RG_1200_5ping_Mode11 fit: a=0.719, b=10.534, c=0.179 ##
+#                RG_1200_5ping_Mode12 fit: a=9.729, b=5.634, c=0.594 ##
+    
+            else:
+#                OTHER fit: a=7.412, b=4.178, c=4.749
+                 u_prct_v_water_ens=[0.01*self.func_pow(s,a=7.412, b=4.178, c=4.749) for s in list(h_cell_mean_ens)]                    
+                
+            u_prct_v_water_ens[u_prct_v_water_ens == np.inf] = 0 # replace inf by 0
+            u_prct_v_water_ens[u_prct_v_water_ens == -np.inf] = 0 # replace -inf by 0
+            
+            # ----- Computation of u_meas
+            Q_2_tran = meas.discharge[ind_transect].total**2
+            q_2_ens  = meas.discharge[ind_transect].middle_ens**2
+            n_cell_ens = meas.transects[ind_transect].w_vel.cells_above_sl.sum(axis=0)
+    
+            u_2_meas = q_2_ens*(u_prct_v_boatm_ens**2 + (1/n_cell_ens)*(u_prct_v_water_ens**2 + u_prct_v_water_ens**2 * r_corr * (n_cell_ens-1) + u_prct_dzi**2 ))
+            u_2_meas = np.nan_to_num(u_2_meas)
+            u_2_prct_meas = u_2_meas.sum()/Q_2_tran
+            u_prct_meas = u_2_prct_meas**0.5
+            
+            u_meas_list.append(u_prct_meas)
+            #print('OK append')
+            ind_transect += 1    
+        
+        self.u_meas_list= u_meas_list  
     
     def run_oursin_simulations(self,meas):
         coeff_user = 1/6
@@ -389,59 +541,60 @@ class Oursin(object):
             self.simu12_top.append(simedge.discharge[ind_transect].top)
             self.simu12_left.append(simedge.discharge[ind_transect].left)
             self.simu12_right.append(simedge.discharge[ind_transect].right)
+           
             
             # Simulation 13 Bad ensembles (last ens)
-            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],target='Ensembles', interp_type= 'HoldLast')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadens.compute_discharge()
             self.simu13.append(simbadens.discharge[ind_transect].total)
            
             # Simulation 14 Bad ensembles (next ens)
-            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],target='Ensembles', interp_type= 'ExpandedT')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='ExpandedT', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadens.compute_discharge()
             self.simu14.append(simbadens.discharge[ind_transect].total)
             
             # Simulation 15 Bad ensembles (linear interpolation)
-            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],target='Ensembles', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='Hold', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadens.compute_discharge()
             self.simu15.append(simbadens.discharge[ind_transect].total) 
             
             # simu 18
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'TRDI')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu18.append(simbadcells.discharge[ind_transect].total)
            
             # simu 19
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'None')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='Hold9', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu19.append(simbadcells.discharge[ind_transect].total)
             
             # simu 20
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='Linear', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu20.append(simbadcells.discharge[ind_transect].total) 
          
             # simu 21
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu21.append(simbadcells.discharge[ind_transect].total) 
             
             # simu 22
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu22.append(simbadcells.discharge[ind_transect].total) 
             
             # simu 23
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu23.append(simbadcells.discharge[ind_transect].total) 
             
             # simu 24
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'TRDI')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu24.append(simbadcells.discharge[ind_transect].total) 
             
             # simu 25
-            simbadcells.transects[ind_transect].w_vel.apply_interpolation(simbadcells.transects[ind_transect],target='Cells', interp_type= 'Linear')# Enter desired interpolation method here)
+            simbadens.transects[ind_transect].w_vel.apply_interpolation(simbadens.transects[ind_transect],ens_interp='HoldLast', cells_interp= 'Linear')# Enter desired interpolation method here)
             simbadcells.compute_discharge()
             self.simu25.append(simbadcells.discharge[ind_transect].total) 
             
