@@ -214,7 +214,7 @@ class SaveMeasurementDialog(QtWidgets.QDialog):
         folder = self.defaultFolder(settings)
 
         # Create default file name
-        file_name = os.path.join(folder, datetime.datetime.today().strftime('%Y%m%d_%H%M%S_QRev.mat'))
+        file_name = os.path.join(folder, datetime.datetime.today().strftime('%Y%m%d_%H%M%S_py_QRev.mat'))
         # Get the full names (path + file) of the selected file
         self.full_Name = QtWidgets.QFileDialog.getSaveFileName(
             self, self.tr('Save File'), file_name,

@@ -22,6 +22,7 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
         self.setupUi(self)
         self.pushButton_4.clicked.connect(self.selectMeasurement)
         self.pushButton_3.clicked.connect(self.saveMeasurement)
+
     def selectMeasurement(self):
         self.select = OpenMeasurementDialog(self)
         self.select.exec_()
@@ -37,8 +38,12 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
 
             # Create measurement object
             self.meas = Measurement(in_file=self.select.fullName[0], source='TRDI', proc_type='QRev', checked=self.select.checked)
-
+            for transect in self.meas.transects:
+                transect.w_vel.apply_interpolation(transect=transect,
+                                                   ens_interp='HoldLast',
+                                                   cells_interp='Linear')
             print('TRDI')
+
         elif self.select.type == 'QRev':
             self.meas = Measurement(in_file=self.select.fullName, source='QRev')
         else:
@@ -48,9 +53,6 @@ class TestDialog(QtWidgets.QMainWindow, dsm_gui.Ui_MainWindow):
         # Create default file name
         save_file = SaveMeasurementDialog()
         Python2Matlab.save_matlab_file(self.meas, save_file.full_Name)
-
-
-
 
     def openFile(self):
         # Get the current folder setting. However, if the folder has not been previously defined create the Folder key

@@ -653,7 +653,8 @@ class Measurement(object):
         
         return depth_screening_setting
         
-    def change_sos(self, transect_idx=None, parameter=None, salinity=None, temperature=None, selected=None, speed=None):
+    def change_sos(self, transect_idx=None, parameter=None, salinity=None,
+                   temperature=None, selected=None, speed=None):
         """Applies a change in speed of sound to one or all transects
         and update the discharge and uncertainty computations
         
@@ -662,13 +663,15 @@ class Measurement(object):
         transect_idx: int
             Index of transect to change
         parameter: str
-            Speed of sound parameter to be changed ('temperatureSrc', 'temperature', 'salinity', 'sosSrc')
+            Speed of sound parameter to be changed ('temperatureSrc', 'temperature',
+            'salinity', 'sosSrc')
         salinity: float
             Salinity in ppt
         temperature: float
             Temperature in deg C
         selected: str
-            Selected speed of sound ('internal', 'computed', 'user') or temperature ('internal', 'user')
+            Selected speed of sound ('internal', 'computed', 'user') or
+            temperature ('internal', 'user')
         speed: float
             Manually supplied speed of sound for 'user' source
         """
@@ -714,8 +717,9 @@ class Measurement(object):
             if transect.boat_vel.selected != settings['NavRef']:
                 transect.change_nav_reference(update=False, new_nav_ref=settings['NavRef'])
                 if len(self.mb_tests) > 0:
-                    self.mb_tests = MovingBedTests.auto_use_2_correct(moving_bed_tests=self.mb_tests,
-                                                                      boat_ref=settings['NavRef'])
+                    self.mb_tests = MovingBedTests.auto_use_2_correct(
+                        moving_bed_tests=self.mb_tests,
+                        boat_ref=settings['NavRef'])
 
             # Changing the nav reference applies the current setting for
             # Composite tracks, check to see if a change is needed
@@ -743,7 +747,9 @@ class Measurement(object):
             transect.boat_filters(update=False, **bt_kwargs)
 
             # BT Interpolation
-            transect.boat_interpolations(update=False, target='BT', method=settings['BTInterpolation'])
+            transect.boat_interpolations(update=False,
+                                         target='BT',
+                                         method=settings['BTInterpolation'])
 
             # GPS filter settings
             if transect.gps is not None:
@@ -782,7 +788,9 @@ class Measurement(object):
                     # Apply VTG filters
                     transect.gps_filters(update=False, **vtg_kwargs)
 
-                transect.boat_interpolations(update=False, target='GPS', method=settings['GPSInterpolation'])
+                transect.boat_interpolations(update=False,
+                                             target='GPS',
+                                             method=settings['GPSInterpolation'])
 
             # Set depth reference
             transect.set_depth_reference(update=False, setting=settings['depthReference'])
@@ -852,7 +860,8 @@ class Measurement(object):
                                                cells_interp=settings['WTCellInterpolation'])
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
-        self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
+        self.extrap_fit.q_sensitivity.populate_data(transects=self.transects,
+                                                    extrap_fits=self.extrap_fit.sel_fit)
 
         self.compute_discharge()
 
@@ -897,9 +906,11 @@ class Measurement(object):
         # Bottom track settings
         settings['BTbeamFilter'] = self.transects[first_idx].boat_vel.bt_vel.beam_filter
         settings['BTdFilter'] = self.transects[first_idx].boat_vel.bt_vel.d_filter
-        settings['BTdFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel.d_filter_threshold
+        settings['BTdFilterThreshold'] = \
+            self.transects[first_idx].boat_vel.bt_vel.d_filter_threshold
         settings['BTwFilter'] = self.transects[first_idx].boat_vel.bt_vel.w_filter
-        settings['BTwFilterThreshold'] = self.transects[first_idx].boat_vel.bt_vel.w_filter_threshold
+        settings['BTwFilterThreshold'] = \
+            self.transects[first_idx].boat_vel.bt_vel.w_filter_threshold
         settings['BTsmoothFilter'] = self.transects[first_idx].boat_vel.bt_vel.smooth_filter
         settings['BTInterpolation'] = self.transects[first_idx].boat_vel.bt_vel.interpolate
         
@@ -910,7 +921,8 @@ class Measurement(object):
             if transect.boat_vel.gga_vel is not None:
                 settings['ggaDiffQualFilter'] = transect.boat_vel.gga_vel.gps_diff_qual_filter
                 settings['ggaAltitudeFilter'] = transect.boat_vel.gga_vel.gps_altitude_filter
-                settings['ggaAltitudeFilterChange'] = transect.boat_vel.gga_vel.gps_altitude_filter_change
+                settings['ggaAltitudeFilterChange'] = \
+                    transect.boat_vel.gga_vel.gps_altitude_filter_change
                 settings['GPSHDOPFilter'] = transect.boat_vel.gga_vel.gps_HDOP_filter
                 settings['GPSHDOPFilterMax'] = transect.boat_vel.gga_vel.gps_HDOP_filter_max
                 settings['GPSHDOPFilterChange'] = transect.boat_vel.gga_vel.gps_HDOP_filter_change
@@ -1154,7 +1166,8 @@ class Measurement(object):
 
         return settings
 
-    def change_extrapolation(self, method, top=None, bot=None, exp=None, extents=None, threshold=None):
+    def change_extrapolation(self, method, top=None, bot=None,
+                             exp=None, extents=None, threshold=None):
         """Applies the selected extrapolation method to each transect.
 
         Parameters
@@ -1202,7 +1215,8 @@ class Measurement(object):
                                                 exp=self.extrap_fit.sel_fit[-1].exponent)
 
         self.extrap_fit.q_sensitivity = ExtrapQSensitivity()
-        self.extrap_fit.q_sensitivity.populate_data(transects=self.transects, extrap_fits=self.extrap_fit.sel_fit)
+        self.extrap_fit.q_sensitivity.populate_data(transects=self.transects,
+                                                    extrap_fits=self.extrap_fit.sel_fit)
 
         self.compute_discharge()
 
@@ -1218,6 +1232,7 @@ class Measurement(object):
                     long_field_names=True,
                     do_compression=False,
                     oned_as='row')
+
 
 if __name__ == '__main__':
     pass

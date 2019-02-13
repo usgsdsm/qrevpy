@@ -1742,7 +1742,7 @@ def allocate_transects(mmt, transect_type='Q', checked=False):
     if transect_type == 'Q':
         # Identify discharge transect files to load
         if checked:
-            file_names = [transect.Files[0] for transect in mmt.mbt_transects if transect.Checked == 1]
+            file_names = [transect.Files[0] for transect in mmt.transects if transect.Checked == 1]
         else:
             file_names = [transect.Files[0] for transect in mmt.transects]
 

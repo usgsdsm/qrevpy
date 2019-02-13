@@ -54,7 +54,7 @@ class BatchDialog(QtWidgets.QMainWindow, batch.Ui_mainWindow):
 
         # Get top level folder from user
         self.top_folder = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Top Level Folder'))
-
+        self.top_folder = self.top_folder.replace('/','\\')
         # Find specified type of files
         if self.rb_trdi.isChecked():
             self.get_files(extension='.mmt')

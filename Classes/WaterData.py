@@ -1559,7 +1559,7 @@ class WaterData(object):
         # TODO Seems like this might be the best way to interpolate all invalid data.
         self.interpolate_ens = 'Linear'
 
-        valid = self.valid_data[0]
+        valid = self.valid_data[0, :, :]
 
         # Initialize processed velocity data variables
         self.u_processed_mps = np.copy(self.u_mps)
